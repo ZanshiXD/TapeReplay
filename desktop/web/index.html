@@ -60,34 +60,73 @@ button,input,select{font:inherit;color:inherit}
 .brand{font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:13px;display:flex;align-items:center;gap:8px;white-space:nowrap}
 button.brand{background:none;border:none;color:var(--fg);cursor:pointer;padding:4px 6px;margin:-4px -6px;border-radius:5px;font-family:inherit}
 button.brand:hover{background:var(--raise)}
-.home{position:fixed;inset:0;z-index:15;background:var(--bg);overflow:auto;display:grid;place-items:center;padding:24px 16px}
+/* home: a centered column; a card to continue the latest session, three actions, recent sessions as one list */
+.home{position:fixed;inset:0;z-index:15;background:var(--bg);overflow:auto;overscroll-behavior:contain;display:flex;justify-content:center;
+  padding:calc(env(safe-area-inset-top,0px) + 28px) max(18px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 28px) max(18px,env(safe-area-inset-left,0px))}
 .home[hidden]{display:none}
-.hwrap{width:min(920px,100%);display:flex;flex-direction:column;gap:28px}
-.hbrand .brand{font-size:20px;gap:12px}
-.hbrand .brand i{width:14px;height:24px}
-.hbrand p{margin:8px 0 0;color:var(--muted);font-size:14px}
-.hgrid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:24px}
-.hcol{display:flex;flex-direction:column;gap:10px;min-width:0}
-.hcol h2{margin:0 0 2px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.hbig{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:16px 18px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;font-family:inherit}
-.hbig b{font-size:16px}
-.hbig span{font-size:12.5px;color:var(--muted)}
-.hbig:hover{border-color:var(--accent)}
-.hbig.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.hbig.primary span{color:var(--accent-ink);opacity:.8}
-.htour{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 14px;border:1px dashed var(--line);border-radius:10px;font-size:12.5px}
-.htour div{display:flex;flex-direction:column;gap:2px}
-.htour span{color:var(--muted)}
-.htour button{white-space:nowrap;background:var(--panel);border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:12.5px}
-.htour button:hover{background:var(--accent);color:var(--accent-ink)}
-.hlist{display:flex;flex-direction:column;gap:6px}
-.hitem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;text-align:left;padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;font-family:inherit}
-.hitem:hover{border-color:var(--accent)}
-.hitem b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hitem .pnl{font-family:var(--f-num);font-size:13px;text-align:right}
-.hitem .sub{grid-column:1/-1;font-size:11.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px}
-.hlink{align-self:flex-start;background:none;border:none;color:var(--accent);cursor:pointer;padding:4px 0;font-size:12.5px;font-family:inherit}
-@media (max-width:720px){.hgrid{grid-template-columns:1fr}}
+.hwrap{width:min(680px,100%);display:flex;flex-direction:column;gap:18px;margin:auto 0}
+.hhead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.hlogo{font-size:15px;gap:10px;letter-spacing:.1em}
+.hlogo i{width:12px;height:20px}
+.hnav{display:flex;gap:4px}
+.hghost{background:none;border:1px solid transparent;border-radius:8px;color:var(--muted);padding:7px 11px;font:500 13px var(--f-ui);cursor:pointer}
+.hghost:hover{color:var(--fg);background:var(--raise)}
+.htag{margin:-6px 0 4px;color:var(--muted);font-size:14.5px;line-height:1.45;text-wrap:pretty}
+/* continue card */
+.hres{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:14px 16px;width:100%;text-align:left;padding:18px 20px;border-radius:14px;cursor:pointer;
+  border:1px solid var(--line);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 9%,var(--panel)),var(--panel));color:var(--fg);font-family:inherit;
+  box-shadow:0 1px 0 color-mix(in srgb,var(--fg) 4%,transparent) inset}
+.hres:hover{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
+.hreye{grid-column:1/-1;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.hrmain{display:flex;flex-direction:column;gap:6px;min-width:0}
+.hrmain b{font-size:20px;font-weight:600;letter-spacing:.01em}
+.hrmeta{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:3px 12px}
+.hrside{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.hrpnl{font:600 20px var(--f-num)}
+.hrgo{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--accent-ink);border-radius:9px;padding:8px 14px;font-weight:600;font-size:13.5px;white-space:nowrap}
+.hrgo svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* actions */
+.hacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.hact{display:flex;align-items:center;gap:12px;text-align:left;padding:14px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;font-family:inherit;min-width:0}
+.hact:hover{border-color:color-mix(in srgb,var(--fg) 25%,var(--line))}
+.hact>svg{flex:none;width:34px;height:34px;padding:8px;border-radius:9px;background:var(--raise);fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.hact>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hact b{font-size:14.5px;font-weight:600}
+.hact span span{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hact.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.hact.primary>svg{background:color-mix(in srgb,var(--accent-ink) 14%,transparent)}
+.hact.primary span span{color:var(--accent-ink);opacity:.78}
+.hact:disabled{opacity:.6;cursor:default}
+/* recent sessions: one grouped list */
+.hrecent{display:flex;flex-direction:column;gap:8px}
+.hsec{display:flex;align-items:center;justify-content:space-between;padding:0 4px;min-height:22px}
+.hsec h2{margin:0;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.hlist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+.hitem{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 16px;background:none;border:none;border-top:1px solid var(--line);color:var(--fg);cursor:pointer;font-family:inherit}
+.hitem:first-child{border-top:none}
+.hitem:hover{background:var(--raise)}
+.hil{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.hil b{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hil span{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hir{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none}
+.hir .pnl{font:500 13.5px var(--f-num);white-space:nowrap}
+.hir small{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.hitem .chev{width:14px;height:14px;flex:none;fill:none;stroke:var(--muted);stroke-width:1.6;opacity:.6}
+.hempty{padding:18px 16px;color:var(--muted);font-size:13px;line-height:1.5}
+.hlink{align-self:flex-start;background:none;border:none;color:var(--accent);cursor:pointer;padding:2px 0;font:500 12.5px var(--f-ui)}
+@media (max-width:640px){
+  .home{padding-top:calc(env(safe-area-inset-top,0px) + 18px)}
+  .hwrap{margin:0;gap:16px}
+  .hnav .hghost{padding:7px 9px}
+  .hres{grid-template-columns:minmax(0,1fr);padding:16px}
+  .hrside{flex-direction:row;align-items:center;justify-content:space-between}
+  .hrgo{padding:10px 16px}
+  .hacts{grid-template-columns:1fr 1fr}
+  .hact.primary{grid-column:1/-1;padding:16px}
+  .hact{padding:12px}
+  .hact>svg{width:30px;height:30px;padding:7px}
+  .hitem{padding:12px 14px;min-height:56px}
+}
 /* the chart library's required credit (Home, More, shortcuts) */
 .credit{margin:0;font-size:11.5px;line-height:1.5;color:var(--muted)}
 .credit a{color:var(--muted);text-decoration:underline;text-underline-offset:2px}
@@ -186,17 +225,39 @@ html.m .mmore .credit{padding:4px 4px 12px}
 #legend .k{color:var(--muted)}
 .tip{position:fixed;z-index:60;width:max-content;max-width:250px;background:var(--raise);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:7px 10px;font-size:12px;pointer-events:none;display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:baseline}
 .tip[hidden]{display:none}
+/* tour: a dimmed screen with a spotlight on what the step is about, and a card */
 .tour{position:fixed;inset:0;z-index:70}
-.tspot{position:fixed;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.58);border:2px solid var(--accent);transition:all .2s ease;pointer-events:none}
-.tspot.none{width:0!important;height:0!important;left:50%!important;top:50%!important;border:none}
-.tcard{position:fixed;width:min(340px,calc(100vw - 16px));background:var(--raise);border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.4);padding:14px 16px;display:flex;flex-direction:column;gap:8px;transition:left .2s ease,top .2s ease}
+.tspot{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px rgba(4,6,10,.66),0 0 0 2px var(--accent),0 0 24px 2px color-mix(in srgb,var(--accent) 45%,transparent);
+  transition:left .32s cubic-bezier(.2,.8,.2,1),top .32s cubic-bezier(.2,.8,.2,1),width .32s cubic-bezier(.2,.8,.2,1),height .32s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.tspot.none{left:50%!important;top:50%!important;width:0!important;height:0!important;box-shadow:0 0 0 9999px rgba(4,6,10,.72)}
+.tcard{position:fixed;width:min(360px,calc(100vw - 24px));background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.45);
+  padding:16px 18px 14px;display:flex;flex-direction:column;gap:8px;transition:left .32s cubic-bezier(.2,.8,.2,1),top .32s cubic-bezier(.2,.8,.2,1);animation:tcin .28s ease-out}
+@keyframes tcin{from{opacity:0;transform:translateY(6px)}}
+.tprog{height:3px;border-radius:2px;background:var(--line);overflow:hidden;margin-bottom:4px}
+.tprog i{display:block;height:100%;background:var(--accent);border-radius:2px;transition:width .3s ease}
 .thead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-.thead b{font-size:14.5px}
-.thead span{font-size:11px;color:var(--muted);font-family:var(--f-num)}
-.tcard p{margin:0;font-size:13px;line-height:1.5;color:var(--fg)}
-.tbtns{display:flex;gap:6px;justify-content:flex-end;align-items:center;margin-top:2px}
-.tbtns .tskip{margin-right:auto;background:none;border:none;color:var(--muted);padding:4px 0;cursor:pointer}
-.tbtns .tskip:empty{visibility:hidden}
+.teye{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.tnum{font-size:11.5px;color:var(--muted);font-family:var(--f-num)}
+.tcard h3{margin:0;font-size:17px;font-weight:600;line-height:1.3;text-wrap:balance}
+.tcard p{margin:0;font-size:13.5px;line-height:1.55;color:color-mix(in srgb,var(--fg) 82%,var(--muted));text-wrap:pretty}
+.tbtns{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:8px}
+.tbtns button{border-radius:9px;padding:8px 14px;font:500 13.5px var(--f-ui);cursor:pointer;border:1px solid var(--line);background:var(--raise);color:var(--fg)}
+.tbtns .primary{border-color:var(--accent);font-weight:600}
+.tbtns .tskip{margin-right:auto;background:none;border-color:transparent;color:var(--muted);padding:8px 2px}
+.tbtns .tskip:hover{color:var(--fg)}
+/* the welcome and closing cards: centered, a little larger, with the app's mark */
+.tcard.hero{left:50%!important;top:50%!important;transform:translate(-50%,-50%);width:min(420px,calc(100vw - 32px));padding:24px 24px 18px;gap:10px;animation:none}
+.tcard.hero h3{font-size:22px}
+.tcard.hero p{font-size:14.5px}
+.tcard.hero .tprog{display:none}
+.tmark{width:44px;height:44px;border-radius:12px;background:var(--raise);border:1px solid var(--line);display:grid;place-items:center;margin-bottom:6px}
+.tmark i{display:block;width:14px;height:22px;background:linear-gradient(var(--up) 0 45%,transparent 45% 55%,var(--down) 55%);border-radius:2px}
+/* phones: the card docks to the top or bottom edge */
+html.m .tcard:not(.hero){left:12px!important;right:12px;width:auto;top:auto;bottom:auto}
+html.m .tcard.top{top:calc(env(safe-area-inset-top,0px) + 12px)!important}
+html.m .tcard.bottom{bottom:calc(env(safe-area-inset-bottom,0px) + 12px)!important}
+html.m .tbtns button{min-height:42px;padding:0 16px}
+@media (prefers-reduced-motion: reduce){.tspot,.tcard,.tprog i{transition:none}.tcard{animation:none}}
 .tip b{font-size:12.5px;font-weight:600}
 .tip kbd{font-family:var(--f-num);font-size:10.5px;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:0 4px;white-space:nowrap}
 .tip span{grid-column:1/-1;color:var(--muted);line-height:1.4}
@@ -1118,26 +1179,30 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
 <!-- home: shown at launch and from the logo -->
 <div id="home" class="home" hidden>
   <div class="hwrap">
-    <header class="hbrand">
-      <div class="brand"><i></i>Tape Replay</div>
-      <p>Replay the futures tape bar by bar and trade it as if it were live.</p>
+    <header class="hhead">
+      <div class="brand hlogo"><i></i>Tape Replay</div>
+      <nav class="hnav"><button id="hTour" class="hghost">Take the tour</button><button id="hLib" class="hghost">Library</button></nav>
     </header>
-    <div class="hgrid">
-      <section class="hcol">
-        <h2>Start</h2>
-        <button id="hNew" class="hbig primary"><b>New session</b><span id="hNewSub">Pick the data's start date, costs and rules</span></button>
-        <button id="hData" class="hbig"><b>Other data</b><span>Your Library files, or import CSV and DBN files</span></button>
-        <div id="hTourBox" class="htour">
-          <div><b>New here?</b><span>A one-minute tour of the chart, orders, drawings and replay controls.</span></div>
-          <button id="hTour">Take the tour</button>
-        </div>
-      </section>
-      <section class="hcol">
-        <h2>Continue</h2>
-        <div id="hList" class="hlist"><div class="empty">Loading…</div></div>
-        <button id="hAll" class="hlink">All backtests in the Library →</button>
-      </section>
-    </div>
+    <p class="htag">Replay the futures tape bar by bar and trade it as if it were live.</p>
+    <div id="hResume" class="hresume" hidden></div>
+    <section class="hacts" aria-label="Start">
+      <button id="hNew" class="hact primary">
+        <svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></svg>
+        <span><b>New session</b><span id="hNewSub">Pick a start date and go</span></span>
+      </button>
+      <button id="hData" class="hact">
+        <svg viewBox="0 0 20 20"><path d="M10 3v9M6 8l4 4 4-4M4 14v2.5h12V14"/></svg>
+        <span><b>Import data</b><span>Databento or CSV</span></span>
+      </button>
+      <button id="hLib2" class="hact">
+        <svg viewBox="0 0 20 20"><rect x="3" y="3.5" width="14" height="13" rx="2"/><path d="M3 8h14M7.5 8v8.5"/></svg>
+        <span><b>Library</b><span>Sessions and data</span></span>
+      </button>
+    </section>
+    <section class="hrecent" aria-labelledby="hRecentT">
+      <div class="hsec"><h2 id="hRecentT">Recent sessions</h2><button id="hAll" class="hlink">See all</button></div>
+      <div id="hList" class="hlist"><div class="hempty">Loading…</div></div>
+    </section>
     <footer class="credit">Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™, © TradingView, Inc. Built-in data is generated for practice, not real market data.</footer>
   </div>
 </div>
@@ -1860,9 +1925,13 @@ const PALETTES = [
   { id: 'oled', name: 'True black', kind: 'dark', note: 'For OLED screens', v: { bg: '#000000', panel: '#000000', raise: '#0e0e0e', line: '#262626', grid: '#0d0d0d', fg: '#ececec', muted: '#8c8c8c', accent: '#e2a63c', 'accent-ink': '#1b1306', up: '#22c58b', down: '#ff5a52', ma2: '#7f9cf5' } },
   { id: 'forest', name: 'Forest', kind: 'dark', v: { bg: '#0c1411', panel: '#111c17', raise: '#17251e', line: '#24362c', grid: '#14201a', fg: '#d6e4da', muted: '#87a294', accent: '#8bc97e', 'accent-ink': '#08160a', up: '#43c08f', down: '#e8735a', ma2: '#e9c46a' } },
   { id: 'dusk', name: 'Dusk', kind: 'dark', v: { bg: '#131019', panel: '#1a1623', raise: '#221d2e', line: '#312a42', grid: '#1a1623', fg: '#e3ddef', muted: '#998fae', accent: '#c38bf2', 'accent-ink': '#1a0b28', up: '#2fbf9b', down: '#f2668b', ma2: '#f2c14e' } },
+  { id: 'mocha', name: 'Mocha', kind: 'dark', note: 'Warm brown', v: { bg: '#1b1510', panel: '#231b15', raise: '#2c231b', line: '#3d3127', grid: '#251d16', fg: '#ecdfcc', muted: '#a8957d', accent: '#d4a373', 'accent-ink': '#22160a', up: '#6fbf8a', down: '#e07a5f', ma2: '#a3b4e0' } },
+  { id: 'espresso', name: 'Espresso', kind: 'dark', note: 'Deep brown', v: { bg: '#110c08', panel: '#18110c', raise: '#211811', line: '#33261b', grid: '#19120d', fg: '#f3e8d6', muted: '#b09a80', accent: '#c8956b', 'accent-ink': '#1d120a', up: '#5fb383', down: '#d96a4f', ma2: '#9fb0db' } },
   { id: 'contrast', name: 'High contrast', kind: 'dark', v: { bg: '#000000', panel: '#000000', raise: '#141414', line: '#7a7a7a', grid: '#1f1f1f', fg: '#ffffff', muted: '#d0d0d0', accent: '#ffd400', 'accent-ink': '#000000', up: '#00e08a', down: '#ff5c5c', ma2: '#6cb4ff' } },
   { id: 'paper', name: 'Paper', kind: 'light', v: { bg: '#eef1f5', panel: '#ffffff', raise: '#f5f7fa', line: '#d5dbe4', grid: '#eef1f5', fg: '#161e2a', muted: '#5a6678', accent: '#a86a0c', 'accent-ink': '#ffffff', up: '#0e8c66', down: '#cc3a31', ma2: '#4060c8' } },
   { id: 'arctic', name: 'Arctic', kind: 'light', v: { bg: '#e8eff6', panel: '#ffffff', raise: '#f1f5fa', line: '#cddae6', grid: '#edf2f7', fg: '#0f1f2e', muted: '#516478', accent: '#1f6fd1', 'accent-ink': '#ffffff', up: '#0f9a72', down: '#d23f3f', ma2: '#8a4fd1' } },
+  { id: 'cream', name: 'Cream', kind: 'light', note: 'Soft cream', v: { bg: '#f5efe3', panel: '#fffaf1', raise: '#f3ebdc', line: '#e2d5bf', grid: '#f0e8d9', fg: '#2e241a', muted: '#7a6955', accent: '#9a6232', 'accent-ink': '#fff8ee', up: '#2f7a4f', down: '#b6463a', ma2: '#5a73aa' } },
+  { id: 'latte', name: 'Latte', kind: 'light', note: 'Cream and brown', v: { bg: '#eadfcd', panel: '#f6eddd', raise: '#ede1cc', line: '#d3c0a2', grid: '#e9ddca', fg: '#36271a', muted: '#7a634b', accent: '#7b4a26', 'accent-ink': '#fff4e6', up: '#2e6c45', down: '#a5402d', ma2: '#4c679b' } },
   { id: 'sand', name: 'Sand', kind: 'light', v: { bg: '#f1ebdf', panel: '#fbf8f2', raise: '#f3ede2', line: '#ddd2bf', grid: '#efe8db', fg: '#2a2319', muted: '#756856', accent: '#b0601a', 'accent-ink': '#ffffff', up: '#2b8a57', down: '#c0392b', ma2: '#3b6fb6' } },
 ];
 const palOf = id => PALETTES.find(p => p.id === id);
@@ -4726,23 +4795,39 @@ async function defaultDataset() {
   return list.find(d => PREFS.defaultDs && d.id === PREFS.defaultDs.id) || list.find(d => d.builtin && d.chunked) || list.find(d => d.builtin) || list[0] || null;
 }
 const ago = ms => { const s = (Date.now() - ms) / 1000; return s < 90 ? 'just now' : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`; };
+// a saved session for Home: its name split into the asset and timeframe, and when it was replayed
+function sessView(s) {
+  const m = s.summary || {}, auto = /^(.+?) (\S+) from (\d{4}-\d\d-\d\d \d\d:\d\d)$/.exec(s.name || '');
+  const title = auto ? `${auto[1]} · ${auto[2]}` : (s.name || 'Backtest');
+  const day = t => { const p = zp(t); return `${p.d} ${MON[p.mo]} ${p.y}`; };
+  const span = m.from ? (zp(m.from).d === zp(m.to).d ? `${day(m.from)}, ${zoneHM(m.from)}–${zoneHM(m.to)}` : `${day(m.from)} → ${day(m.to)}`) : '';
+  return { m, title, span, trades: `${m.trades || 0} trade${m.trades === 1 ? '' : 's'}`, net: m.net || 0 };
+}
 async function showHome() {
   if (!STORE) return;
   if (E) { setPlaying(false); saveSession(true); }
-  closePop(); $('#lib').hidden = true; $('#home').hidden = false;
-  defaultDataset().then(ds => { $('#hNewSub').textContent = ds ? `${ds.name.split(',')[0]}: pick the start date, costs and rules` : 'Import a data file to begin'; }).catch(() => {});
-  const box = $('#hList');
+  closePop(); closeSheet(); $('#lib').hidden = true; $('#home').hidden = false;
+  defaultDataset().then(ds => { $('#hNewSub').textContent = ds ? `On ${assetName(ds).toLowerCase() === 'practice futures' ? 'practice futures' : assetName(ds)}` : 'Import a data file first'; }).catch(() => {});
+  const box = $('#hList'), res = $('#hResume');
+  const chev = '<svg class="chev" viewBox="0 0 16 16"><path d="M6 3.5l4.5 4.5L6 12.5"/></svg>';
   try {
-    const list = (await STORE.listSessions()).sort((a, b) => b.updated - a.updated).slice(0, 6);
-    box.innerHTML = list.length ? list.map(s => {
-      const m = s.summary || {}, open = s.id === S.sid && E;
-      return `<button class="hitem" data-sid="${esc(s.id)}"><b>${esc(s.name || 'Backtest')}</b><span class="pnl ${cls(m.net || 0)}">${smoney(m.net || 0)}</span>
-        <span class="sub"><span>${esc(s.datasetId === 'sample' ? 'Sample' : (s.datasetName || '').split(',')[0])} · ${esc(m.tf || s.tf || '')}</span>
-        ${m.from ? `<span>${fmtDay(m.from)} → ${fmtDay(m.to)}</span>` : ''}<span>${m.trades || 0} trade${m.trades === 1 ? '' : 's'}</span>
-        ${m.prop ? `<span class="tag ${/fail/i.test(m.prop) ? 'neg' : /pass|funded|live/i.test(m.prop) ? 'pos' : ''}">${esc(m.prop)}</span>` : ''}
-        <span>${open ? '<span class="tag live">open now</span>' : 'saved ' + ago(s.updated)}</span></span></button>`;
-    }).join('') : '<div class="empty">No saved sessions yet. Start one and it is saved as you trade.</div>';
-  } catch (e) { box.innerHTML = `<div class="empty">Could not read saved sessions: ${esc(e.message)}</div>`; }
+    const all = (await STORE.listSessions()).sort((a, b) => b.updated - a.updated);
+    const first = all[0], rest = all.slice(1, 6);
+    if (first) {
+      const v = sessView(first), open = first.id === S.sid && E;
+      res.hidden = false;
+      res.innerHTML = `<button class="hres" data-sid="${esc(first.id)}">
+        <span class="hreye">${open ? 'Your open session' : 'Continue where you left off'}</span>
+        <span class="hrmain"><b>${esc(v.title)}</b><span class="hrmeta">${v.span ? `<span>${esc(v.span)}</span>` : ''}<span>${v.trades}</span>${v.m.winRate != null ? `<span>${Math.round(v.m.winRate)}% won</span>` : ''}${v.m.prop ? `<span>${esc(v.m.prop)}</span>` : ''}<span>${open ? 'open now' : 'saved ' + ago(first.updated)}</span></span></span>
+        <span class="hrside"><span class="hrpnl ${cls(v.net)}">${smoney(v.net)}</span><span class="hrgo">${open ? 'Back to the chart' : 'Resume'}<svg viewBox="0 0 16 16"><path d="M6 3.5l4.5 4.5L6 12.5"/></svg></span></span></button>`;
+    } else res.hidden = true;
+    $('#hAll').hidden = all.length < 2;
+    box.innerHTML = rest.length ? rest.map(s => {
+      const v = sessView(s);
+      return `<button class="hitem" data-sid="${esc(s.id)}"><span class="hil"><b>${esc(v.title)}</b><span>${[v.span, v.trades].filter(Boolean).map(esc).join(' · ')}</span></span>
+        <span class="hir"><span class="pnl ${cls(v.net)}">${smoney(v.net)}</span><small>${esc(ago(s.updated))}</small></span>${chev}</button>`;
+    }).join('') : `<div class="hempty">${first ? 'Your other sessions will show here.' : 'No sessions yet. Start one and it saves as you trade, so you can come back to it here.'}</div>`;
+  } catch (e) { res.hidden = true; box.innerHTML = `<div class="hempty">Could not read saved sessions: ${esc(e.message)}</div>`; }
 }
 const hideHome = () => { $('#home').hidden = true; };
 // open the default data on its last six months, as a quick way in (the tour uses it)
@@ -4763,13 +4848,15 @@ function wireHome() {
       openSetup(await openDataset(ds.id, null));
     } catch (e) { toast(e.message, 'err'); } finally { b.disabled = false; }
   };
-  $('#hData').onclick = () => openLib('ds');
+  $('#hData').onclick = () => { if (CAN_PICK) pickFile(); else $('#fileIn').click(); };
   $('#hAll').onclick = () => openLib('bt');
+  $('#hLib').onclick = $('#hLib2').onclick = () => openLib('ds');
   $('#hTour').onclick = async () => {
     const b = $('#hTour'); b.disabled = true; b.textContent = 'Opening…';
     try { if (!E) await quickStart(); hideHome(); startTour(); } catch (e) { toast(e.message, 'err'); } finally { b.disabled = false; b.textContent = 'Take the tour'; }
   };
-  $('#hList').addEventListener('click', async e => {
+  $('#home').addEventListener('click', async e => {
+    if (!e.target.closest('#hList, #hResume')) return;
     const b = e.target.closest('[data-sid]'); if (!b) return;
     if (b.dataset.sid === S.sid && E) return hideHome();
     b.disabled = true; b.querySelector('b').textContent = 'Opening…';
@@ -4778,56 +4865,52 @@ function wireHome() {
 }
 
 /* ---------------- tour ---------------- */
-// Shown once after the first session starts, and again from Home or the shortcuts sheet.
+// Shown once after the first session starts, and again from Home, More or the shortcuts sheet. Each step can
+// point at a different place on a phone and on a wider screen, open the screen it is about (phones), and say
+// how it works by touch or with a mouse and keyboard. text: a string, or { touch, desk }.
 const TOUR_STEPS = [
-  [null, 'Welcome to Tape Replay', 'The market replays bar by bar and you trade it as if it were live. This takes about a minute; Esc skips it.'],
-  ['#bPlay', 'Play the tape', 'Play and pause with Space. Tick, Bar and Candle step forward; the slider (or ↑ ↓) sets the speed.'],
-  ['#bSkip', 'Skip ahead', 'Jump to a time or the next session open. Orders, stops and targets still fill on the way.'],
-  ['.tfs', 'Timeframe', 'Change the candles at any time, or type your own, like 45m. The replay keeps its place.'],
-  ['#chart', 'Trade from the chart', 'Right-click a price to buy or sell a limit or stop there. Drag order lines to move them, and drag the TP and SL buttons on a tag to add a target or stop.'],
-  ['#dtools', 'Drawing tools', 'Lines, boxes, fibs and position planners. Hover a tool to see what it does; hold Ctrl for the magnet, Shift for straight lines.'],
-  ['#dZones', 'Price zones', 'FVGs, inverse FVGs, BPRs, order blocks and breakers, from any timeframe. Z shows or hides them.'],
-  ['.side .card', 'Order ticket', 'Buy and sell at market (B and S), or place limit and stop orders with a stop loss and take profit. Size in units or by % risk.'],
-  ['#bInd', 'Indicators', 'EMAs and SMAs of any length, and a VWAP that restarts each trading day.'],
-  ['#bSettings', 'Session settings', 'Start date, costs, prop firm rules, and the prop simulation that runs an account from evaluation to funded to live.'],
-  ['.dock', 'Positions and results', 'Open positions, working orders, closed trades and performance. Everything is saved as you go.'],
-  ['#bHome', 'Home', 'Start another session or continue a saved one. Press ? any time for every shortcut.'],
+  { hero: true, eye: 'Welcome', title: 'Welcome to Tape Replay',
+    text: 'Replay futures data bar by bar and trade it as if it were live. This short tour shows you around the app in about a minute.' },
+  { eye: 'The chart', title: 'Candles form as the tape plays', target: '#chartWrap', view: 'chart',
+    text: { touch: 'Each candle builds tick by tick, the way it did live. Pinch to zoom and drag to look back through history.',
+            desk: 'Each candle builds tick by tick, the way it did live. Scroll to zoom and drag to look back through history.' } },
+  { eye: 'Replay', title: 'Play, step and restart', target: { phone: '#mreplay', desk: '.transport' }, view: 'chart',
+    text: { touch: 'Play and pause the tape, finish the current bar or the whole candle, or go back to where the session started.',
+            desk: 'Play and pause the tape (Space), finish the current bar (→) or the whole candle, or go back to where the session started.' } },
+  { eye: 'Replay', title: 'Set the pace', target: { phone: '#mSpeed', desk: '#speed' }, view: 'chart',
+    text: 'Run in real time or thousands of times faster. Quiet minutes play at the same pace; nights and weekends are skipped.' },
+  { eye: 'Replay', title: 'Skip ahead', target: '#bSkip', view: 'chart',
+    text: 'Jump to the next session open, the next trading day or any time you choose. Orders, stops and targets still fill along the way.' },
+  { eye: 'Chart', title: 'Timeframes and indicators', target: { phone: ['#mTf', '#bInd', '#bChart'], desk: ['.bar .tfs'] }, view: 'chart',
+    text: 'Change the candles at any moment, or set your own such as 45m, and the replay keeps its place. Add EMAs, SMAs and VWAP from Indicators, and pick a theme in Chart settings.' },
+  { eye: 'Chart', title: 'Draw on the chart', target: '#dtools', view: 'chart', draw: true,
+    text: 'Trend lines, levels, boxes and fibs, plus long and short planners that can place their own order. The magnet snaps to highs and lows; Zones marks fair value gaps and order blocks.' },
+  { eye: 'Trading', title: 'The order ticket', target: '.side .card', view: 'trade',
+    text: 'Market, limit and stop orders with a stop loss and take profit, sized in contracts or by the share of the account at risk. One-tap trading puts Buy and Sell on the chart.' },
+  { eye: 'Trading', title: 'Trade from the chart', target: '#chartWrap', view: 'chart',
+    text: { touch: 'Touch and hold a price to place a limit or stop there. Drag an order’s tag to move it, or drag TP and SL out of a position’s tag.',
+            desk: 'Right-click a price to place a limit or stop there. Drag order lines to move them, or drag TP and SL out of a position’s tag.' } },
+  { eye: 'Results', title: 'Positions and performance', target: '.dock', view: 'positions',
+    text: 'Open positions, working orders and every closed trade, with win rate, profit factor, drawdown and an equity curve.' },
+  { eye: 'Prop firms', title: 'Practice for a funded account', target: { phone: '.side', desk: '#bSettings' }, view: 'eval',
+    text: 'Set loss limits and a profit target, or run a whole evaluation → funded → live course with payouts. Turn them on in Session settings; their progress shows here.' },
+  { eye: 'Library', title: 'Everything is saved', target: { phone: '#mnav [data-mv="more"]', desk: '#bHome' }, view: 'chart',
+    text: { touch: 'Sessions save as you trade. Reopen them from Home or the Library, and import Databento or CSV data to replay real markets. It is all under More.',
+            desk: 'Sessions save as you trade. Reopen them from Home or the Library, and import Databento or CSV data to replay real markets.' } },
+  { hero: true, eye: 'Ready', title: 'You’re all set', view: 'chart',
+    text: { touch: 'Tap play to start the tape. You can take this tour again any time from More.',
+            desk: 'Press play, or Space, to start the tape. Press ? for every shortcut, or take this tour again from Home.' } },
 ];
-// on phones some steps point somewhere else and say how it works by touch: [selector, text]
-const TOUR_PHONE = {
-  0: [null, 'The market replays bar by bar and you trade it as if it were live. This takes about a minute.'],
-  1: ['#bPlay', 'Play and pause here. Bar and Candle step forward; tap the speed above to change it.'],
-  3: ['#mTf', 'Change the candles at any time, or type your own, like 45m. The replay keeps its place.'],
-  4: ['#chart', 'Touch and hold a price to buy or sell a limit or stop there. Drag order lines to move them, and drag the TP and SL buttons on a tag to add a target or stop.'],
-  5: ['#mdraw', 'The pencil opens the drawing tools: lines, boxes, fibs and position planners.'],
-  6: ['#mdraw', 'Price zones are in the same toolbar: FVGs, inverse FVGs, BPRs, order blocks and breakers, from any timeframe.'],
-  7: ['#mnav [data-mv="trade"]', 'The Trade tab has the order ticket: market, limit and stop orders with a stop loss and take profit, sized in units or by % risk.'],
-  9: ['#mnav [data-mv="more"]', 'Session settings, the Library, imports and chart settings are under More.'],
-  10: ['#mnav [data-mv="positions"]', 'Open positions, working orders, closed trades and performance. Everything is saved as you go.'],
-  11: ['#bHome', 'Start another session or continue a saved one.'],
-};
-// on a touch screen in the wide layout (an iPad): the same places, without keys, clicks or hovering
-const TOUR_TOUCH = {
-  0: 'The market replays bar by bar and you trade it as if it were live. This takes about a minute.',
-  1: 'Play and pause here. Tick, Bar and Candle step forward; the slider sets the speed.',
-  4: TOUR_PHONE[4][1],
-  5: 'Lines, boxes, fibs and position planners. Tap a tool, then tap or drag on the chart.',
-  6: 'FVGs, inverse FVGs, BPRs, order blocks and breakers, from any timeframe. Tap it for settings.',
-  7: 'Buy and sell at market, or place limit and stop orders with a stop loss and take profit. Size in units or by % risk.',
-  11: 'Start another session or continue a saved one.',
-};
-const tourStep = i => {
-  const st = TOUR_STEPS[i], ph = isM() && TOUR_PHONE[i];
-  return ph ? [ph[0], st[1], ph[1]] : TOUCH && TOUR_TOUCH[i] ? [st[0], st[1], TOUR_TOUCH[i]] : st;
-};
-const TOUR = { i: 0, el: null };
+const TOUR = { i: 0, el: null, drew: false };
+const tourText = st => typeof st.text === 'string' ? st.text : TOUCH ? st.text.touch : st.text.desk;
+const tourTarget = st => { const t = st.target; return !t ? [] : [].concat(typeof t === 'string' ? t : isM() ? t.phone : t.desk); };
 function startTour() {
   if (TOUR.el) return;
   if (E) setPlaying(false);
-  closePop(); zonePanel(false);
-  TOUR.i = 0;
+  closePop(); closeSheet(); zonePanel(false);
+  TOUR.i = 0; TOUR.drew = false;
   TOUR.el = document.createElement('div'); TOUR.el.className = 'tour';
-  TOUR.el.innerHTML = '<div class="tspot"></div><div class="tcard" role="dialog" aria-live="polite"></div>';
+  TOUR.el.innerHTML = '<div class="tspot"></div><div class="tcard" role="dialog" aria-modal="true" aria-live="polite"></div>';
   document.body.appendChild(TOUR.el);
   TOUR.el.addEventListener('click', e => {
     const b = e.target.closest('button[data-t]'); if (!b) return;
@@ -4836,28 +4919,59 @@ function startTour() {
   addEventListener('resize', tourPlace);
   tourGo(0);
 }
+// puts the app in the state a step talks about: its screen on a phone, the drawing tools open or closed
+function tourSetup(st) {
+  if (isM() && st.view) setMview(st.view);
+  const open = $('#chartWrap').classList.contains('draw');
+  if (isM() && st.draw && !open) { $('#mdraw').click(); TOUR.drew = true; }
+  else if ((!st.draw || !isM()) && TOUR.drew && open) { $('#mdraw').click(); TOUR.drew = false; }
+}
 function tourGo(i) {
   if (i >= TOUR_STEPS.length) return endTour();
   TOUR.i = Math.max(0, i);
-  const [, title, text] = tourStep(TOUR.i), last = TOUR.i === TOUR_STEPS.length - 1;
-  TOUR.el.querySelector('.tcard').innerHTML = `<div class="thead"><b>${esc(title)}</b><span>${TOUR.i + 1} of ${TOUR_STEPS.length}</span></div><p>${esc(text)}</p>
-    <div class="tbtns"><button data-t="skip" class="tskip">${last ? '' : 'Skip tour'}</button>${TOUR.i ? '<button data-t="back">Back</button>' : ''}<button data-t="next" class="primary">${last ? 'Done' : TOUR.i ? 'Next' : 'Show me'}</button></div>`;
+  const st = TOUR_STEPS[TOUR.i], n = TOUR_STEPS.length, last = TOUR.i === n - 1;
+  tourSetup(st);
+  const card = TOUR.el.querySelector('.tcard');
+  card.classList.toggle('hero', !!st.hero);
+  card.innerHTML = (st.hero ? '<div class="tmark"><i></i></div>' : '') +
+    `<div class="tprog" aria-hidden="true"><i style="width:${((TOUR.i + 1) / n * 100).toFixed(1)}%"></i></div>
+    <div class="thead"><span class="teye">${esc(st.eye)}</span>${st.hero ? '' : `<span class="tnum">${TOUR.i + 1} of ${n}</span>`}</div>
+    <h3>${esc(st.title)}</h3><p>${esc(tourText(st))}</p>
+    <div class="tbtns">${last ? '' : `<button data-t="skip" class="tskip">${TOUR.i ? 'End tour' : 'Not now'}</button>`}
+      ${TOUR.i && !last ? '<button data-t="back" class="tback">Back</button>' : ''}
+      <button data-t="next" class="primary">${last ? 'Start trading' : TOUR.i ? 'Next' : 'Show me around'}</button></div>`;
+  // the screen may have just changed: place once it has laid out, and again once a panel has slid in
+  requestAnimationFrame(() => requestAnimationFrame(tourPlace));
+  clearTimeout(TOUR.t); TOUR.t = setTimeout(tourPlace, 260);
   tourPlace();
-  TOUR.el.querySelector('[data-t="next"]').focus();
+  card.querySelector('[data-t="next"]').focus({ preventScroll: true });
 }
-// the spotlight sits on the step's target; the card goes below it, or above, or beside it
+// The spotlight frames the step's target (several elements: their union). On a phone the card docks to the
+// top or bottom edge, away from the target; on a wider screen it sits beside the target.
 function tourPlace() {
   if (!TOUR.el) return;
-  const sel = tourStep(TOUR.i)[0], t = sel && document.querySelector(sel), r = t && t.getBoundingClientRect();
-  const spot = TOUR.el.querySelector('.tspot'), card = TOUR.el.querySelector('.tcard');
-  const shown = r && r.width > 0 && r.height > 0;
+  const st = TOUR_STEPS[TOUR.i], spot = TOUR.el.querySelector('.tspot'), card = TOUR.el.querySelector('.tcard');
+  const rects = tourTarget(st).map(q => document.querySelector(q)).filter(Boolean).map(e => e.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0);
+  const r = rects.length ? rects.reduce((a, b) => ({ left: Math.min(a.left, b.left), top: Math.min(a.top, b.top), right: Math.max(a.right, b.right), bottom: Math.max(a.bottom, b.bottom) })) : null;
+  const shown = !!r && !st.hero;
   spot.classList.toggle('none', !shown);
-  const cw = card.offsetWidth, ch = card.offsetHeight, pad = 6, gap = 12;
+  const pad = 6;
+  if (shown) {
+    const l = Math.max(4, r.left - pad), t = Math.max(4, r.top - pad), w = Math.min(innerWidth - 4, r.right + pad) - l, h = Math.min(innerHeight - 4, r.bottom + pad) - t;
+    Object.assign(spot.style, { left: l + 'px', top: t + 'px', width: w + 'px', height: h + 'px' });
+  }
+  card.classList.remove('top', 'bottom');
+  if (isM()) {
+    card.style.left = card.style.top = '';
+    if (!shown) { if (!st.hero) card.classList.add('bottom'); return; }
+    card.classList.add((r.top + r.bottom) / 2 > innerHeight * 0.48 ? 'top' : 'bottom');
+    return;
+  }
+  const cw = card.offsetWidth, ch = card.offsetHeight, gap = 14;
   let x = (innerWidth - cw) / 2, y = (innerHeight - ch) / 2;
   if (shown) {
-    Object.assign(spot.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + 2 * pad + 'px', height: r.height + 2 * pad + 'px' });
-    const big = r.width > innerWidth * 0.5 && r.height > innerHeight * 0.4;
-    if (big) { x = r.left + (r.width - cw) / 2; y = r.top + Math.min(80, r.height / 4); }
+    const big = r.right - r.left > innerWidth * 0.5 && r.bottom - r.top > innerHeight * 0.4;
+    if (big) { x = r.left + (r.right - r.left - cw) / 2; y = r.top + Math.min(80, (r.bottom - r.top) / 4); }
     else if (r.bottom + gap + ch < innerHeight - 8) { x = r.left; y = r.bottom + pad + gap; }
     else if (r.top - gap - ch > 8) { x = r.left; y = r.top - pad - gap - ch; }
     else { x = r.right + pad + gap; y = r.top; if (x + cw > innerWidth - 8) x = r.left - pad - gap - cw; }
@@ -4867,7 +4981,10 @@ function tourPlace() {
 }
 function endTour() {
   if (!TOUR.el) return;
+  if (TOUR.drew && $('#chartWrap').classList.contains('draw')) $('#mdraw').click();
+  TOUR.drew = false;
   TOUR.el.remove(); TOUR.el = null; removeEventListener('resize', tourPlace);
+  if (isM()) setMview('chart');
   if (!PREFS.tourDone) { PREFS.tourDone = true; savePrefs(); }
 }
 
