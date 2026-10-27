@@ -397,28 +397,33 @@ fieldset.pf legend .chk{font-weight:600}
 /* ---- phones (html.m, set by script when the screen is under 900 px wide or 500 px tall) ----
    Like TradingView's app: a slim top bar, the chart filling the screen, replay controls above a tab bar,
    and the ticket, positions and evaluation each on their own screen. */
-.mmore,.mreplay,.mnav,.mdraw{display:none}
+.mmore,.mreplay,.mnav,.mdraw,.mico,.mtf,.mspeed,.veil,.mevalhint{display:none}
+html:not(.m) #mTf{display:none}
+html.m body{margin:0}
 html.m #app{grid-template-rows:auto minmax(0,1fr) auto auto;grid-template-areas:"top" "main" "replay" "nav";gap:0;padding:0}
-html.m .bar{grid-area:top;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:6px 8px;gap:6px;border-bottom:1px solid var(--line);background:var(--panel)}
-html.m .bar::-webkit-scrollbar{display:none}
-html.m .bar .tgroup{flex:none;border:none;background:none;padding:0}
-html.m .bar .brand{font-size:0;gap:0;padding:4px}
-html.m .datag label.btn,html.m #tfCustom,html.m #bLib,html.m #bChart,html.m #bSettings,html.m #bKeys,html.m #bSide,html.m .bar .spacer,html.m #saveState{display:none!important}
-html.m .dchip{max-width:150px}
-html.m .dchip b{font-size:13px;max-width:140px}
+html.m .bar{grid-area:top;flex-wrap:nowrap;padding:6px 8px;gap:4px;border-bottom:1px solid var(--line);background:var(--panel)}
+html.m .bar .tgroup{flex:none;border:none;background:none;padding:0;gap:4px}
+html.m .bar .brand{font-size:0;gap:0;padding:0;margin:0;width:36px;height:36px;justify-content:center;flex:none}
+html.m .datag label.btn,html.m #tfChips,html.m #tfCustom,html.m #bLib,html.m #bSettings,html.m #bKeys,html.m #bSide,html.m .bar .spacer,html.m #saveState,html.m .bar .mlbl{display:none!important}
+html.m .bar .datag{flex:1 1 auto;min-width:0}
+html.m .bar .tgroup .dchip{width:100%;max-width:none;min-height:36px;justify-content:center;border:1px solid var(--line);background:var(--raise)}
+html.m .dchip b{font-size:13.5px;max-width:100%}
 html.m .dchip span{display:none}
-html.m .bar .tfs button{padding:5px 8px;font-size:12.5px}
+html.m .bar .tgroup .mtf,html.m .bar .tgroup #bInd,html.m .bar .tgroup #bChart{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:36px;border:1px solid var(--line);background:var(--raise);border-radius:7px;padding:0 9px}
+html.m .bar .tgroup .mtf{font-family:var(--f-num);font-size:13.5px;font-weight:600;gap:5px;min-width:56px}
+html.m .bar .tgroup .mico{display:block;width:20px;height:20px;stroke-width:1.5;stroke-linecap:round}
+html.m .bar .tgroup button[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
 html.m .work,html.m .dock,html.m .mmore{grid-area:main}
 html.m .work{grid-template-columns:minmax(0,1fr);gap:0;min-height:0}
 html.m .chartwrap{border:none;border-radius:0}
 html.m #chart,html.m #draw{left:0}
-/* Indicators sits next to the symbol; the timeframes scroll after it */
-html.m .bar>.tgroup:has(#bInd){order:1}
-html.m .bar>.tfs{order:2}
 html.m #app.noside .side{display:flex}
 html.m .side{padding:10px;gap:10px}
 html.m .dock{border:none;border-radius:0}
 html.m .dsplit{display:none}
+html.m .tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:0}
+html.m .tabs .tools{display:none}
+html.m .tabs button.tab{padding:13px 2px!important;font-size:11px;letter-spacing:.02em;text-align:center;overflow:hidden;text-overflow:ellipsis}
 html.m .stats,html.m .fgrid{grid-template-columns:1fr}
 /* positions, orders and closed trades as cards instead of wide tables */
 html.m .dock .pane table,html.m .dock .pane tbody{display:block;width:100%}
@@ -463,34 +468,42 @@ html.m .sgrid{grid-template-columns:1fr 1fr}
 /* which screen shows */
 html.m #app:not([data-mview="chart"]) .chartwrap,
 html.m #app:not([data-mview="trade"]):not([data-mview="eval"]) .side,
-html.m #app:not([data-mview="positions"]) .dock,
-html.m #app:not([data-mview="more"]) .mmore{display:none}
-html.m #app[data-mview="positions"] .work,html.m #app[data-mview="more"] .work{display:none}
+html.m #app:not([data-mview="positions"]) .dock{display:none}
+html.m #app[data-mview="positions"] .work{display:none}
 html.m #app[data-mview="trade"] .side>.card:not(:first-child),
 html.m #app[data-mview="eval"] .side>.card:first-child{display:none}
+html.m #app[data-mview="trade"] .side>.mevalhint{display:none!important}
+html.m #app[data-mview="eval"] .side:has(#simCard[hidden]):has(#propCard[hidden])>.mevalhint{display:flex}
+html.m .mevalhint b{font-size:15px}
+html.m .mevalhint button{min-height:42px}
 /* the chart: drawing tools slide out from a pencil button */
-html.m .dtools{transform:translateX(-100%);transition:transform .18s ease;box-shadow:4px 0 16px rgba(0,0,0,.25)}
-html.m .chartwrap.draw .dtools{transform:none}
+html.m .dtools{transform:translateX(-100%);transition:transform .18s ease}
+html.m .chartwrap.draw .dtools{transform:none;box-shadow:4px 0 16px rgba(0,0,0,.25)}
 html.m .mdraw{display:grid;place-items:center;position:absolute;left:8px;bottom:34px;z-index:5;width:38px;height:38px;border-radius:50%;background:var(--raise);border:1px solid var(--line);color:var(--fg);box-shadow:0 4px 14px rgba(0,0,0,.3)}
 html.m .chartwrap.draw .mdraw{left:48px;color:var(--accent);border-color:var(--accent)}
 html.m .mdraw svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round}
 html.m #legend{left:8px;top:6px;font-size:11px;gap:2px 8px;max-width:calc(100% - 70px)}
 html.m .dstyle{left:50%;bottom:8px;max-width:calc(100% - 16px)}
-/* replay strip */
-html.m .mreplay{grid-area:replay;display:flex;align-items:center;gap:6px;padding:5px 8px;border-top:1px solid var(--line);background:var(--panel);overflow-x:auto;scrollbar-width:none}
-html.m .mreplay::-webkit-scrollbar{display:none}
-html.m .mreplay .tgroup{flex:none;border:none;background:none;padding:0;display:flex;align-items:center;gap:2px}
-html.m .mreplay .tgroup button{background:transparent;border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;display:inline-flex;align-items:center;gap:4px;color:var(--fg)}
-html.m .mreplay .tgroup svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.4}
-html.m .mreplay #bPlay{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);min-width:40px;justify-content:center}
+/* replay bar: the time and speed on top, the step buttons and play below, nothing scrolled out of sight;
+   the progress bar runs along its top edge */
+html.m .mreplay{grid-area:replay;position:relative;display:grid;grid-template-columns:44px minmax(0,1fr) 68px minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas:"clock clock clock speed speed" "rs bar play candle skip";align-items:center;gap:6px;padding:8px 10px;border-top:1px solid var(--line);background:var(--panel)}
+html.m .mreplay .transport,html.m .mreplay .tgroup{display:contents}
+html.m .mreplay .tgroup button{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:40px;padding:0 6px;background:var(--raise);border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--fg);white-space:nowrap}
+html.m .mreplay .tgroup svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.4}
+html.m .mreplay .tgroup svg.chev{width:10px;height:10px;stroke-width:1.6}
+html.m .mreplay #bRestart{grid-area:rs}html.m .mreplay #bBar{grid-area:bar}html.m .mreplay #bCandle{grid-area:candle}html.m .mreplay #bSkip{grid-area:skip}
+html.m .mreplay #bPlay{grid-area:play;background:var(--accent);color:var(--accent-ink);border-color:var(--accent);min-height:44px;border-radius:22px}
+html.m .mreplay #bPlay svg{width:18px;height:18px}
 html.m .mreplay #bRestart svg,html.m .mreplay #playIco{fill:currentColor;stroke:none}
-html.m .mreplay #bTick,html.m .mreplay .sep{display:none}
-html.m .mreplay #speed{width:84px}
-html.m .mreplay #speedLbl{font-size:10.5px;color:var(--muted);white-space:nowrap}
-html.m .mreplay .clock{flex:none;min-width:0;display:flex;flex-direction:column;gap:2px;padding:0 4px}
-html.m .mreplay #clock{font-size:11.5px;white-space:nowrap}
+html.m .mreplay .sep,html.m .mhide{display:none}
+html.m .mreplay .clock{grid-area:clock;min-width:0;display:block;padding:0 2px}
+html.m .mreplay #clock{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 html.m .mreplay #clockSub{display:none}
-html.m .mreplay #bSkip{padding:6px 8px}
+html.m .mreplay .prog{position:absolute;left:0;right:0;top:-1px;height:3px;border-radius:0;background:transparent}
+html.m .mspeed{grid-area:speed;justify-self:end;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:15px;background:var(--raise);color:var(--fg);font-size:12.5px;white-space:nowrap}
+html.m .mspeed svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+html.m .mspeed[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
 /* tab bar */
 html.m .mnav{grid-area:nav;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:var(--panel)}
 html.m .mnav button{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0 6px;background:none;border:none;color:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:.02em}
@@ -500,17 +513,71 @@ html.m .mnav i{position:absolute;top:3px;left:calc(50% + 6px);min-width:16px;hei
 html.m .mnav i:empty{display:none}
 html.m .mnav i.neg{background:var(--down);color:#fff}
 html.m .mnav i.pos{background:var(--up);color:#fff}
+/* landscape phone: the replay bar is one row */
+@media (max-height:500px){
+  html.m .mreplay{grid-template-columns:max-content max-content 44px minmax(0,1fr) 68px minmax(0,1fr) minmax(0,1fr);grid-template-areas:"clock speed rs bar play candle skip";padding:5px 10px}
+  html.m .mreplay .tgroup button{min-height:36px}html.m .mreplay #bPlay{min-height:38px}
+  html.m .mnav button{padding:4px 0 3px;flex-direction:row;justify-content:center;gap:6px}
+  html.m .mnav button svg{width:18px;height:18px}
+}
 /* more */
-html.m .mmore{display:flex;flex-direction:column;gap:6px;padding:12px;overflow:auto}
+html.m .mmore.open{display:grid;grid-template-columns:1fr 1fr;align-content:start;gap:6px;z-index:40}
+html.m .mmore h4,html.m .mmore .credit{grid-column:1/-1}
 html.m .mmore h4{margin:8px 4px 2px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-html.m .mmore button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
-html.m .mmore button b{font-size:14.5px}
-html.m .mmore button span{font-size:12px;color:var(--muted)}
+html.m .mmore button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:11px 12px;min-height:58px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
+html.m .mmore button b{font-size:14px}
+html.m .mmore button span{font-size:11.5px;color:var(--muted);line-height:1.3}
 /* dialogs and popups take the whole width */
 html.m .modal{padding:0;place-items:stretch}
 html.m .sheet,html.m .sheet.wide{width:100%;max-height:100%;border-radius:0;border:none;padding:14px}
-html.m .pop:not(.tip){max-width:calc(100vw - 16px)}
-html.m .zpanel{left:8px!important;right:8px;width:auto}
+/* menus and panels open as sheets from the bottom edge, over a dimmed screen; tapping outside closes them */
+html.m .veil:not([hidden]){display:block;position:fixed;inset:0;z-index:39;background:rgba(0,0,0,.45)}
+html.m .pop,html.m .mmore.open{position:fixed;left:0!important;right:0!important;top:auto!important;bottom:0!important;width:auto!important;max-width:none;
+  max-height:min(80vh,640px);overflow:auto;overscroll-behavior:contain;border-radius:16px 16px 0 0;border:1px solid var(--line);border-bottom:0;background:var(--raise);
+  padding:6px 12px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 40px rgba(0,0,0,.35);font-size:14px;animation:sheetin .2s ease-out}
+html.m .pop::before,html.m .mmore.open::before{content:"";display:block;grid-column:1/-1;flex:none;width:36px;height:4px;border-radius:2px;background:var(--muted);opacity:.5;margin:2px auto 8px}
+@keyframes sheetin{from{transform:translateY(40px);opacity:.4}}
+@media (prefers-reduced-motion: reduce){html.m .pop,html.m .mmore.open{animation:none}}
+html.m .menu{min-width:0}
+html.m .menu h5{margin:6px 10px 4px;font-size:11px}
+html.m .menu button{min-height:46px;align-items:center;padding:10px 12px;font-size:14.5px}
+html.m .menu button span{font-size:12.5px}
+html.m .menu button b{font-weight:600}
+html.m .dtp{width:auto;gap:10px}
+html.m .dtp-pre button{padding:7px 12px;font-size:13px;border-radius:16px}
+html.m .dtp-nav button{width:40px;height:40px}html.m .dtp-nav select{height:40px;font-size:14px}
+html.m .dtp-grid button{padding:10px 0;font-size:14px}
+html.m .dtp-time input{width:90px;height:40px;font-size:16px}
+html.m .dtp-act button{min-height:44px;flex:1}
+html.m .indpop{width:auto;gap:10px}
+html.m .indrow{grid-template-columns:auto minmax(0,1fr) 64px 44px 40px;gap:8px}
+html.m .indrow select,html.m .indrow input[type=number]{height:40px;font-size:15px}
+html.m .indrow input[type=checkbox]{width:22px;height:22px}
+html.m .indrow input[type=color]{width:44px;height:36px}
+html.m .indrow button{width:40px;height:40px}
+html.m .indadd button{min-height:42px;font-size:14px}
+html.m .zpanel{padding-top:6px}
+html.m .zopts select,html.m .zopts input{height:40px;font-size:15px}
+/* timeframe sheet */
+.tfpop{display:flex;flex-direction:column;gap:10px}
+.tfpop h5{margin:6px 4px 0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.tfgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.tfgrid button{min-height:46px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);font-family:var(--f-num);font-size:15px;cursor:pointer}
+.tfgrid button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.tfown{display:flex;gap:6px}
+.tfown input{flex:1;min-width:0;height:44px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:0 12px;font-family:var(--f-num);font-size:16px;color:var(--fg)}
+.tfown button{min-width:72px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);font-weight:600}
+.tfpop .note{margin:0 4px}
+/* speed sheet */
+.spsheet{display:flex;flex-direction:column;gap:10px}
+.spnow{display:flex;flex-direction:column;gap:8px;padding:0 6px}
+.spnow b{font-size:22px;font-weight:600}
+.spnow #speed{width:100%;height:32px;accent-color:var(--accent)}
+.spnow #speedLbl{font-size:12.5px;min-width:0}
+.sppre{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+html.m .spsheet .sppre button{justify-content:center;min-height:44px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:var(--f-num);font-size:14px;padding:0}
+html.m .spsheet .sppre button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+html.m .spsheet #bTick{width:100%;justify-content:center;min-height:44px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-size:14px}
 html.m #toasts{bottom:116px;right:8px;left:8px;align-items:stretch}
 html.m .toast{max-width:none}
 html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
@@ -526,6 +593,7 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
     </div>
     <div class="tgroup tfs" role="group" aria-label="Timeframe">
       <span id="tfChips"></span>
+      <button id="mTf" class="mtf" aria-haspopup="dialog" title="Timeframe"><span id="mTfLbl">—</span><svg class="chev" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3"/></svg></button>
       <input id="tfCustom" class="tfc" placeholder="45m" title="Custom timeframe: e.g. 45m, 2h, 3D, 1W, 1M (month). Must be a multiple of the data's base timeframe." aria-label="Custom timeframe">
     </div>
     <div class="tgroup transport">
@@ -544,14 +612,14 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
       <div class="prog"><i id="progBar"></i></div>
     </div>
     <div class="tgroup">
-      <button id="bSkip" title="Replay forward quickly. Orders, stops and targets fill along the way." aria-haspopup="menu">Skip ahead <svg class="chev" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3"/></svg></button>
+      <button id="bSkip" title="Replay forward quickly. Orders, stops and targets fill along the way." aria-haspopup="menu">Skip<span class="mhide"> ahead</span> <svg class="chev" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3"/></svg></button>
     </div>
     <span class="spacer"></span>
     <span id="saveState" class="ds" hidden></span>
     <div class="tgroup">
       <button id="bLib" hidden title="Saved backtests and data files">Library</button>
-      <button id="bInd" title="Moving averages and VWAP on the chart" aria-haspopup="dialog">Indicators</button>
-      <button id="bChart" title="Time zone, session lines and colors">Chart</button>
+      <button id="bInd" title="Moving averages and VWAP on the chart" aria-haspopup="dialog" aria-label="Indicators"><svg class="mico" viewBox="0 0 20 20"><path d="M2.5 14c2.5 0 3-7 6-7s3 6 5.5 6 2.5-4 3.5-5"/><path d="M2.5 17h15" style="opacity:.5"/></svg><span class="mlbl">Indicators</span></button>
+      <button id="bChart" title="Time zone, session lines and colors" aria-label="Chart settings"><svg class="mico" viewBox="0 0 20 20"><path d="M3 5.5h8M15 5.5h2M3 10h2M9 10h8M3 14.5h6M13 14.5h4"/><circle cx="13" cy="5.5" r="1.8"/><circle cx="7" cy="10" r="1.8"/><circle cx="11" cy="14.5" r="1.8"/></svg><span class="mlbl">Chart</span></button>
       <button id="bSettings" title="Start time, costs and prop rules">Session</button>
       <button id="bKeys" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
       <button id="bSide" title="Hide or show the side panel" aria-label="Toggle side panel"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M10 2.5v11"/></svg></button>
@@ -679,6 +747,11 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
         </div>
       </div>
 
+      <div class="card mevalhint" id="evalHint">
+        <b>No evaluation running</b>
+        <p class="note">Turn on prop firm rules or the prop simulation (evaluation → funded → live) in Session settings to track them here.</p>
+        <button id="evalSet" class="primary">Open session settings</button>
+      </div>
     </aside>
   </main>
 
@@ -700,20 +773,22 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
   </section>
 
   <!-- phones: one screen at a time, picked from the tab bar; replay controls just above it -->
-  <section id="mmore" class="mmore" aria-label="More">
+  <section id="mmore" class="mmore" role="dialog" aria-label="More">
     <h4>Session</h4>
     <button data-go="bHome"><b>Home</b><span>Start a new session or continue one</span></button>
     <button data-go="bSettings"><b>Session settings</b><span>Start date, costs, prop rules and simulation</span></button>
     <button data-go="bLib"><b>Library</b><span>Saved backtests and data files</span></button>
     <button data-go="import"><b>Import data</b><span>CSV or DBN files, any size</span></button>
+    <button data-go="bCopy"><b>Copy trades</b><span>Closed trades as CSV</span></button>
     <h4>Chart</h4>
     <button data-go="bInd"><b>Indicators</b><span>EMA, SMA and VWAP</span></button>
     <button data-go="bChart"><b>Chart settings</b><span>Time zone, session lines and colors</span></button>
     <button data-go="tour"><b>Take the tour</b><span>How the app works, in a minute</span></button>
+    <button data-go="bKeys"><b>Keyboard shortcuts</b><span>For a keyboard on an iPad</span></button>
     <h4>About</h4>
     <p class="credit">Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™, © TradingView, Inc. Built-in data is generated for practice, not real market data. Trades are simulated; nothing here is financial advice.</p>
   </section>
-  <div id="mreplay" class="mreplay"></div>
+  <div id="mreplay" class="mreplay"><button id="mSpeed" class="mspeed" aria-haspopup="dialog" aria-label="Replay speed"><svg viewBox="0 0 16 16"><path d="M2.5 11.5a6 6 0 1 1 11 0"/><path d="M8 9.5l3-3.5"/></svg><span id="mSpeedLbl" class="num">—</span></button></div>
   <nav id="mnav" class="mnav" aria-label="Screens">
     <button data-mv="chart"><svg viewBox="0 0 20 20"><path d="M3 16V4M3 16h14"/><path d="M6.5 12.5v-4M10 11V6M13.5 13V8.5" style="stroke-width:2.6"/></svg>Chart</button>
     <button data-mv="trade"><svg viewBox="0 0 20 20"><path d="M4 7h11l-3-3M16 13H5l3 3"/></svg>Trade</button>
@@ -970,6 +1045,16 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
   <label class="chk"><input id="zLabels" type="checkbox"> Label zones</label>
   <p class="note">Zones come only from finished candles of the timeframe chosen here. FVG: the gap between candles one and three. iFVG: an FVG a candle closed through, now facing the other way. BPR: a new FVG overlapping an opposite one still open. OB: after a close beyond the last swing, the candle with the extreme low (or high) since that swing. BB: an order block a candle closed through. iFVGs and breakers keep drawing from where they formed, with a dashed mark where they flipped.</p>
 </div>
+
+<!-- phones: replay speed, opened from the speed button in the replay bar; the slider moves in here -->
+<div id="speedSheet" class="pop menu spsheet" role="dialog" aria-label="Replay speed" hidden>
+  <h5>Replay speed</h5>
+  <div class="spnow"><b id="spNow" class="num">—</b><span id="spSlot"></span></div>
+  <div class="sppre" id="spPre"></div>
+  <hr>
+  <div id="spTick"></div>
+</div>
+<div id="veil" class="veil" hidden></div>
 
 <div id="toasts" aria-live="polite"></div>
 
@@ -2125,9 +2210,9 @@ function chartMenu(e) {
   const w = m.offsetWidth, h = m.offsetHeight;
   m.style.left = Math.max(8, Math.min(e.clientX + 2, innerWidth - w - 8)) + 'px';
   m.style.top = Math.max(8, Math.min(e.clientY + 2, innerHeight - h - 8)) + 'px';
-  POP.el = m; POP.anchor = null;
+  POP.el = m; POP.anchor = null; syncVeil();
   setTimeout(() => document.addEventListener('mousedown', popOutside, true));
-  m.querySelector('button').focus();
+  if (!isM()) m.querySelector('button').focus();
 }
 function ticketBracket(side, entry) {
   const mode = $('#bracketMode').value;
@@ -3363,11 +3448,12 @@ function fillZoneForm() {
 function zonePanel(open) {
   const p = $('#zonePanel'), b = $('#dZones');
   if (open == null) open = p.hidden;
-  if (!open) { p.hidden = true; b.removeAttribute('aria-expanded'); savePrefsSoon(); return; }
+  if (!open) { const was = !p.hidden; p.hidden = true; b.removeAttribute('aria-expanded'); if (was) savePrefsSoon(); syncVeil(); return; }
   fillZoneForm(); p.hidden = false; b.setAttribute('aria-expanded', 'true');
   const r = b.getBoundingClientRect(), h = p.offsetHeight;
   p.style.left = (r.right + 8) + 'px';
   p.style.top = Math.max(8, Math.min(r.top, innerHeight - h - 8)) + 'px';
+  syncVeil();
 }
 function wireZones() {
   $('#dZones').onclick = () => zonePanel();
@@ -4139,20 +4225,30 @@ function wireLib() {
   });
 }
 
-/* ---------------- phones: one screen at a time, a tab bar, replay controls in a strip ---------------- */
+/* ---------------- phones: one screen at a time, a tab bar, replay controls in a bar above it ---------------- */
 const isPhone = () => innerWidth < 900 || innerHeight < 500;
+const isM = () => document.documentElement.classList.contains('m');
 function phoneLayout() {
   const on = isPhone(), root = document.documentElement;
   if (on === root.classList.contains('m')) return;
   root.classList.toggle('m', on);
-  // the play, step and speed controls, the clock and Skip ahead live in the strip above the tab bar on phones
+  // the play, step and speed controls, the clock and Skip ahead live in the bar above the tab bar on phones;
+  // the speed slider and the one-tick step move into the speed sheet
   const parts = [$('.transport'), $('.clock'), $('#bSkip').parentElement];
-  if (on) parts.forEach(p => $('#mreplay').appendChild(p));
-  else { const before = $('.bar .spacer'); parts.forEach(p => $('.bar').insertBefore(p, before)); }
+  if (on) {
+    parts.forEach(p => $('#mreplay').appendChild(p));
+    $('.spnow').append($('#speed'), $('#speedLbl'));
+    $('#spTick').appendChild($('#bTick')); $('#bTick').textContent = 'Step one tick';
+  } else {
+    const before = $('.bar .spacer'); parts.forEach(p => $('.bar').insertBefore(p, before));
+    $('#bBar').before($('#bTick')); $('#bTick').textContent = 'Tick';
+    $('.transport').append($('#speed'), $('#speedLbl'));
+  }
   if (!$('#app').dataset.mview) setMview('chart');
-  closePop();
+  closePop(); closeSheet(); syncVeil();
 }
 function setMview(v) {
+  closeSheet();
   $('#app').dataset.mview = v;
   for (const b of document.querySelectorAll('#mnav button')) {
     if (b.dataset.mv === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -4161,6 +4257,74 @@ function setMview(v) {
   if (v === 'positions') R.tables = true;
   closePop();
   ui(true);
+}
+// sheets that stay in the page (More, replay speed): one at a time, over the veil
+const SHEET = { el: null, btn: null };
+function openSheet(el, btn) {
+  closePop(); closeSheet(); zonePanel(false);
+  el.hidden = false; el.classList.add('open');
+  SHEET.el = el; SHEET.btn = btn || null;
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+  syncVeil();
+}
+function closeSheet() {
+  if (!SHEET.el) return;
+  SHEET.el.classList.remove('open');
+  if (SHEET.el.id !== 'mmore') SHEET.el.hidden = true;
+  if (SHEET.btn) SHEET.btn.removeAttribute('aria-expanded');
+  SHEET.el = SHEET.btn = null;
+  syncVeil();
+}
+// the dimmed backdrop behind menus and sheets on phones. It lingers a moment after closing so the tap that
+// closed a menu does not also land on whatever was underneath.
+let veilT = 0;
+function syncVeil() {
+  const v = $('#veil'); if (!v) return;
+  const on = isM() && !!(POP.el || SHEET.el || !$('#zonePanel').hidden);
+  clearTimeout(veilT);
+  if (on) v.hidden = false; else if (!v.hidden) veilT = setTimeout(() => { v.hidden = true; }, 320);
+}
+// replay speed presets: about eight steps from real time to the fastest, at round numbers
+function speedPresets() {
+  const mx = speedMax(), nice = [1, 2, 5, 10, 20, 30, 60, 120, 300, 600, 1200, 1800, 3600, 6000, 10000, 18000, 36000, 60000, 100000, 360000, 1e6];
+  const out = [];
+  for (let i = 0; i < 8; i++) {
+    const t = Math.pow(mx, i / 7);
+    const n = nice.filter(x => x <= mx).reduce((a, b) => Math.abs(Math.log(b / t)) < Math.abs(Math.log(a / t)) ? b : a, 1);
+    if (!out.includes(n)) out.push(n);
+  }
+  if (!out.includes(mx) && out[out.length - 1] < mx) out[out.length - 1] = mx;
+  return out;
+}
+const multLabel = m => m < 1.05 ? '1×' : m >= 1000 ? +(m / 1000).toFixed(m >= 1e4 ? 0 : 1) + 'k×' : Math.round(m) + '×';
+function openSpeed() {
+  if (SHEET.el === $('#speedSheet')) return closeSheet();
+  $('#spPre').innerHTML = speedPresets().map(m => `<button type="button" data-m="${m}">${multLabel(m)}</button>`).join('');
+  applySpeed();
+  openSheet($('#speedSheet'), $('#mSpeed'));
+}
+// the timeframe sheet: the usual timeframes as big buttons, and a box for your own
+function openTfPop() {
+  const btn = $('#mTf');
+  if (!D) return;
+  if (POP.el && POP.anchor === btn) return closePop();
+  closePop(); closeSheet();
+  const list = tfList(), base = tfLabel({ kind: 's', sec: D.base });
+  const el = document.createElement('div'); el.className = 'pop tfpop'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Timeframe');
+  el.innerHTML = `<h5>Timeframe</h5><div class="tfgrid">${list.map((tf, i) => `<button type="button" data-i="${i}"${TF && tfLabel(tf) === tfLabel(TF) ? ' class="on"' : ''}>${esc(tfLabel(tf))}</button>`).join('')}</div>
+    <div class="tfown"><input placeholder="Your own, e.g. 45m" aria-label="Custom timeframe" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"><button type="button" data-own="1">Use</button></div>
+    <p class="note">Your own must be a whole multiple of the data's ${esc(base)} bars, like 45m, 2h, 3D, 1W or 1M (a month).</p>`;
+  const own = () => {
+    const tf = parseTF(el.querySelector('input').value);
+    if (!tf) return toast('Write a timeframe like 45m, 2h, 3D, 1W or 1M (month).', 'err');
+    closePop(); setTF(tf);
+  };
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.i != null) { closePop(); setTF(list[+b.dataset.i]); } else if (b.dataset.own) own();
+  });
+  el.querySelector('input').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') own(); if (e.key === 'Escape') closePop(); });
+  placePop(el, btn);
 }
 // counts on the tab bar: open positions and orders; the evaluation's state
 function phoneBadges() {
@@ -4172,15 +4336,28 @@ function phoneBadges() {
   ev.className = s && s.over ? 'neg' : s && s.stage !== 'eval' ? 'pos' : '';
 }
 function wirePhone() {
-  $('#mnav').addEventListener('click', e => { const b = e.target.closest('button[data-mv]'); if (b) setMview(b.dataset.mv); });
+  $('#mnav').addEventListener('click', e => {
+    const b = e.target.closest('button[data-mv]'); if (!b) return;
+    if (b.dataset.mv === 'more') return SHEET.el === $('#mmore') ? closeSheet() : openSheet($('#mmore'), b);
+    setMview(b.dataset.mv);
+  });
   $('#mdraw').onclick = () => {
     const on = $('#chartWrap').classList.toggle('draw');
     $('#mdraw').setAttribute('aria-pressed', String(on));
-    if (!on) setTool('cursor');
+    if (!on) { setTool('cursor'); zonePanel(false); }
   };
+  $('#mTf').onclick = openTfPop;
+  $('#mSpeed').onclick = openSpeed;
+  $('#spPre').addEventListener('click', e => {
+    const b = e.target.closest('button[data-m]'); if (!b) return;
+    setSpeedFromMult(+b.dataset.m); uiPref('speed', +$('#speed').value);
+  });
+  $('#veil').addEventListener('click', () => { closePop(); closeSheet(); zonePanel(false); });
+  $('#evalSet').onclick = () => $('#bSettings').click();
   $('#mmore').addEventListener('click', e => {
     const b = e.target.closest('button[data-go]'); if (!b) return;
     const go = b.dataset.go;
+    closeSheet();
     if (go === 'import') { if (CAN_PICK) pickFile(); else $('#fileIn').click(); return; }
     if (go === 'tour') { if (E) { setMview('chart'); startTour(); } return; }
     const target = $('#' + go);
@@ -4207,6 +4384,7 @@ function wireLayout() {
   // side cards fold from their titles; which ones are folded is remembered
   const folded = new Set(ui0.folded || []);
   document.querySelectorAll('.side .card').forEach((c, i) => {
+    if (!c.querySelector('h3')) return; // the phone's evaluation hint has no title to fold it by
     const key = c.id || 'card' + i;
     c.classList.toggle('fold', folded.has(key));
     c.querySelector('h3').addEventListener('click', e => {
@@ -4292,6 +4470,20 @@ const TOUR_STEPS = [
   ['.dock', 'Positions and results', 'Open positions, working orders, closed trades and performance. Everything is saved as you go.'],
   ['#bHome', 'Home', 'Start another session or continue a saved one. Press ? any time for every shortcut.'],
 ];
+// on phones some steps point somewhere else and say how it works by touch: [selector, text]
+const TOUR_PHONE = {
+  0: [null, 'The market replays bar by bar and you trade it as if it were live. This takes about a minute.'],
+  1: ['#bPlay', 'Play and pause here. Bar and Candle step forward; tap the speed above to change it.'],
+  3: ['#mTf', 'Change the candles at any time, or type your own, like 45m. The replay keeps its place.'],
+  4: ['#chart', 'Touch and hold a price to buy or sell a limit or stop there. Drag order lines to move them, and drag the TP and SL buttons on a tag to add a target or stop.'],
+  5: ['#mdraw', 'The pencil opens the drawing tools: lines, boxes, fibs and position planners.'],
+  6: ['#mdraw', 'Price zones are in the same toolbar: FVGs, inverse FVGs, BPRs, order blocks and breakers, from any timeframe.'],
+  7: ['#mnav [data-mv="trade"]', 'The Trade tab has the order ticket: market, limit and stop orders with a stop loss and take profit, sized in units or by % risk.'],
+  9: ['#mnav [data-mv="more"]', 'Session settings, the Library, imports and chart settings are under More.'],
+  10: ['#mnav [data-mv="positions"]', 'Open positions, working orders, closed trades and performance. Everything is saved as you go.'],
+  11: ['#bHome', 'Start another session or continue a saved one.'],
+};
+const tourStep = i => { const st = TOUR_STEPS[i], ph = isM() && TOUR_PHONE[i]; return ph ? [ph[0], st[1], ph[1]] : st; };
 const TOUR = { i: 0, el: null };
 function startTour() {
   if (TOUR.el) return;
@@ -4311,7 +4503,7 @@ function startTour() {
 function tourGo(i) {
   if (i >= TOUR_STEPS.length) return endTour();
   TOUR.i = Math.max(0, i);
-  const [, title, text] = TOUR_STEPS[TOUR.i], last = TOUR.i === TOUR_STEPS.length - 1;
+  const [, title, text] = tourStep(TOUR.i), last = TOUR.i === TOUR_STEPS.length - 1;
   TOUR.el.querySelector('.tcard').innerHTML = `<div class="thead"><b>${esc(title)}</b><span>${TOUR.i + 1} of ${TOUR_STEPS.length}</span></div><p>${esc(text)}</p>
     <div class="tbtns"><button data-t="skip" class="tskip">${last ? '' : 'Skip tour'}</button>${TOUR.i ? '<button data-t="back">Back</button>' : ''}<button data-t="next" class="primary">${last ? 'Done' : TOUR.i ? 'Next' : 'Show me'}</button></div>`;
   tourPlace();
@@ -4320,7 +4512,7 @@ function tourGo(i) {
 // the spotlight sits on the step's target; the card goes below it, or above, or beside it
 function tourPlace() {
   if (!TOUR.el) return;
-  const sel = TOUR_STEPS[TOUR.i][0], t = sel && document.querySelector(sel), r = t && t.getBoundingClientRect();
+  const sel = tourStep(TOUR.i)[0], t = sel && document.querySelector(sel), r = t && t.getBoundingClientRect();
   const spot = TOUR.el.querySelector('.tspot'), card = TOUR.el.querySelector('.tcard');
   const shown = r && r.width > 0 && r.height > 0;
   spot.classList.toggle('none', !shown);
@@ -4360,6 +4552,8 @@ function applySpeed() {
   const bps = D ? speedMult / D.base : 0;
   const m = speedMult < 1.05 ? 'real time' : (speedMult >= 1000 ? (speedMult / 1000).toFixed(speedMult >= 1e4 ? 0 : 1) + 'k×' : Math.round(speedMult) + '×');
   $('#speedLbl').textContent = `${m} · ${bps < 1 ? bps.toFixed(2) : bps < 10 ? bps.toFixed(1) : Math.round(bps)} bars/s`;
+  $('#mSpeedLbl').textContent = $('#spNow').textContent = speedMult < 1.05 ? '1×' : m;
+  for (const b of document.querySelectorAll('#spPre button')) b.classList.toggle('on', Math.abs(Math.log10(+b.dataset.m / speedMult)) < 0.02);
 }
 function setSpeedFromMult(mult) { $('#speed').value = Math.round(Math.log10(clamp(mult, 1, speedMax())) / Math.log10(speedMax()) * 1000); applySpeed(); }
 function setType(t) {
@@ -4371,15 +4565,19 @@ function setType(t) {
 }
 // buttons for common timeframes (others: the custom box); at most 12, so daily and up always show
 const STD_TF = ['5s', '15s', '1m', '5m', '15m', '30m', '1h', '4h', '1D', '1W', '1M'];
-function buildTFChips() {
-  const box = $('#tfChips'); box.innerHTML = '';
+function tfList() {
   const list = [];
   const baseTF = { kind: 's', sec: D.base };
   list.push(baseTF);
   for (const s of STD_TF) { const tf = parseTF(s); if (tfValid(tf, D.base) && tfLabel(tf) !== tfLabel(baseTF) && (tf.kind !== 's' || tf.sec > D.base)) list.push(tf); }
   const shown = list.slice(0, 12);
   if (TF && !shown.some(x => tfLabel(x) === tfLabel(TF))) shown.push(TF);
-  for (const tf of shown) {
+  return shown;
+}
+function buildTFChips() {
+  const box = $('#tfChips'); box.innerHTML = '';
+  $('#mTfLbl').textContent = TF ? tfLabel(TF) : '—';
+  for (const tf of tfList()) {
     const b = document.createElement('button'); b.textContent = tfLabel(tf); b.dataset.tf = tfLabel(tf);
     b.classList.toggle('on', TF && tfLabel(tf) === tfLabel(TF));
     b.onclick = () => setTF(tf);
@@ -4398,7 +4596,12 @@ function setTF(tf) {
 
 /* ---------------- popovers: date and time picker, Skip ahead menu ---------------- */
 const POP = { el: null, anchor: null };
-function closePop() { if (POP.el) { POP.el.remove(); POP.el = null; document.removeEventListener('mousedown', popOutside, true); } }
+function closePop() {
+  if (!POP.el) return;
+  POP.el.remove(); POP.el = null; document.removeEventListener('mousedown', popOutside, true);
+  if (POP.anchor) POP.anchor.removeAttribute('aria-expanded');
+  syncVeil();
+}
 function popOutside(e) { if (POP.el && !POP.el.contains(e.target) && !(POP.anchor && POP.anchor.contains(e.target))) closePop(); }
 function placePop(el, anchor) {
   document.body.appendChild(el);
@@ -4406,6 +4609,8 @@ function placePop(el, anchor) {
   let y = r.bottom + 6; if (y + h > innerHeight - 8) y = Math.max(8, r.top - h - 6);
   el.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px'; el.style.top = y + 'px';
   POP.el = el; POP.anchor = anchor;
+  if (anchor) anchor.setAttribute('aria-expanded', 'true');
+  syncVeil();
   setTimeout(() => document.addEventListener('mousedown', popOutside, true));
 }
 // A calendar in the chart time zone with a 24-hour time box and quick choices.
@@ -4798,6 +5003,7 @@ function wire() {
       return;
     }
     if (!$('#lib').hidden) { if (e.key === 'Escape') $('#lib').hidden = true; return; }
+    if (SHEET.el) { if (e.key === 'Escape') closeSheet(); return; }
     if (POP.el) { if (e.key === 'Escape') closePop(); return; }
     if (!$('#keysSheet').hidden) { if (e.key === 'Escape' || e.key === '?') $('#keysSheet').hidden = true; return; }
     if (!$('#chartSet').hidden) { if (e.key === 'Escape') $('#csClose').click(); return; }
