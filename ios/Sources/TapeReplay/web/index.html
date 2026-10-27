@@ -324,6 +324,21 @@ td button{font-size:11px!important;padding:2px 7px!important}
 .sname span{font-size:11px;color:var(--muted);font-family:var(--f-num)}
 .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 14px}
 .cgrid input[type=color],.sessgrid input[type=color]{height:28px;padding:1px;width:100%;min-width:40px}
+/* theme picker: one card per palette, drawn in its own colors */
+.palgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.palsw{display:flex;flex-direction:column;gap:6px;padding:6px!important;border-radius:8px!important;text-align:left;background:var(--panel)!important}
+.palsw[aria-checked="true"]{border-color:var(--accent)!important;box-shadow:0 0 0 1px var(--accent)}
+.palsw b{font-size:12.5px;font-weight:600;padding:0 2px}
+.palsw small{font-size:10.5px;color:var(--muted);padding:0 2px;margin-top:-5px}
+.palprev{position:relative;display:block;height:44px;border-radius:5px;overflow:hidden;background:var(--b);border:1px solid var(--l)}
+.palprev::before{content:"";position:absolute;left:0;right:0;top:0;height:9px;background:var(--p);border-bottom:1px solid var(--l)}
+.palprev i{position:absolute;bottom:7px;width:6px;border-radius:1px}
+.palprev i:nth-child(1){left:12px;height:16px;background:var(--u)}
+.palprev i:nth-child(2){left:22px;height:22px;bottom:4px;background:var(--d)}
+.palprev i:nth-child(3){left:32px;height:12px;bottom:13px;background:var(--u)}
+.palprev i:nth-child(4){right:10px;bottom:auto;top:16px;width:22px;height:8px;border-radius:4px;background:var(--a)}
+.palprev.sys{background:linear-gradient(135deg,var(--b) 50%,var(--b2) 50%)}
+.palsys{margin-top:2px}
 .libhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .seg.lt{grid-template-columns:repeat(2,auto)}
 .seg.lt button{padding:5px 14px!important}
@@ -619,7 +634,7 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
     <div class="tgroup">
       <button id="bLib" hidden title="Saved backtests and data files">Library</button>
       <button id="bInd" title="Moving averages and VWAP on the chart" aria-haspopup="dialog" aria-label="Indicators"><svg class="mico" viewBox="0 0 20 20"><path d="M2.5 14c2.5 0 3-7 6-7s3 6 5.5 6 2.5-4 3.5-5"/><path d="M2.5 17h15" style="opacity:.5"/></svg><span class="mlbl">Indicators</span></button>
-      <button id="bChart" title="Time zone, session lines and colors" aria-label="Chart settings"><svg class="mico" viewBox="0 0 20 20"><path d="M3 5.5h8M15 5.5h2M3 10h2M9 10h8M3 14.5h6M13 14.5h4"/><circle cx="13" cy="5.5" r="1.8"/><circle cx="7" cy="10" r="1.8"/><circle cx="11" cy="14.5" r="1.8"/></svg><span class="mlbl">Chart</span></button>
+      <button id="bChart" title="Themes, colors, time zone and session lines" aria-label="Chart settings"><svg class="mico" viewBox="0 0 20 20"><path d="M3 5.5h8M15 5.5h2M3 10h2M9 10h8M3 14.5h6M13 14.5h4"/><circle cx="13" cy="5.5" r="1.8"/><circle cx="7" cy="10" r="1.8"/><circle cx="11" cy="14.5" r="1.8"/></svg><span class="mlbl">Chart</span></button>
       <button id="bSettings" title="Start time, costs and prop rules">Session</button>
       <button id="bKeys" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
       <button id="bSide" title="Hide or show the side panel" aria-label="Toggle side panel"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M10 2.5v11"/></svg></button>
@@ -782,7 +797,7 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
     <button data-go="bCopy"><b>Copy trades</b><span>Closed trades as CSV</span></button>
     <h4>Chart</h4>
     <button data-go="bInd"><b>Indicators</b><span>EMA, SMA and VWAP</span></button>
-    <button data-go="bChart"><b>Chart settings</b><span>Time zone, session lines and colors</span></button>
+    <button data-go="bChart"><b>Chart settings</b><span>Themes, colors, time zone and session lines</span></button>
     <button data-go="tour"><b>Take the tour</b><span>How the app works, in a minute</span></button>
     <button data-go="bKeys"><b>Keyboard shortcuts</b><span>For a keyboard on an iPad</span></button>
     <h4>About</h4>
@@ -817,10 +832,13 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
         <button type="button" id="fStart" class="dtfield" aria-label="Start time"><span></span><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg></button>
       </div>
       <label class="f">Starting balance ($)<input id="fBal" type="number" step="any" min="0"></label>
-      <label class="f">Commission, % of notional per side<input id="fComm" type="number" step="any" min="0"></label>
+      <div class="f">Commission per side
+        <div class="inl"><input id="fComm" type="number" step="any" min="0" aria-label="Commission per side">
+          <select id="fCommMode" aria-label="Commission unit"><option value="fixed">$ per contract or unit</option><option value="pct">% of notional</option></select></div>
+      </div>
       <label class="f">Spread, in price (buys pay it)<input id="fSpread" type="number" step="any" min="0"></label>
       <label class="f">Slippage on market and stop fills<input id="fSlip" type="number" step="any" min="0"></label>
-      <label class="f">Point value ($ per 1.0 price move per unit)<input id="fPv" type="number" step="any" min="0"></label>
+      <label class="f">Point value ($ per 1.0 price move per unit)<input id="fPv" type="number" step="any" min="0"><span class="hint" id="fPvNote"></span></label>
       <label class="f">Ticks per base bar (4–600)<input id="fTicks" type="number" min="4" max="600" step="1"></label>
       <label class="f">Default order size (units)<input id="fQty" type="number" step="any" min="0"></label>
       <label class="f chk"><input id="fPause" type="checkbox"> Pause the replay when an order fills or a stop or target is hit</label>
@@ -844,7 +862,7 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
         <label class="f chk"><input id="pMllLock" type="checkbox"> Stop trailing once the MLL floor reaches the starting balance</label>
         <label class="f">Consistency: best day max % of total profit<input id="pCons" type="number" step="any" min="0" max="100" placeholder="off"></label>
         <label class="f">Max position size (units or contracts)<input id="pMax" type="number" step="any" min="0" placeholder="off"></label>
-        <label class="f">Trading day starts at (hour 0–23, chart time zone)<input id="pReset" type="number" step="1" min="0" max="23" placeholder="0"></label>
+        <label class="f">Trading day starts at (hour 0–23, New York time)<input id="pReset" type="number" step="1" min="0" max="23" placeholder="18"></label>
         <label class="f">Must be flat by (HH:MM, chart time zone)<input id="pFlat" placeholder="off, e.g. 15:55" inputmode="numeric" maxlength="5"></label>
       </div>
       <p class="note">Leave a rule blank or 0 to turn it off. Daily loss counts realized and open P&amp;L from the balance at the start of the trading day. Breaking the MLL fails the evaluation and closes everything. The flat-by time closes positions and blocks new trades until the next trading day starts. The evaluation passes when closed profit reaches the target with the minimum days traded and the consistency limit met.</p>
@@ -959,7 +977,12 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
       <p class="note">Lines show on timeframes below one day and are skipped on weekends.</p>
     </fieldset>
     <fieldset class="pf">
-      <legend>Colors</legend>
+      <legend>Theme and colors</legend>
+      <div class="palgrid" id="palGrid" role="radiogroup" aria-label="Theme"></div>
+      <div class="fgrid palsys" id="palSys">
+        <label class="f">When the system is dark<select id="thDark"></select></label>
+        <label class="f">When the system is light<select id="thLight"></select></label>
+      </div>
       <div class="pfrow">
         <select id="thPreset" aria-label="Color preset"></select>
         <input id="thName" placeholder="Preset name" aria-label="Color preset name">
@@ -967,7 +990,7 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
         <button id="thDel">Delete preset</button>
       </div>
       <div class="cgrid">
-        <label class="f">App appearance<select id="thMode"><option value="system">Follow Windows</option><option value="dark">Dark</option><option value="light">Light</option></select></label>
+        <label class="f">Up and down colors<select id="thCandles"></select></label>
         <label class="f">Accent<input id="thAccent" type="color"></label>
         <label class="f">Chart background<input id="thChartBg" type="color"></label>
         <label class="f">Grid<input id="thGrid" type="color"></label>
@@ -1070,7 +1093,18 @@ const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 let D = null;          // dataset in replay: {name,n,t,o,h,l,c,v,base,prec,sample}
 let pendingD = null;   // dataset parsed, waiting for the session dialog
 let TF = null, bucket = null;
-const PROP_DEF = { on: false, pt: 0, dll: 0, dllAct: 'lock', mll: 0, mllType: 'static', mllLock: true, cons: 0, minDays: 0, maxSize: 0, reset: 0, flatBy: '' };
+// The trading day starts at resetNY o'clock New York time: 18:00 is when the CME's Globex day opens and when futures
+// prop firms roll their daily loss and day counts (5 PM Chicago).
+const PROP_DEF = { on: false, pt: 0, dll: 0, dllAct: 'lock', mll: 0, mllType: 'static', mllLock: true, cons: 0, minDays: 0, maxSize: 0, resetNY: 18, flatBy: '' };
+// Older settings kept the hour in the chart time zone ('reset', default 0, which was local midnight). The untouched
+// default becomes 18:00 New York; an hour someone chose, or a saved backtest's, keeps meaning the same moment.
+function migrateReset(p, faithful) {
+  if (!p || p.resetNY != null) return p || {};
+  const r = +p.reset || 0;
+  if (!r && !faithful) p.resetNY = 18;
+  else { const t = E ? E.time : Date.now() / 1000; p.resetNY = ((Math.round(r - zoneOff(t) / 3600 + nyOff(t) / 3600) % 24) + 24) % 24; }
+  delete p.reset; return p;
+}
 /* Prop simulation: one account's whole course, evaluation -> funded (payouts) -> live, kept apart from the
    plain prop rules. Contract limits are in minis; with micros counted, each mini allows 10 micros.
    e* = evaluation, f* = funded, l* = live. Max loss is end-of-day trailing and locks at start + lockPad. */
@@ -1093,7 +1127,7 @@ function simConfig(saved) {
   if (/^Lucid Flex /.test(s.preset || '')) s.preset = s.preset.replace(/^Lucid Flex /, 'L Flex ');
   return s;
 }
-const cfg = { balance: 10000, comm: 0, spread: 0, slip: 0, pv: 1, ticks: 20, qty: 1, pauseFill: false, ma: ['EMA 20', 'SMA 50'], prop: { ...PROP_DEF }, sim: { ...SIM_DEF } };
+const cfg = { balance: 10000, comm: 0, commMode: 'fixed', spread: 0, slip: 0, pv: 1, instr: '', ticks: 20, qty: 1, pauseFill: false, ma: ['EMA 20', 'SMA 50'], prop: { ...PROP_DEF }, sim: { ...SIM_DEF } };
 // per-user preferences: default settings plus saved drawing and prop presets
 const PREFS = { drawPresets: [], propPresets: [], simPresets: [], drawStyle: '' };
 let E = null;          // replay engine
@@ -1138,12 +1172,14 @@ async function loadPrefs() {
     const p = STORE ? await STORE.getPrefs() : JSON.parse(localStorage.getItem('tape-replay-prefs') || '{}');
     Object.assign(PREFS, p || {});
   } catch (e) {}
-  if (PREFS.cfg) Object.assign(cfg, PREFS.cfg);
-  cfg.prop = { ...PROP_DEF, ...(cfg.prop || {}) };
-  cfg.sim = simConfig(cfg.sim);
-  if (!Array.isArray(PREFS.simPresets)) PREFS.simPresets = [];
   // remembered between launches: time zone, timeframe, side panel
   setZone((PREFS.chart || {}).tz || 'local');
+  // older settings had only a % of notional commission; a nonzero one keeps meaning that
+  if (PREFS.cfg) { Object.assign(cfg, PREFS.cfg); if (PREFS.cfg.commMode == null) cfg.commMode = PREFS.cfg.comm > 0 ? 'pct' : 'fixed'; }
+  cfg.prop = { ...PROP_DEF, ...migrateReset(cfg.prop) };
+  cfg.sim = simConfig(cfg.sim);
+  if (!Array.isArray(PREFS.simPresets)) PREFS.simPresets = [];
+  for (const x of PREFS.propPresets || []) migrateReset(x.rules);
   const ui = PREFS.ui || {};
   if (ui.tf && parseTF(ui.tf)) TF = parseTF(ui.tf);
   $('#app').classList.toggle('noside', !!ui.noside);
@@ -1708,7 +1744,31 @@ function hexA(hex, a) {
 }
 let C = {};
 // Colors come from the page theme, then the user's own choices on top (Chart settings).
-const TH_DEF = { mode: 'system', accent: '', chartBg: '', grid: '', text: '', up: '', down: '', wickUp: '', wickDown: '', border: false };
+// mode: 'system' (follows the device's light or dark setting, with the palettes picked for each) or a palette id
+const TH_DEF = { mode: 'system', dark: 'terminal', light: 'paper', accent: '', chartBg: '', grid: '', text: '', up: '', down: '', wickUp: '', wickDown: '', border: false };
+// App palettes. Each sets every color the page and chart use; the color pickers below still override single colors.
+const PALETTES = [
+  { id: 'terminal', name: 'Terminal', kind: 'dark', v: { bg: '#0c1016', panel: '#121820', raise: '#18202b', line: '#242e3b', grid: '#161d26', fg: '#d6dce6', muted: '#8692a4', accent: '#e2a63c', 'accent-ink': '#1b1306', up: '#2db38a', down: '#e5554c', ma2: '#7f9cf5' } },
+  { id: 'midnight', name: 'Midnight', kind: 'dark', v: { bg: '#0a101d', panel: '#0f182a', raise: '#152036', line: '#22304b', grid: '#121c30', fg: '#dbe4f3', muted: '#8a98b4', accent: '#5b9cf5', 'accent-ink': '#06101f', up: '#26b48c', down: '#ef5b5b', ma2: '#c792ea' } },
+  { id: 'graphite', name: 'Graphite', kind: 'dark', v: { bg: '#141414', panel: '#1c1c1c', raise: '#252525', line: '#343434', grid: '#202020', fg: '#e6e6e6', muted: '#9b9b9b', accent: '#4fb3bf', 'accent-ink': '#061a1d', up: '#3cb371', down: '#e0544f', ma2: '#d7a14a' } },
+  { id: 'oled', name: 'True black', kind: 'dark', note: 'For OLED screens', v: { bg: '#000000', panel: '#000000', raise: '#0e0e0e', line: '#262626', grid: '#0d0d0d', fg: '#ececec', muted: '#8c8c8c', accent: '#e2a63c', 'accent-ink': '#1b1306', up: '#22c58b', down: '#ff5a52', ma2: '#7f9cf5' } },
+  { id: 'forest', name: 'Forest', kind: 'dark', v: { bg: '#0c1411', panel: '#111c17', raise: '#17251e', line: '#24362c', grid: '#14201a', fg: '#d6e4da', muted: '#87a294', accent: '#8bc97e', 'accent-ink': '#08160a', up: '#43c08f', down: '#e8735a', ma2: '#e9c46a' } },
+  { id: 'dusk', name: 'Dusk', kind: 'dark', v: { bg: '#131019', panel: '#1a1623', raise: '#221d2e', line: '#312a42', grid: '#1a1623', fg: '#e3ddef', muted: '#998fae', accent: '#c38bf2', 'accent-ink': '#1a0b28', up: '#2fbf9b', down: '#f2668b', ma2: '#f2c14e' } },
+  { id: 'contrast', name: 'High contrast', kind: 'dark', v: { bg: '#000000', panel: '#000000', raise: '#141414', line: '#7a7a7a', grid: '#1f1f1f', fg: '#ffffff', muted: '#d0d0d0', accent: '#ffd400', 'accent-ink': '#000000', up: '#00e08a', down: '#ff5c5c', ma2: '#6cb4ff' } },
+  { id: 'paper', name: 'Paper', kind: 'light', v: { bg: '#eef1f5', panel: '#ffffff', raise: '#f5f7fa', line: '#d5dbe4', grid: '#eef1f5', fg: '#161e2a', muted: '#5a6678', accent: '#a86a0c', 'accent-ink': '#ffffff', up: '#0e8c66', down: '#cc3a31', ma2: '#4060c8' } },
+  { id: 'arctic', name: 'Arctic', kind: 'light', v: { bg: '#e8eff6', panel: '#ffffff', raise: '#f1f5fa', line: '#cddae6', grid: '#edf2f7', fg: '#0f1f2e', muted: '#516478', accent: '#1f6fd1', 'accent-ink': '#ffffff', up: '#0f9a72', down: '#d23f3f', ma2: '#8a4fd1' } },
+  { id: 'sand', name: 'Sand', kind: 'light', v: { bg: '#f1ebdf', panel: '#fbf8f2', raise: '#f3ede2', line: '#ddd2bf', grid: '#efe8db', fg: '#2a2319', muted: '#756856', accent: '#b0601a', 'accent-ink': '#ffffff', up: '#2b8a57', down: '#c0392b', ma2: '#3b6fb6' } },
+];
+const palOf = id => PALETTES.find(p => p.id === id);
+// the palette in use: older settings said 'dark' or 'light'
+function activePalette(th) {
+  const id = th.mode === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? th.dark : th.light)
+    : th.mode === 'dark' ? 'terminal' : th.mode === 'light' ? 'paper' : th.mode;
+  return palOf(id) || palOf(th.mode === 'system' && !matchMedia('(prefers-color-scheme: dark)').matches ? 'paper' : 'terminal');
+}
+// up and down candle pairs that work on any palette; the first follows the palette
+const CANDLE_SETS = [['', '', 'The theme\'s own'], ['#2f7fe0', '#f08a24', 'Blue and orange (color-blind friendly)'], ['#00b386', '#ff3b30', 'Bright green and red'],
+  ['#26a69a', '#ef5350', 'Teal and coral'], ['#5b8def', '#e05ca8', 'Blue and pink']];
 const theme = () => ({ ...TH_DEF, ...((PREFS.chart || {}).theme || {}) });
 const readColors = () => {
   const th = theme();
@@ -1718,10 +1778,11 @@ const readColors = () => {
 };
 // app-wide parts of the theme: light/dark and the accent, up and down colors used by buttons and P&L
 function applyAppTheme() {
-  const th = theme(), root = document.documentElement;
-  const want = th.mode === 'system' ? null : th.mode;
-  if (root.getAttribute('data-theme') !== want) { if (want) root.setAttribute('data-theme', want); else root.removeAttribute('data-theme'); }
-  for (const [k, v] of [['--accent', th.accent], ['--up', th.up], ['--down', th.down]]) { if (v) root.style.setProperty(k, v); else root.style.removeProperty(k); }
+  const th = theme(), root = document.documentElement, pal = activePalette(th);
+  if (root.getAttribute('data-theme') !== pal.kind) root.setAttribute('data-theme', pal.kind);
+  root.dataset.pal = pal.id;
+  for (const [k, v] of Object.entries(pal.v)) root.style.setProperty('--' + k, v);
+  for (const [k, v] of [['--accent', th.accent], ['--up', th.up], ['--down', th.down]]) if (v) root.style.setProperty(k, v);
 }
 
 let chart, cs, vs, maS = [], eqChart, eqS;
@@ -2051,7 +2112,8 @@ const bidPx = () => E.price;
 const askPx = () => E.price == null ? null : rp(E.price + cfg.spread);
 const unreal = tr => E.price == null ? 0 : ((tr.side > 0 ? E.price : E.price + cfg.spread) - tr.entry) * tr.side * tr.qty * cfg.pv;
 function equity() { let e = T.balance; for (const tr of T.trades) e += unreal(tr); return e; }
-const commOf = (px, q) => Math.abs(px * q * cfg.pv) * cfg.comm / 100;
+// commission per side: dollars per contract (or unit), as futures brokers charge, or a percent of the notional
+const commOf = (px, q) => cfg.commMode === 'pct' ? Math.abs(px * q * cfg.pv) * cfg.comm / 100 : Math.abs(q) * cfg.comm;
 function trackDD(eq) {
   if (eq > T.peak) T.peak = eq;
   const dd = T.peak - eq;
@@ -2300,11 +2362,13 @@ function closeMarket(tr) { closeTrade(tr, tr.side > 0 ? bidPx() - cfg.slip : ask
 /* ---------------- prop firm rules ---------------- */
 function newPropState(start) { return { day: null, dayStart: start, peak: start, eodPeak: start, failed: false, reason: '', locked: '', days: {}, tdays: {}, passedAt: null }; }
 const propOn = () => !!(cfg.prop && cfg.prop.on && !simOnCfg() && T && T.prop);
-// trading days and the flat-by time follow the chart time zone
-const dayKey = t => Math.floor((t + zoneOff(t) - (cfg.prop.reset || 0) * 3600) / 86400);
+// trading days start at the New York hour; the flat-by time is in the chart time zone
+const resetNY = () => cfg.prop.resetNY ?? 18;
+const dayKey = t => Math.floor((t + nyOff(t) - resetNY() * 3600) / 86400);
 function inFlat(t) {
   const P = cfg.prop; if (!P.flatBy) return false;
-  const [h, m] = P.flatBy.split(':').map(Number); const f = h * 60 + m, r = (P.reset || 0) * 60;
+  const [h, m] = P.flatBy.split(':').map(Number), f = h * 60 + m;
+  const r = ((Math.round(resetNY() * 60 - nyOff(t) / 60 + zoneOff(t) / 60) % 1440) + 1440) % 1440; // the day start, in chart time
   const lt = t + zoneOff(t), tod = Math.floor((((lt % 86400) + 86400) % 86400) / 60);
   if (f === r) return false;
   return f < r ? (tod >= f && tod < r) : (tod >= f || tod < r);
@@ -2650,18 +2714,19 @@ function wireSim() {
   });
 }
 // settings form <-> rules
-const PF = { pt: '#pPt', minDays: '#pMin', dll: '#pDll', mll: '#pMll', cons: '#pCons', maxSize: '#pMax', reset: '#pReset' };
+const PF = { pt: '#pPt', minDays: '#pMin', dll: '#pDll', mll: '#pMll', cons: '#pCons', maxSize: '#pMax' };
 function propToForm(p) {
   p = { ...PROP_DEF, ...p };
   $('#pOn').checked = p.on;
   for (const [k, id] of Object.entries(PF)) $(id).value = p[k] ? p[k] : '';
+  $('#pReset').value = p.resetNY ?? 18;
   $('#pDllAct').value = p.dllAct; $('#pMllType').value = p.mllType; $('#pMllLock').checked = p.mllLock; $('#pFlat').value = p.flatBy || '';
   $('#pFields').setAttribute('aria-disabled', String(!p.on));
 }
 function propFromForm() {
   const p = { ...PROP_DEF, on: $('#pOn').checked, dllAct: $('#pDllAct').value, mllType: $('#pMllType').value, mllLock: $('#pMllLock').checked, flatBy: normHM($('#pFlat').value) };
   for (const [k, id] of Object.entries(PF)) { const v = parseFloat($(id).value); p[k] = isFinite(v) && v > 0 ? v : 0; }
-  p.reset = clamp(Math.round(p.reset), 0, 23);
+  const r = parseFloat($('#pReset').value); p.resetNY = isFinite(r) ? clamp(Math.round(r), 0, 23) : 18;
   return p;
 }
 function fillPropPresets(sel) {
@@ -2671,7 +2736,7 @@ function wireProp() {
   $('#pOn').addEventListener('change', () => $('#pFields').setAttribute('aria-disabled', String(!$('#pOn').checked)));
   $('#pPreset').addEventListener('change', () => {
     const p = PREFS.propPresets.find(x => x.name === $('#pPreset').value); if (!p) return;
-    propToForm({ ...p.rules, on: true }); $('#pName').value = p.name;
+    propToForm({ ...migrateReset(p.rules), on: true }); $('#pName').value = p.name;
   });
   $('#pSave').onclick = () => {
     const name = $('#pName').value.trim(); if (!name) return toast('Type a name for the preset first.', 'err');
@@ -3490,7 +3555,23 @@ function fillThemeForm() {
   const th = theme();
   const eff = { accent: css('--accent'), chartBg: C.bg, grid: C.grid, text: C.muted, up: C.up, down: C.down, wickUp: C.wickUp, wickDown: C.wickDown };
   for (const [id, k] of Object.entries(TH_INPUTS)) $('#' + id).value = /^#[0-9a-f]{6}$/i.test(th[k] || eff[k]) ? (th[k] || eff[k]) : '#888888';
-  $('#thMode').value = th.mode; $('#thBorder').checked = th.border;
+  $('#thBorder').checked = th.border;
+  // palette cards, drawn in their own colors
+  const card = (id, name, sub, vars, cls = '') => `<button type="button" class="palsw" role="radio" data-pal="${id}" aria-checked="${String(th.mode === id || (id === 'dark' && th.mode === 'dark'))}">
+      <span class="palprev ${cls}" style="${vars}"><i></i><i></i><i></i><i></i></span><b>${esc(name)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
+  const pv = p => `--b:${p.v.bg};--p:${p.v.panel};--l:${p.v.line};--a:${p.v.accent};--u:${p.v.up};--d:${p.v.down}`;
+  const dk = palOf(th.dark) || palOf('terminal'), lt = palOf(th.light) || palOf('paper');
+  const legacy = { dark: 'terminal', light: 'paper' }[th.mode];
+  $('#palGrid').innerHTML = card('system', 'Match system', `${dk.name} / ${lt.name}`, pv(dk) + `;--b2:${lt.v.bg}`, 'sys') +
+    PALETTES.map(p => card(p.id, p.name, p.note || (p.kind === 'light' ? 'Light' : 'Dark'), pv(p))).join('');
+  if (legacy) $(`#palGrid [data-pal="${legacy}"]`).setAttribute('aria-checked', 'true');
+  const opts = kind => PALETTES.filter(p => p.kind === kind).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  $('#thDark').innerHTML = opts('dark'); $('#thLight').innerHTML = opts('light');
+  $('#thDark').value = dk.id; $('#thLight').value = lt.id;
+  $('#palSys').hidden = th.mode !== 'system';
+  const set = CANDLE_SETS.findIndex(([u, d]) => u === (th.up || '') && d === (th.down || ''));
+  $('#thCandles').innerHTML = CANDLE_SETS.map(([, , l], i) => `<option value="${i}">${esc(l)}</option>`).join('') + (set < 0 ? '<option value="-1">Your own (set below)</option>' : '');
+  $('#thCandles').value = String(set);
   $('#thPreset').innerHTML = '<option value="">Color presets…</option>' + (PREFS.themePresets || []).map(p => `<option>${esc(p.name)}</option>`).join('');
 }
 // how long, in plain words: "3 days 4 h", "52 min"
@@ -3602,7 +3683,14 @@ function wireChartSet() {
   $('#sShade').onchange = () => { chartPrefs().shade = $('#sShade').checked; savePrefsSoon(); };
   $('#sLabels').onchange = () => { chartPrefs().labels = $('#sLabels').checked; savePrefsSoon(); };
   for (const [id, k] of Object.entries(TH_INPUTS)) $('#' + id).addEventListener('input', e => setTheme({ [k]: e.target.value }));
-  $('#thMode').onchange = () => { setTheme({ mode: $('#thMode').value }); fillThemeForm(); };
+  // a new palette drops the chart background, grid and axis colors picked for the old one; accent and candles stay
+  $('#palGrid').addEventListener('click', e => { const b = e.target.closest('[data-pal]'); if (b) { setTheme({ mode: b.dataset.pal, chartBg: '', grid: '', text: '' }); fillThemeForm(); } });
+  $('#thDark').onchange = () => { setTheme({ dark: $('#thDark').value }); fillThemeForm(); };
+  $('#thLight').onchange = () => { setTheme({ light: $('#thLight').value }); fillThemeForm(); };
+  $('#thCandles').onchange = () => {
+    const c = CANDLE_SETS[+$('#thCandles').value]; if (!c) return;
+    setTheme({ up: c[0], down: c[1], wickUp: '', wickDown: '' }); fillThemeForm();
+  };
   $('#thBorder').onchange = () => setTheme({ border: $('#thBorder').checked });
   $('#thReset').onclick = () => { chartPrefs().theme = {}; applyTheme(); savePrefsSoon(); fillThemeForm(); toast('Colors reset to the default theme.'); };
   $('#thPreset').onchange = () => {
@@ -3970,7 +4058,8 @@ async function resumeSession(id) {
     data = await loadSection(data, s.datasetWindow.from, s.datasetWindow.to);
   }
   Object.assign(cfg, s.cfg);
-  cfg.prop = { ...PROP_DEF, ...(s.cfg.prop || {}) };
+  if (s.cfg.commMode == null) cfg.commMode = 'pct'; // saved before there was a choice: it was % of notional
+  cfg.prop = { ...PROP_DEF, ...migrateReset(s.cfg.prop, true) };
   cfg.sim = simConfig(s.cfg.sim);
   setPlaying(false);
   startSession(data, s.start, parseTF(s.tf), s);
@@ -4091,7 +4180,7 @@ function synthIndex() {
   }
   const meta = synthMeta();
   return { chunked: true, synthetic: true, dsId: SYNTH_ID, name: SYNTH_NAME, n: meta.bars, base: 1, prec: 2, hasVol: true, from: meta.from, to: meta.to,
-           rolls: [], pick: '', pointValue: 2, index: { blocks: blocks.map(({ t0, t1, n }) => ({ t0, t1, n })) } };
+           rolls: [], pick: '', pointValue: 2, symbol: 'MNQ', index: { blocks: blocks.map(({ t0, t1, n }) => ({ t0, t1, n })) } };
 }
 // one futures day of 1-second bars, appended to out (only bars between t0 and t1)
 function synthDay(i, out, t0, t1) {
@@ -4693,10 +4782,13 @@ function openSkipMenu() {
   const now = E.time, end = D.t[D.n - 1], items = [];
   const add = (label, t) => { if (isFinite(t) && t > now && t <= end) items.push([label, t]); };
   for (const [s, l] of [[300, '5 minutes'], [900, '15 minutes'], [3600, '1 hour'], [14400, '4 hours']]) add('+' + l, now + s);
-  const p = zp(now);
-  for (let i = 0; i < 8; i++) { // next trading day: the prop day-start hour, skipping weekends
-    const t = zoneToUtc(p.y, p.mo, p.d + i, cfg.prop.reset || 0, 0), wd = zp(t).wd;
-    if (t > now && wd !== 6) { add('Next trading day', t); break; }
+  // next trading day: the day-start hour in New York (the simulation's or the prop rules'), skipping weekends.
+  // An evening start (like 18:00) opens the next day's session, so Friday and Saturday evenings are skipped.
+  const h = simOnCfg() ? (cfg.sim.resetNY ?? 18) : resetNY(), ny = new Date((now + nyOff(now)) * 1000);
+  for (let i = 0; i < 9; i++) {
+    const t = localToUtc('America/New_York', ny.getUTCFullYear(), ny.getUTCMonth(), ny.getUTCDate() + i, h, 0);
+    const wd = (new Date(Date.UTC(ny.getUTCFullYear(), ny.getUTCMonth(), ny.getUTCDate() + i)).getUTCDay() + (h >= 12 ? 1 : 0)) % 7;
+    if (t > now && wd !== 0 && wd !== 6) { add('Next trading day', t); break; }
   }
   const opens = chartPrefs().sessions.filter(s => s.on && s.open).map(s => [`Next ${s.name} open`, nextOpen(s, now)]).sort((a, b) => a[1] - b[1]);
   add('+1 week', now + 7 * 86400);
@@ -4819,16 +4911,60 @@ async function changePick() {
   } catch (e) { toast(e.message, 'err'); $('#fSym').value = d0.pick; }
   finally { $('#fSym').disabled = $('#mStart').disabled = false; }
 }
+/* ---------------- instruments: point values and ticks of common futures ---------------- */
+// [$ per 1.0 price move for one contract, minimum tick, name], from the exchanges' contract specifications
+const INSTR = {
+  ES: [50, 0.25, 'E-mini S&P 500'], MES: [5, 0.25, 'Micro E-mini S&P 500'], NQ: [20, 0.25, 'E-mini Nasdaq-100'], MNQ: [2, 0.25, 'Micro E-mini Nasdaq-100'],
+  YM: [5, 1, 'E-mini Dow'], MYM: [0.5, 1, 'Micro E-mini Dow'], RTY: [50, 0.1, 'E-mini Russell 2000'], M2K: [5, 0.1, 'Micro E-mini Russell 2000'],
+  EMD: [100, 0.1, 'E-mini S&P MidCap 400'],
+  CL: [1000, 0.01, 'Crude oil'], MCL: [100, 0.01, 'Micro crude oil'], QM: [500, 0.025, 'E-mini crude oil'], NG: [10000, 0.001, 'Natural gas'],
+  RB: [42000, 0.0001, 'RBOB gasoline'], HO: [42000, 0.0001, 'Heating oil'],
+  GC: [100, 0.1, 'Gold'], MGC: [10, 0.1, 'Micro gold'], SI: [5000, 0.005, 'Silver'], SIL: [1000, 0.005, 'Micro silver'],
+  HG: [25000, 0.0005, 'Copper'], MHG: [2500, 0.0005, 'Micro copper'], PL: [50, 0.1, 'Platinum'],
+  ZB: [1000, 1 / 32, '30-year T-bond'], UB: [1000, 1 / 32, 'Ultra T-bond'], ZN: [1000, 1 / 64, '10-year T-note'], TN: [1000, 1 / 64, 'Ultra 10-year T-note'],
+  ZF: [1000, 1 / 128, '5-year T-note'], ZT: [2000, 1 / 256, '2-year T-note'],
+  '6E': [125000, 0.00005, 'Euro FX'], M6E: [12500, 0.0001, 'Micro EUR/USD'], '6B': [62500, 0.0001, 'British pound'], '6J': [12500000, 0.0000005, 'Japanese yen'],
+  '6A': [100000, 0.00005, 'Australian dollar'], '6C': [100000, 0.00005, 'Canadian dollar'], '6S': [125000, 0.00005, 'Swiss franc'],
+  ZC: [50, 0.25, 'Corn, in cents'], ZS: [50, 0.25, 'Soybeans, in cents'], ZW: [50, 0.25, 'Wheat, in cents'],
+  BTC: [5, 5, 'Bitcoin'], MBT: [0.1, 5, 'Micro bitcoin'], ETH: [50, 0.5, 'Ether'], MET: [0.1, 0.5, 'Micro ether'],
+};
+// "MNQH5", "MNQH25", "MNQ.FUT", "MNQ.c.0", "CME:MNQ1!", "/MNQ" -> "MNQ"; '' when it is not one of the above
+function instrRoot(sym) {
+  let x = String(sym || '').toUpperCase().trim().replace(/#.*$/, '').replace(/^.*:/, '').replace(/^\//, '');
+  x = x.replace(/\.(FUT|[CVN]\.\d+)$/, '').replace(/\d!$/, '');
+  if (INSTR[x]) return x;
+  const m = x.match(/^([A-Z0-9]{1,4}?)[FGHJKMNQUVXZ]\d{1,2}$/);
+  return m && INSTR[m[1]] ? m[1] : '';
+}
+// the futures contract a data set holds, from its symbols or, failing that, a whole word of its name
+function instrumentOf(data) {
+  const V = data.V || data, syms = [V.symbol, data.pick !== '*auto' ? data.pick : '', ...(data.C ? data.C.list.map(x => x.sym) : []),
+    ...(V.rolls || []).map(r => r[1])];
+  let root = syms.map(instrRoot).find(Boolean) || '';
+  if (!root) for (const w of `${data.name || ''} ${V.name || ''}`.split(/[^A-Za-z0-9!.]+/)) if ((root = instrRoot(w))) break;
+  if (!root) return null;
+  const [pv, tick, name] = INSTR[root];
+  return { root, pv, tick, name };
+}
 function openSetup(data) {
   const again = data === D || (D && D.V === data);
   $('#mTitle').textContent = again ? 'Session settings' : 'New replay session';
   $('#mStart').textContent = again ? 'Start new session' : 'Start session';
   $('#modal .tzl').textContent = `(${zoneName(E ? E.time : Date.now() / 1000).split(' · ')[0]})`;
   setupData(data);
-  $('#fBal').value = cfg.balance; $('#fComm').value = cfg.comm; $('#fSpread').value = cfg.spread; $('#fSlip').value = cfg.slip;
-  // practice data trades like a micro contract
-  $('#fPv').value = data.V && data.V.pointValue && cfg.pv === 1 ? data.V.pointValue : cfg.pv;
-  $('#fTicks').value = cfg.ticks; $('#fQty').value = cfg.qty; $('#fPause').checked = cfg.pauseFill; $('#fHedge').checked = !!cfg.hedge;
+  // costs: what was used last, except that a different instrument starts from its own point value and a one-tick
+  // spread (a known futures contract), or from $1 a point and no spread (anything else after a futures contract)
+  const inst = instrumentOf(data);
+  let pv = cfg.pv, spread = cfg.spread, comm = cfg.comm, mode = cfg.commMode || 'fixed', qty = cfg.qty;
+  if (!again && inst && cfg.instr !== inst.root) {
+    pv = inst.pv; spread = inst.tick;
+    if (cfg.instr === '') { qty = 1; comm = 0; mode = 'fixed'; } // from forex or stock data: one contract, not 100,000 units
+  }
+  else if (!again && !inst && cfg.instr) { pv = 1; spread = 0; comm = 0; }
+  $('#fBal').value = cfg.balance; $('#fComm').value = comm; $('#fCommMode').value = mode; $('#fSpread').value = spread; $('#fSlip').value = cfg.slip;
+  $('#fPv').value = pv;
+  $('#fPvNote').textContent = inst ? `${inst.root}, ${inst.name}: $${inst.pv.toLocaleString('en-US')} a point, tick ${+inst.tick.toPrecision(6)}` : '';
+  $('#fTicks').value = cfg.ticks; $('#fQty').value = qty; $('#fPause').checked = cfg.pauseFill; $('#fHedge').checked = !!cfg.hedge;
   propToForm(cfg.prop); fillPropPresets(''); $('#pName').value = '';
   simToForm(cfg.sim); fillSimPresets(cfg.sim.preset || ''); $('#sName').value = '';
   if (data !== D && data.base <= 5 && !(D && D.V === data)) $('#fTicks').value = Math.min(cfg.ticks, 4); // a few ticks per bar is plenty for seconds data
@@ -4840,7 +4976,8 @@ function confirmSetup() {
   const num = (id, def, min = 0) => { const v = parseFloat($(id).value); return isFinite(v) && v >= min ? v : def; };
   const st = START.value;
   if (!isFinite(st) || !st) return toast('Pick a start date and time.', 'err');
-  cfg.balance = num('#fBal', 10000, 1); cfg.comm = num('#fComm', 0); cfg.spread = num('#fSpread', 0); cfg.slip = num('#fSlip', 0);
+  cfg.balance = num('#fBal', 10000, 1); cfg.comm = num('#fComm', 0); cfg.commMode = $('#fCommMode').value; cfg.spread = num('#fSpread', 0); cfg.slip = num('#fSlip', 0);
+  const inst = instrumentOf(data); cfg.instr = inst ? inst.root : '';
   cfg.pv = num('#fPv', 1, 1e-12); cfg.ticks = Math.round(clamp(num('#fTicks', 20, 4), 4, 600)); cfg.qty = num('#fQty', 1, 1e-12);
   cfg.pauseFill = $('#fPause').checked; cfg.hedge = $('#fHedge').checked;
   cfg.prop = propFromForm();
