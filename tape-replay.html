@@ -328,6 +328,28 @@ td button{font-size:11px!important;padding:2px 7px!important}
 .seg.lt button{padding:5px 14px!important}
 .libbody{overflow:auto;max-height:62vh;border:1px solid var(--line);border-radius:4px}
 .libbody td input.nm{width:240px;font-family:var(--f-ui);font-size:13px}
+/* phone: full-screen Library, clear of the Dynamic Island, actions at the bottom above the home bar, rows as cards */
+html.m #lib .sheet{position:fixed;inset:0;width:auto;max-width:none;max-height:none;margin:0;border:0;border-radius:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto 1fr auto;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 16px) 14px calc(env(safe-area-inset-bottom,0px) + 22px)}
+html.m #lib .libhead{display:contents}
+html.m #lib .libhead .spacer{display:none}
+html.m #libTitle{grid-column:1/-1;grid-row:1;margin:0}
+html.m #libTabs{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:1fr 1fr}
+html.m #libNote{grid-column:1/-1;grid-row:3;margin:0;font-size:12px}
+html.m #libBody{grid-column:1/-1;grid-row:4;max-height:none;min-height:0;border:0}
+html.m #lib .libhead label.btn,html.m #libClose{grid-row:5;display:flex;align-items:center;justify-content:center;min-height:44px;margin:0}
+html.m #lib .libhead label.btn{grid-column:1;background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+html.m #libClose{grid-column:2}
+html.m #libBody table,html.m #libBody tbody{display:block}
+html.m #libBody thead{display:none}
+html.m #libBody tr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:12px;margin-bottom:8px;border:1px solid var(--line);border-radius:6px;background:var(--raise)}
+html.m #libBody{overflow-x:hidden}
+html.m #libBody td{display:block;padding:0;border:0;font-size:12px;color:var(--muted);white-space:normal;min-width:0}
+html.m #libBody td:first-child{flex:1 0 100%;color:var(--fg);font-size:14px}
+html.m #libBody td input.nm{width:100%}
+html.m #libBody td:last-child{flex:1 0 100%;display:flex;gap:8px;margin-top:6px}
+html.m #libBody td:last-child button{flex:1;min-height:38px}
+html.m #libBody td:nth-child(n+3):nth-last-child(n+2){display:none}
+html.m #libBody td:nth-child(n+3):nth-last-child(n+2):is(:nth-child(5),:nth-child(8)){display:block}
 .tag{display:inline-block;font-family:var(--f-ui);font-size:11px;padding:1px 6px;border-radius:3px;border:1px solid var(--line);color:var(--muted)}
 .tag.live,.tag.warn{border-color:var(--accent);color:var(--accent)}
 .tag.pos{border-color:var(--up);color:var(--up)}.tag.neg{border-color:var(--down);color:var(--down)}
