@@ -91,6 +91,7 @@ button.brand:hover{background:var(--raise)}
 .credit{margin:0;font-size:11.5px;line-height:1.5;color:var(--muted)}
 .credit a{color:var(--muted);text-decoration:underline;text-underline-offset:2px}
 .credit a:hover{color:var(--fg)}
+#libNote a{color:var(--accent);text-underline-offset:2px}
 .home .credit{border-top:1px solid var(--line);padding-top:12px}
 html.m .mmore .credit{padding:4px 4px 12px}
 .brand i{display:inline-block;width:10px;height:16px;background:linear-gradient(var(--up) 0 45%,transparent 45% 55%,var(--down) 55%);border-radius:1px}
@@ -4277,9 +4278,11 @@ async function renderLib(tab) {
           <td>${new Date(s.updated).toLocaleString()}</td>
           <td><button data-open="${esc(s.id)}">Open</button> <button data-del="${esc(s.id)}">Delete</button></td></tr>`; }).join('') + '</tbody></table>';
     } else {
-      $('#libNote').textContent = 'Data files you load are kept here, so you can start new backtests on them without finding the CSV again.';
+      $('#libNote').innerHTML = 'Data files you load are kept here, so you can start new backtests on them without finding the file again. ' +
+        'For real futures data, Tape Replay reads <a href="https://databento.com/" target="_blank" rel="noopener">Databento</a> ' +
+        'OHLCV files (.dbn, .dbn.zst or CSV, 1-second to daily bars) as they come: download them from Databento and import them here.';
       const list = (await STORE.listDatasets()).sort((a, b) => b.added - a.added);
-      if (!list.length) { body.innerHTML = '<div class="empty">No data files yet. Use Load CSV and the file is added here when you start the session.</div>'; return; }
+      if (!list.length) { body.innerHTML = '<div class="empty">No data files yet. Import a CSV or DBN file and it is added here when you start the session.</div>'; return; }
       const def = PREFS.defaultDs && PREFS.defaultDs.id;
       body.innerHTML = `<table><thead><tr><th>File</th><th class="r">Bars</th><th class="r">Contracts</th><th>Base TF</th><th>Covers</th><th class="r">Size</th><th>Added</th><th></th></tr></thead><tbody>` +
         list.map(d => `<tr><td>${esc(d.name)}${d.builtin ? ' <span class="tag" title="Shipped inside the app">built in</span>' : ''}${d.linked ? ' <span class="tag" title="' + esc(d.linked) + '">linked</span>' : ''}${d.id === def ? ' <span class="tag live">New session data</span>' : ''}</td>

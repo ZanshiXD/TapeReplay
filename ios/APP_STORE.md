@@ -61,6 +61,8 @@ Build numbers come from the workflow's run number, so every upload is higher tha
 - The description and screenshots should show a full app (replays, orders, prop simulation, imports), so it is not
   taken for a website in a wrapper (guideline 4.2).
 - Never commit or bundle real Databento data; the app ships generated practice data.
+- Databento is named, with a link, on the Library's Data files tab with Databento's permission (October 2026). Keep
+  that permission on file in case App Review asks about the third-party name.
 
 ## If the workflow fails
 
