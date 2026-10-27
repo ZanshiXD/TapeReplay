@@ -2479,8 +2479,11 @@ function renderOneTap() {
   if (!q) { box.hidden = !m; const f = '<span class="flat">No open position</span>'; if (m && box.innerHTML !== f) box.innerHTML = f; syncOtH(); return; }
   const open = T.trades.reduce((s, t) => s + unreal(t), 0);
   box.hidden = false;
-  const h = `<span class="${q > 0 ? 'side-l' : 'side-s'}">${q > 0 ? 'LONG' : 'SHORT'} ${fmtQty(Math.abs(q))}</span><span>@ ${fp(avg)}</span><b class="${cls(open)}">${smoney(open)}</b><button data-ot="flat" title="Close the position at market">Close</button>`;
-  if (box.innerHTML !== h) box.innerHTML = h;
+  // built once, then only its text changes: replacing the Close button while a finger is on it loses the tap
+  if (!box.querySelector('[data-ot="flat"]')) box.innerHTML = '<span data-ot="side"></span><span data-ot="avg"></span><b data-ot="pnl"></b><button data-ot="flat" title="Close the position at market">Close</button>';
+  const side = box.querySelector('[data-ot="side"]'), pnl = box.querySelector('[data-ot="pnl"]');
+  setT(side, `${q > 0 ? 'LONG' : 'SHORT'} ${fmtQty(Math.abs(q))}`); setC(side, q > 0 ? 'side-l' : 'side-s');
+  setT(box.querySelector('[data-ot="avg"]'), '@ ' + fp(avg)); setT(pnl, smoney(open)); setC(pnl, cls(open));
   syncOtH();
 }
 function closeMarket(tr) { closeTrade(tr, tr.side > 0 ? bidPx() - cfg.slip : askPx() + cfg.slip, 'Manual', false); ui(true); }
@@ -2948,8 +2951,13 @@ function drawTradeLabels(g) {
 const inBox = (b, x, y) => b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
 // how close (px) a pointer must come to grab a line, a drawing or a handle: a fingertip needs about three times more
 const HIT = TOUCH ? { line: 14, entry: 12, body: 13, handle: 20 } : { line: 6, entry: 5, body: 5, handle: 6 };
+// a tag, its ✕ or its TP / SL button, with a few extra pixels above and below for a finger (not sideways: they sit
+// side by side, and a mistaken ✕ closes a position)
+const inTag = (b, x, y) => TOUCH ? !!b && x >= b.x - 2 && x <= b.x + b.w + 2 && y >= b.y - 8 && y <= b.y + b.h + 8 : inBox(b, x, y);
 // the line (or its tag) under the pointer; stops, targets and orders come before position lines
+// On a touch screen a line is taken only by its tag: the lines sit where the price is, where people touch to scroll.
 function hitLine(y, x) {
+  if (TOUCH) return x == null ? null : LINES.find(L => inTag(L.box, x, y)) || null;
   let best = null, bd = HIT.line;
   for (const L of LINES) {
     if (x != null && inBox(L.box, x, y)) return L;
@@ -2981,16 +2989,18 @@ function initDrag() {
     const stop = () => { e.preventDefault(); e.stopPropagation(); };
     DR.shift = e.shiftKey; DR.ctrl = e.ctrlKey;
     if (DR.tool !== 'cursor' || DR.pending) { stop(); drawDown(x, y); return; }
-    const xb = LINES.find(L => inBox(L.xbox, x, y));
+    const xb = LINES.find(L => inTag(L.xbox, x, y));
     if (xb) { stop(); lineClose(xb); return; }
     // a TP or SL button on a tag: drag it out to set that bracket
-    for (const L of LINES) for (const b of ['tp', 'sl']) if (inBox(L[b + 'box'], x, y)) {
+    for (const L of LINES) for (const b of ['tp', 'sl']) if (inTag(L[b + 'box'], x, y)) {
       stop(); drag = { L, price: L.price, bracket: b, kind: L.kind === 'order' ? 'o' + b : b, y0: y, moved: false }; lockChart(true); return;
     }
     const L = hitLine(y, x);
     // a position line: drag up or down from it to add a target or a stop
     if (L) { stop(); drag = { L, price: L.price, entry: L.kind === 'entry', y0: y, moved: false }; lockChart(true); return; }
     const h = hitDrawing(x, y);
+    // touch: a drawing that is not selected lets the chart scroll; a tap on it (no movement) selects it
+    if (h && TOUCH && h.d !== DR.sel) { DR.tapSel = { d: h.d, x: e.clientX, y: e.clientY }; return; }
     if (h) { stop(); selectDrawing(h.d); DR.drag = { ...h, x0: x, y0: y, orig: JSON.parse(JSON.stringify(h.d)) }; lockChart(true); return; }
     if (DR.sel) selectDrawing(null);
   }, true);
@@ -3027,7 +3037,8 @@ function initDrag() {
       el.classList.toggle('ns', !!h && /^ey_/.test(h.part));
     }
   });
-  window.addEventListener('mouseup', () => {
+  window.addEventListener('mouseup', e => {
+    if (DR.tapSel) { const t = DR.tapSel; DR.tapSel = null; if (Math.hypot(e.clientX - t.x, e.clientY - t.y) < 10) selectDrawing(t.d); }
     if (DR.drag || DR.pending) drawUp();
     if (!drag) return;
     const d = drag; drag = null;
