@@ -1937,7 +1937,7 @@ function legend(bar) {
   if (!E) return;
   let b = bar;
   if (!b && E.F) b = { open: E.F.o, high: E.F.h, low: E.F.l, close: E.F.c, time: E.F.time };
-  const name = esc(D.sample ? 'SAMPLE' : D.name.split(/,|\.(?:csv|txt|tsv|dbn)/i)[0]);
+  const name = esc(assetName(D));
   if (!b || b.open == null) return setLegend(`<b>${name}</b><span>${tfLabel(TF)}</span>`);
   // on the live candle: how long until it closes, in replay time
   let left = '';
@@ -4228,7 +4228,7 @@ function progSet(f, step) {
 // id: end only that job (a background save must not close a newer job's card)
 function progEnd(id) { if (typeof id === 'number' && id !== PG.id) return; clearTimeout(PG.timer); $('#progCard').hidden = true; }
 function setSaveState(txt) { const s = $('#saveState'); s.hidden = !txt; s.textContent = txt || ''; }
-const sessName = () => S.name || `${D.sample ? 'Sample' : D.name.split(',')[0].replace(/\.(csv|txt|tsv|dbn)$/i, '')}${D.pick ? ' ' + pickLabel(D.pick) : ''} ${tfLabel(TF)} from ${fmtDT(D.t[E.start]).slice(0, 16)}`;
+const sessName = () => S.name || `${D.sample ? 'Sample' : assetName(D)} ${tfLabel(TF)} from ${fmtDT(D.t[E.start]).slice(0, 16)}`;
 function worthSaving() { return T.hist.length || T.trades.length || T.orders.length || (E.i - E.start) >= 50; }
 function snapshot() {
   return { v: 1, id: S.sid, name: sessName(), datasetId: S.dsId, datasetName: D.name, datasetPick: D.pick || '', datasetWindow: D.window || null, created: S.created, updated: Date.now(),
@@ -5058,7 +5058,7 @@ function startSession(data, startIdx, tfPref, resume) {
   cs.applyOptions({ priceFormat: { type: 'price', precision: PREC, minMove: 1 / POW } });
   maS.forEach(s => s.applyOptions({ priceFormat: { type: 'price', precision: PREC, minMove: 1 / POW } }));
   // the data chip: a short name, then the range loaded
-  $('#dsName').textContent = D.sample ? 'Sample data' : D.name.split(/,|\.(?:csv|txt|tsv|dbn)/i)[0] + (D.pick ? ' · ' + pickLabel(D.pick) : '');
+  $('#dsName').textContent = D.sample ? 'Sample data' : assetName(D);
   $('#dsSub').textContent = `${fmtDT(D.t[0]).slice(0, 10)} → ${fmtDT(D.t[D.n - 1]).slice(0, 10)} · ${mil(D.n)} bars · ${tfLabel({ kind: 's', sec: D.base })}`;
   $('#bData').title = `${D.name}${D.window ? ' (section loaded)' : ''}. Click to open the Library.`;
   E = newEngine(clamp(startIdx, 1, D.n - 1));
@@ -5166,12 +5166,29 @@ function instrRoot(sym) {
 // the futures contract a data set holds, from its symbols or, failing that, a whole word of its name
 function instrumentOf(data) {
   const V = data.V || data, syms = [V.symbol, data.pick !== '*auto' ? data.pick : '', ...(data.C ? data.C.list.map(x => x.sym) : []),
-    ...(V.rolls || []).map(r => r[1])];
+    ...(V.rolls || []).map(r => r[1]), ...(data.H && data.H.names ? data.H.names.values() : [])];
   let root = syms.map(instrRoot).find(Boolean) || '';
   if (!root) for (const w of `${data.name || ''} ${V.name || ''}`.split(/[^A-Za-z0-9!.]+/)) if ((root = instrRoot(w))) break;
   if (!root) return null;
   const [pv, tick, name] = INSTR[root];
   return { root, pv, tick, name };
+}
+// The name the chart shows for a data set: the asset, not the file name. One contract keeps its code (MNQH5);
+// a continuous series or a known futures file shows its root (MNQ); otherwise the first ticker-like word of the
+// file name (EURUSD from 'EURUSD_M1_2024.csv'), or the start of the file name when there is none.
+const NAME_NOISE = /^(glbx|mdp3|xcme|xnas|xnys|dbeq|opra|ifeu|ndex|basic|itch|ohlcv?|bars?|data|export|exports|history|historical|hist|candles?|trades?|ticks?|continuous|cont|futures?|fut|min|mins|minute|minutes|seconds?|hour|hourly|daily|weekly|sample|test|file|copy|part|all|from|to|and|more)$/i;
+function assetName(data) {
+  const V = data.V || data;
+  if (data.sample) return 'SAMPLE';
+  if (V.synthetic) return 'Practice futures';
+  const names = data.H && data.H.names ? [...data.H.names.values()] : [];
+  let one = data.pick && data.pick !== '*auto' ? data.pick : data.C && data.C.list.length === 1 ? data.C.list[0].sym : !data.C && names.length === 1 ? names[0] : '';
+  one = String(one || '').replace(/#\d+$/, '');
+  if (one) return /[.:\/!]/.test(one) && instrRoot(one) ? instrRoot(one) : one;
+  const inst = instrumentOf(data); if (inst) return inst.root;
+  const base = String(V.name || data.name || '').replace(/ \+ \d+ more$/, '').replace(/(\.(csv|txt|tsv|dbn|zst|gz))+$/i, '');
+  const w = base.split(/[\s_.,\-()\[\]]+/).find(x => /^[A-Za-z][A-Za-z0-9!]{1,11}$/.test(x) && !NAME_NOISE.test(x) && !/^[mhdw]\d+$|^\d|^[a-z]\d$/i.test(x));
+  return w ? w.toUpperCase() : base.length > 22 ? base.slice(0, 21) + '…' : base || 'Data';
 }
 function openSetup(data) {
   const again = data === D || (D && D.V === data);
