@@ -414,7 +414,7 @@ fieldset.pf legend .chk{font-weight:600}
    and the ticket, positions and evaluation each on their own screen. */
 .mmore,.mreplay,.mnav,.mdraw,.mico,.mtf,.mspeed,.veil,.mevalhint{display:none}
 html:not(.m) #mTf{display:none}
-html.touch #bKeys,html.touch #mmore [data-go="bKeys"],html.touch .tip{display:none!important}
+html.touch #bKeys,html.touch #mmore [data-go="bKeys"],html.touch .tip,html.touch .nokeys{display:none!important}
 html.m body{margin:0}
 html.m #app{grid-template-rows:auto minmax(0,1fr) auto auto;grid-template-areas:"top" "main" "replay" "nav";gap:0;padding:0}
 html.m .bar{grid-area:top;flex-wrap:nowrap;padding:6px 8px;gap:4px;border-bottom:1px solid var(--line);background:var(--panel)}
@@ -546,6 +546,9 @@ html.m .mmore button span{font-size:11.5px;color:var(--muted);line-height:1.3}
 /* dialogs and popups take the whole width */
 html.m .modal{padding:0;place-items:stretch}
 html.m .sheet,html.m .sheet.wide{width:100%;max-height:100%;border-radius:0;border:none;padding:14px}
+/* long forms (Session settings, Chart): their buttons stay at the bottom of the screen */
+html.m .sheet>.actions{position:sticky;bottom:-14px;margin:0 -14px -14px;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:1px solid var(--line);z-index:1}
+html.m .sheet>.actions button{flex:1;min-height:44px}
 /* menus and panels open as sheets from the bottom edge, over a dimmed screen; tapping outside closes them */
 html.m .veil:not([hidden]){display:block;position:fixed;inset:0;z-index:39;background:rgba(0,0,0,.45)}
 html.m .pop,html.m .mmore.open{position:fixed;left:0!important;right:0!important;top:auto!important;bottom:0!important;width:auto!important;max-width:none;
@@ -594,7 +597,9 @@ html.m .zopts select,html.m .zopts input{height:40px;font-size:15px}
 html.m .spsheet .sppre button{justify-content:center;min-height:44px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:var(--f-num);font-size:14px;padding:0}
 html.m .spsheet .sppre button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 html.m .spsheet #bTick{width:100%;justify-content:center;min-height:44px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-size:14px}
-html.m #toasts{bottom:116px;right:8px;left:8px;align-items:stretch}
+/* above the replay bar and tab bar (two rows of replay controls; one in landscape) */
+html.m #toasts{bottom:calc(170px + env(safe-area-inset-bottom,0px));right:8px;left:8px;align-items:stretch}
+@media (max-height:500px){html.m #toasts{bottom:calc(104px + env(safe-area-inset-bottom,0px))}}
 html.m .toast{max-width:none}
 html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
 </style>
@@ -1056,7 +1061,7 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
 <div id="zonePanel" class="pop zpanel" role="dialog" aria-label="Price zones" hidden>
   <div class="zhead">
     <label class="chk"><input id="zOn" type="checkbox"> <b>Price zones</b></label>
-    <span class="hint">Z shows or hides them</span>
+    <span class="hint nokeys">Z shows or hides them</span>
   </div>
   <div class="zopts">
     <label class="f">Find zones on<select id="zTf" aria-label="Timeframe for price zones"></select></label>
@@ -4520,7 +4525,7 @@ async function showHome() {
       const m = s.summary || {}, open = s.id === S.sid && E;
       return `<button class="hitem" data-sid="${esc(s.id)}"><b>${esc(s.name || 'Backtest')}</b><span class="pnl ${cls(m.net || 0)}">${smoney(m.net || 0)}</span>
         <span class="sub"><span>${esc(s.datasetId === 'sample' ? 'Sample' : (s.datasetName || '').split(',')[0])} · ${esc(m.tf || s.tf || '')}</span>
-        ${m.from ? `<span>${fmtDay(m.from)} → ${fmtDay(m.to)}</span>` : ''}<span>${m.trades || 0} trades</span>
+        ${m.from ? `<span>${fmtDay(m.from)} → ${fmtDay(m.to)}</span>` : ''}<span>${m.trades || 0} trade${m.trades === 1 ? '' : 's'}</span>
         ${m.prop ? `<span class="tag ${/fail/i.test(m.prop) ? 'neg' : /pass|funded|live/i.test(m.prop) ? 'pos' : ''}">${esc(m.prop)}</span>` : ''}
         <span>${open ? '<span class="tag live">open now</span>' : 'saved ' + ago(s.updated)}</span></span></button>`;
     }).join('') : '<div class="empty">No saved sessions yet. Start one and it is saved as you trade.</div>';
