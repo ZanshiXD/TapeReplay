@@ -87,6 +87,12 @@ button.brand:hover{background:var(--raise)}
 .hitem .sub{grid-column:1/-1;font-size:11.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px}
 .hlink{align-self:flex-start;background:none;border:none;color:var(--accent);cursor:pointer;padding:4px 0;font-size:12.5px;font-family:inherit}
 @media (max-width:720px){.hgrid{grid-template-columns:1fr}}
+/* the chart library's required credit (Home, More, shortcuts) */
+.credit{margin:0;font-size:11.5px;line-height:1.5;color:var(--muted)}
+.credit a{color:var(--muted);text-decoration:underline;text-underline-offset:2px}
+.credit a:hover{color:var(--fg)}
+.home .credit{border-top:1px solid var(--line);padding-top:12px}
+html.m .mmore .credit{padding:4px 4px 12px}
 .brand i{display:inline-block;width:10px;height:16px;background:linear-gradient(var(--up) 0 45%,transparent 45% 55%,var(--down) 55%);border-radius:1px}
 .grp{display:flex;align-items:center;gap:4px}
 .btn,.bar button,.side button,.dock button,.sheet button{background:var(--raise);border:1px solid var(--line);border-radius:4px;padding:5px 10px;cursor:pointer;line-height:1.2;white-space:nowrap}
@@ -681,6 +687,8 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
     <button data-go="bInd"><b>Indicators</b><span>EMA, SMA and VWAP</span></button>
     <button data-go="bChart"><b>Chart settings</b><span>Time zone, session lines and colors</span></button>
     <button data-go="tour"><b>Take the tour</b><span>How the app works, in a minute</span></button>
+    <h4>About</h4>
+    <p class="credit">Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™, © TradingView, Inc. Built-in data is generated for practice, not real market data. Trades are simulated; nothing here is financial advice.</p>
   </section>
   <div id="mreplay" class="mreplay"></div>
   <nav id="mnav" class="mnav" aria-label="Screens">
@@ -821,6 +829,7 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
       <kbd>Esc</kbd><span>Back to the pointer, or close a window</span>
       <kbd>?</kbd><span>Show this list</span>
     </div>
+    <p class="credit">Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™, © TradingView, Inc.</p>
     <div class="actions"><button id="kTour">Take the tour</button><button id="kClose" class="primary">Done</button></div>
   </div>
 </div>
@@ -917,6 +926,7 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
         <button id="hAll" class="hlink">All backtests in the Library →</button>
       </section>
     </div>
+    <footer class="credit">Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™, © TradingView, Inc. Built-in data is generated for practice, not real market data.</footer>
   </div>
 </div>
 

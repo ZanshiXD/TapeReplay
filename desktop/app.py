@@ -686,6 +686,8 @@ def main():
     global WINDOW
     try:
         import webview
+        # links meant for a new window (the chart credit's link to tradingview.com) open in the browser
+        webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
         window = WINDOW = webview.create_window("Tape Replay", url, width=1480, height=920, min_size=(1000, 640),
                                        background_color="#0c1016", text_select=True)
 

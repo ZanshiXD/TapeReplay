@@ -63,6 +63,15 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         return .allow
     }
 
+    // links meant for a new window (the chart credit's link to tradingview.com) open in Safari
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if let url = navigationAction.request.url, url.scheme == "https" || url.scheme == "http" {
+            UIApplication.shared.open(url)
+        }
+        return nil
+    }
+
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo) async {
         await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
             let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
