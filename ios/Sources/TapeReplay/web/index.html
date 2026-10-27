@@ -1775,7 +1775,7 @@ function legend(bar) {
   let left = '';
   if (!bar && E.F && tfSecs() > D.base) {
     const next = TF.kind === 'M' ? bucket(E.F.time + 32 * 86400 * TF.n) : TF.kind === 'W' ? E.F.time + 604800 * TF.n : E.F.time + TF.sec;
-    const s = Math.max(0, Math.round(next - E.time));
+    const s = Math.max(0, Math.round(next - shownTime()));
     left = `<span><span class="k">closes in</span> ${s >= 86400 ? spanText(s) : s >= 3600 ? `${Math.floor(s / 3600)}:${p2(Math.floor(s % 3600 / 60))}:${p2(s % 60)}` : `${Math.floor(s / 60)}:${p2(s % 60)}`}</span>`;
   }
   const ch = b.open ? (b.close - b.open) / b.open * 100 : 0;
@@ -1976,6 +1976,15 @@ function pushEq(t, eq) {
   if (!last || t > last.time) E.eq.push({ time: t, value: Math.round(eq * 100) / 100 });
   else last.value = Math.round(eq * 100) / 100;
 }
+// Replay time runs through quiet stretches at the chosen speed, like the real tape: in seconds data many seconds have
+// no trade, and skipping each of those made the clock and the "closes in" countdown run unevenly fast. Only a gap long
+// enough to be the market closed (10 minutes and 10 bars or more: the daily break, nights, weekends) is jumped over.
+const closedGap = () => Math.max(600, 10 * D.base);
+function skipClosedGap() {
+  if (E.k === 0 && E.i < D.n && D.t[E.i] > E.simTime && D.t[E.i] - E.time >= closedGap()) E.simTime = D.t[E.i];
+}
+// the time shown on the clock and the countdown: replay time, which keeps moving between trades
+const shownTime = () => Math.max(E.time, E.simTime);
 function nextTickTime() {
   if (E.i >= D.n) return Infinity;
   if (!E.ticks) E.ticks = buildTicks(E.i);
@@ -3837,8 +3846,8 @@ function ui(force) {
   const now = performance.now();
   if (!force && now - R.lastUi < 100) return;
   R.lastUi = now;
-  $('#clock').textContent = fmtNice(E.time);
-  $('#clockSub').textContent = zoneName(E.time);
+  $('#clock').textContent = fmtNice(shownTime());
+  $('#clockSub').textContent = zoneName(shownTime());
   $('#progBar').style.width = ((E.i - E.start) / Math.max(1, D.n - E.start) * 100).toFixed(2) + '%';
   const b = bidPx(), a = askPx();
   $('#bidPx').textContent = fp(b); $('#askPx').textContent = fp(a);
@@ -4540,7 +4549,7 @@ function setPlaying(on) {
   if (!E) return;
   if (on && E.i >= D.n) { toast('Reached the end of the data. Start a new session to replay again.'); on = false; }
   E.playing = on;
-  if (on && E.k === 0 && E.i < D.n && D.t[E.i] > E.simTime) E.simTime = D.t[E.i];
+  if (on) skipClosedGap();
   $('#playIco').innerHTML = on ? '<path d="M3 2h4v12H3zM9 2h4v12H9z"/>' : '<path d="M4 2l10 6-10 6z"/>';
   $('#bPlay').setAttribute('aria-label', on ? 'Pause' : 'Play');
   if (!on) saveSession(false);
@@ -5040,7 +5049,7 @@ let lastFrame = performance.now();
 function frame(now) {
   const dt = Math.min(0.25, (now - lastFrame) / 1000); lastFrame = now;
   if (E && E.playing) {
-    if (E.k === 0 && E.i < D.n && D.t[E.i] > E.simTime) E.simTime = D.t[E.i]; // skip closed-market gaps
+    skipClosedGap();
     E.simTime += dt * speedMult;
     advanceTo(E.simTime);
     render();
