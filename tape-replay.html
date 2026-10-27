@@ -413,6 +413,7 @@ fieldset.pf legend .chk{font-weight:600}
    and the ticket, positions and evaluation each on their own screen. */
 .mmore,.mreplay,.mnav,.mdraw,.mico,.mtf,.mspeed,.veil,.mevalhint{display:none}
 html:not(.m) #mTf{display:none}
+html.touch #bKeys,html.touch #mmore [data-go="bKeys"],html.touch .tip{display:none!important}
 html.m body{margin:0}
 html.m #app{grid-template-rows:auto minmax(0,1fr) auto auto;grid-template-areas:"top" "main" "replay" "nav";gap:0;padding:0}
 html.m .bar{grid-area:top;flex-wrap:nowrap;padding:6px 8px;gap:4px;border-bottom:1px solid var(--line);background:var(--panel)}
@@ -1086,6 +1087,11 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
 'use strict';
 const LW = window.LightweightCharts;
 const $ = s => document.querySelector(s);
+// The iOS app, or any touch screen without a mouse: messages talk about tapping and touching, not keys and clicks,
+// and the keyboard shortcut list and hover tips (which name keys) are hidden. The shortcuts themselves still work
+// with a keyboard attached to an iPad.
+const TOUCH = !!window.TAPE_IOS || matchMedia('(hover: none) and (pointer: coarse)').matches;
+document.documentElement.classList.toggle('touch', TOUCH);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 /* ---------------- state ---------------- */
@@ -2244,7 +2250,7 @@ const orderType = (side, price) => side > 0 ? (price < askPx() ? 'limit' : 'stop
 // right-click on the chart: an order at that price, sized and bracketed like the ticket; withBracket adds
 // a stop and a target (2R) when the ticket has none, to drag into place
 function placeAt(side, price, withBracket) {
-  if (!E || E.price == null) return toast('Press play or step forward first so there is a live price.', 'err');
+  if (!E || E.price == null) return toast('Start the replay or step forward first so there is a live price.', 'err');
   price = rp(price);
   let { sl, tp } = ticketBracket(side, price);
   if (withBracket) {
@@ -2260,7 +2266,7 @@ function chartMenu(e) {
   const el = $('#chart'), r = el.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
   if (!E || x > paneW() || y > paneH()) return;
   e.preventDefault(); closePop();
-  if (E.price == null) return toast('Press play or step forward first so there is a live price.', 'err');
+  if (E.price == null) return toast('Start the replay or step forward first so there is a live price.', 'err');
   const p = snapPrice(x, y); if (p == null) return;
   const q = $('#sizeMode').value === 'risk' ? 'risk-sized' : fmtQty(parseFloat($('#qty').value) || 0);
   const item = (act, side, br) => { const t = orderType(side, p); return `<button data-act="${act}"><b class="${side > 0 ? 'pos' : 'neg'}">${side > 0 ? 'Buy' : 'Sell'} ${q} ${t}</b><span>${br ? 'with SL and TP' : fp(p)}</span></button>`; };
@@ -2302,10 +2308,10 @@ function ticketQty(entry, sl) {
   return { qty: q };
 }
 function place(side) {
-  if (!E || E.price == null) return toast('Press play or step forward first so there is a live price.', 'err');
+  if (!E || E.price == null) return toast('Start the replay or step forward first so there is a live price.', 'err');
   let entry;
   if (ticketType === 'market') entry = side > 0 ? askPx() : bidPx();
-  else { entry = parseFloat($('#ordPrice').value); if (!isFinite(entry)) return toast('Enter an order price, or right-click the chart to order at a price.', 'err'); entry = rp(entry); }
+  else { entry = parseFloat($('#ordPrice').value); if (!isFinite(entry)) return toast(TOUCH ? 'Enter an order price, or touch and hold the chart to order at a price.' : 'Enter an order price, or right-click the chart to order at a price.', 'err'); entry = rp(entry); }
   const { sl, tp } = ticketBracket(side, entry);
   const { qty, err } = ticketQty(entry, sl);
   if (err) return toast(err, 'err');
@@ -2331,7 +2337,7 @@ function submit(side, type, entry, sl, tp, qty) {
 function closeAll() { if (!E || !T.trades.length) return; for (const tr of T.trades.slice()) closeMarket(tr); }
 // one-tap trading: a market order at once, sized and bracketed like the ticket, whatever type the ticket is set to
 function oneTap(side) {
-  if (!E || E.price == null) return toast('Press play or step forward first so there is a live price.', 'err');
+  if (!E || E.price == null) return toast('Start the replay or step forward first so there is a live price.', 'err');
   const entry = side > 0 ? askPx() : bidPx();
   const { sl, tp } = ticketBracket(side, entry);
   const { qty, err } = ticketQty(entry, sl);
@@ -3175,7 +3181,7 @@ function drawUp() {
   if (DR.drag) { DR.drag = null; lockChart(false); S.dirty = true; updateStyleBar(); }
 }
 function toolOrder(d, market) {
-  if (!E || E.price == null) return toast('Press play or step forward first so there is a live price.', 'err');
+  if (!E || E.price == null) return toast('Start the replay or step forward first so there is a live price.', 'err');
   const side = d.type === 'long' ? 1 : -1, qty = toolQty(d);
   if (!(qty > 0)) return toast('Set a size in the order ticket first.', 'err');
   if (market) return submit(side, 'market', side > 0 ? askPx() : bidPx(), d.sl, d.tp, qty);
@@ -3752,7 +3758,7 @@ function wireDraw() {
   $('#dClear').onclick = () => {
     const b = $('#dClear');
     if (!DR.list.length) return toast('There are no drawings to remove.');
-    if (!b.dataset.armed) { b.dataset.armed = '1'; toast('Click the bin again to remove all drawings.'); setTimeout(() => delete b.dataset.armed, 3000); return; }
+    if (!b.dataset.armed) { b.dataset.armed = '1'; toast(TOUCH ? 'Tap the bin again to remove all drawings.' : 'Click the bin again to remove all drawings.'); setTimeout(() => delete b.dataset.armed, 3000); return; }
     delete b.dataset.armed; DR.list = []; DR.sel = DR.hover = null; S.dirty = true; updateStyleBar(); toast('Removed all drawings.');
   };
   const edit = fn => () => { const t = styleTarget(); fn(t); t.preset = ''; if (!DR.sel) DR.style = t; S.dirty = true; fillDrawPresets(''); };
@@ -3819,7 +3825,8 @@ function toggleMagnet() {
   PREFS.magnetLock = !PREFS.magnetLock; savePrefsSoon();
   $('#dMagnet').setAttribute('aria-pressed', String(PREFS.magnetLock));
   magnetFollow();
-  toast(PREFS.magnetLock ? 'Magnet on: points and the crosshair lock to the nearest open, high, low or close. Press M to turn it off.' : 'Magnet off. Hold Ctrl to use it for a moment.');
+  toast(TOUCH ? (PREFS.magnetLock ? 'Magnet on: points lock to the nearest open, high, low or close. Tap the magnet again to turn it off.' : 'Magnet off.')
+    : PREFS.magnetLock ? 'Magnet on: points and the crosshair lock to the nearest open, high, low or close. Press M to turn it off.' : 'Magnet off. Hold Ctrl to use it for a moment.');
 }
 // tooltips on the drawing toolbar: name, shortcut and what the tool does
 const TIPS = {
@@ -3981,7 +3988,7 @@ function renderTables() {
       `<td><input data-id="${tr.id}" data-f="sl" type="number" step="any" value="${tr.sl ?? ''}" placeholder="none" aria-label="Stop loss for #${tr.id}"></td>` +
       `<td><input data-id="${tr.id}" data-f="tp" type="number" step="any" value="${tr.tp ?? ''}" placeholder="none" aria-label="Take profit for #${tr.id}"></td>` +
       `<td class="r" id="pnl${tr.id}"></td><td><button data-act="be" data-id="${tr.id}" title="Move the stop loss to the entry price">Breakeven</button> <button data-act="close" data-id="${tr.id}">Close</button></td></tr>`).join('') + '</tbody></table>'
-    : '<div class="empty">No open positions. Use the order ticket or press B / S to trade at market.</div>';
+    : `<div class="empty">No open positions. ${TOUCH ? 'Use the order ticket to trade at market, or touch and hold the chart to place an order at a price.' : 'Use the order ticket or press B / S to trade at market.'}</div>`;
   $('#pane-ord').innerHTML = T.orders.length ? `<table><thead><tr><th>#</th><th>Side</th><th>Type</th><th class="r">Price</th><th class="r">Size</th><th class="r">Stop loss</th><th class="r">Take profit</th><th>Placed</th><th></th></tr></thead><tbody>` +
     T.orders.map(o => `<tr><td>${o.id}</td>${sideCell(o.side).replace('LONG', 'BUY').replace('SHORT', 'SELL')}<td>${o.type}</td><td class="r">${fp(o.price)}</td><td class="r">${fmtQty(o.qty)}</td><td class="r">${fp(o.sl)}</td><td class="r">${fp(o.tp)}</td><td>${fmtDT(o.time)}</td><td><button data-act="cancel" data-id="${o.id}">Cancel</button></td></tr>`).join('') + '</tbody></table>'
     : '<div class="empty">No working orders. Choose Limit or Stop in the ticket, set a price, then Buy or Sell.</div>';
@@ -4580,7 +4587,20 @@ const TOUR_PHONE = {
   10: ['#mnav [data-mv="positions"]', 'Open positions, working orders, closed trades and performance. Everything is saved as you go.'],
   11: ['#bHome', 'Start another session or continue a saved one.'],
 };
-const tourStep = i => { const st = TOUR_STEPS[i], ph = isM() && TOUR_PHONE[i]; return ph ? [ph[0], st[1], ph[1]] : st; };
+// on a touch screen in the wide layout (an iPad): the same places, without keys, clicks or hovering
+const TOUR_TOUCH = {
+  0: 'The market replays bar by bar and you trade it as if it were live. This takes about a minute.',
+  1: 'Play and pause here. Tick, Bar and Candle step forward; the slider sets the speed.',
+  4: TOUR_PHONE[4][1],
+  5: 'Lines, boxes, fibs and position planners. Tap a tool, then tap or drag on the chart.',
+  6: 'FVGs, inverse FVGs, BPRs, order blocks and breakers, from any timeframe. Tap it for settings.',
+  7: 'Buy and sell at market, or place limit and stop orders with a stop loss and take profit. Size in units or by % risk.',
+  11: 'Start another session or continue a saved one.',
+};
+const tourStep = i => {
+  const st = TOUR_STEPS[i], ph = isM() && TOUR_PHONE[i];
+  return ph ? [ph[0], st[1], ph[1]] : TOUCH && TOUR_TOUCH[i] ? [st[0], st[1], TOUR_TOUCH[i]] : st;
+};
 const TOUR = { i: 0, el: null };
 function startTour() {
   if (TOUR.el) return;
@@ -4991,12 +5011,12 @@ function confirmSetup() {
     return loadSection(data, t0, t1).then(d => {
       $('#modal').hidden = true; pendingD = null;
       startSession(d, lowerBound(d.t, st), TF);
-      toast('Session ready. Press Space or the play button to start the tape.');
+      toast(TOUCH ? 'Session ready. Tap play to start the tape.' : 'Session ready. Press Space or the play button to start the tape.');
     }).catch(e => toast(e.message, 'err')).finally(() => { $('#mStart').disabled = false; });
   }
   $('#modal').hidden = true; pendingD = null;
   startSession(data, lowerBound(data.t, st), TF);
-  toast('Session ready. Press Space or the play button to start the tape.');
+  toast(TOUCH ? 'Session ready. Tap play to start the tape.' : 'Session ready. Press Space or the play button to start the tape.');
   const src = data.src;
   if (STORE && !data.dsId && src && (src.kind === 'picked' || src.kind === 'file')) {
     // add the file to the Library so this backtest can be reopened later
@@ -5064,7 +5084,11 @@ async function importDbn(p) {
 let restartArm = 0;
 function restart() {
   if (!E) return;
-  if (Date.now() - restartArm > 3000) { restartArm = Date.now(); $('#restartLbl').textContent = 'Click again'; setTimeout(() => { $('#restartLbl').textContent = 'Restart'; }, 3000); return; }
+  if (Date.now() - restartArm > 3000) {
+    restartArm = Date.now(); $('#restartLbl').textContent = TOUCH ? 'Tap again' : 'Click again'; setTimeout(() => { $('#restartLbl').textContent = 'Restart'; }, 3000);
+    if (TOUCH) toast('Tap restart again to go back to the session start.'); // no hover title to say so on a touch screen
+    return;
+  }
   restartArm = 0; $('#restartLbl').textContent = 'Restart';
   startSession(D, E.start, TF); toast('Session restarted.');
 }
