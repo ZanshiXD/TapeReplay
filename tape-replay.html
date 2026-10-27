@@ -1839,6 +1839,7 @@ function initCharts() {
   chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
   maS = [];
   chart.subscribeCrosshairMove(p => legend(p && p.time ? p.seriesData.get(cs) : null));
+  chart.timeScale().subscribeVisibleLogicalRangeChange(() => { OV.dirty = true; });
 
   eqChart = LW.createChart($('#eqChart'), {
     autoSize: true,
@@ -1868,7 +1869,7 @@ function legend(bar) {
   let b = bar;
   if (!b && E.F) b = { open: E.F.o, high: E.F.h, low: E.F.l, close: E.F.c, time: E.F.time };
   const name = esc(D.sample ? 'SAMPLE' : D.name.split(/,|\.(?:csv|txt|tsv|dbn)/i)[0]);
-  if (!b || b.open == null) { $('#legend').innerHTML = `<b>${name}</b><span>${tfLabel(TF)}</span>`; return; }
+  if (!b || b.open == null) return setLegend(`<b>${name}</b><span>${tfLabel(TF)}</span>`);
   // on the live candle: how long until it closes, in replay time
   let left = '';
   if (!bar && E.F && tfSecs() > D.base) {
@@ -1888,10 +1889,12 @@ function legend(bar) {
     const v = live ? (E.F && E.mas[k] ? E.mas[k].peek(E.F) : null) : (E.tfCandles[j] && E.tfCandles[j].time === b.time ? E.maVals[k]?.[j] : null);
     return v == null ? '' : `<span><span class="k" style="color:${x.color}">${indLabel(x)}</span> ${fp(v)}</span>`;
   }).join('');
-  $('#legend').innerHTML = `<b>${name}</b><span>${tfLabel(TF)}</span>` +
+  setLegend(`<b>${name}</b><span>${tfLabel(TF)}</span>` +
     `<span><span class="k">O</span> ${fp(b.open)}</span><span><span class="k">H</span> ${fp(b.high)}</span><span><span class="k">L</span> ${fp(b.low)}</span><span><span class="k">C</span> ${fp(b.close)}</span>` +
-    `<span class="${cls(ch)}">${ch >= 0 ? '+' : ''}${ch.toFixed(2)}%</span>${vol}${left}${inds ? `<div class="lind">${inds}</div>` : ''}`;
+    `<span class="${cls(ch)}">${ch >= 0 ? '+' : ''}${ch.toFixed(2)}%</span>${vol}${left}${inds ? `<div class="lind">${inds}</div>` : ''}`);
 }
+let legendHtml = '';
+function setLegend(h) { if (h !== legendHtml) { legendHtml = h; $('#legend').innerHTML = h; } }
 function lowerBoundObj(arr, time) { let a = 0, b = arr.length; while (a < b) { const m = (a + b) >> 1; if (arr[m].time < time) a = m + 1; else b = m; } return a; }
 function lowerBound(arr, x) { let a = 0, b = arr.length; while (a < b) { const m = (a + b) >> 1; if (arr[m] < x) a = m + 1; else b = m; } return a; }
 
@@ -2019,12 +2022,14 @@ function aggBar(t, o, h, l, c, v) {
   if (!F || F.time !== b) { if (F) completeForming(); E.F = { time: b, o, h, l, c, v }; }
   else { if (h > F.h) F.h = h; if (l < F.l) F.l = l; F.c = c; F.v += v; }
 }
-// The chart keeps the most recent candles only; indicators still see the full history.
-const MAX_CANDLES = 40000;
+// The chart keeps the most recent candles only; indicators still see the full history. Every chart repaint costs
+// time in proportion to the candles it holds, so phones and tablets keep fewer (8,000 is over two hours of
+// 1-second candles, five days of 1-minute ones), trimmed in smaller steps.
+const MAX_CANDLES = TOUCH ? 8000 : 40000, CANDLE_SLACK = TOUCH ? 1500 : 5000;
 function completeForming() {
   const F = E.F; E.tfCandles.push(F);
   for (let k = 0; k < E.mas.length; k++) E.maVals[k].push(E.mas[k].push(F));
-  if (E.tfCandles.length > MAX_CANDLES + 5000) {
+  if (E.tfCandles.length > MAX_CANDLES + CANDLE_SLACK) {
     const drop = E.tfCandles.length - MAX_CANDLES;
     E.tfCandles.splice(0, drop); for (const a of E.maVals) a.splice(0, drop);
     R.full = true;
@@ -3967,27 +3972,30 @@ function renderMarks() {
 }
 
 /* ---------------- UI ---------------- */
+// a write only when the text or class differs: every write, even of the same text, makes the page redo its layout
+const setT = (el, t) => { if (el.textContent !== t) el.textContent = t; };
+const setC = (el, c) => { if (el.className !== c) el.className = c; };
 function ui(force) {
   if (!E) return;
   const now = performance.now();
   if (!force && now - R.lastUi < 100) return;
   R.lastUi = now;
-  $('#clock').textContent = fmtNice(shownTime());
-  $('#clockSub').textContent = zoneName(shownTime());
-  $('#progBar').style.width = ((E.i - E.start) / Math.max(1, D.n - E.start) * 100).toFixed(2) + '%';
+  setT($('#clock'), fmtNice(shownTime()));
+  setT($('#clockSub'), zoneName(shownTime()));
+  const pw = ((E.i - E.start) / Math.max(1, D.n - E.start) * 100).toFixed(2) + '%', pb = $('#progBar'); if (pb.style.width !== pw) pb.style.width = pw;
   const b = bidPx(), a = askPx();
-  $('#bidPx').textContent = fp(b); $('#askPx').textContent = fp(a);
-  $('#spreadLbl').textContent = cfg.spread ? 'spr ' + fp(cfg.spread) : 'no spread';
+  setT($('#bidPx'), fp(b)); setT($('#askPx'), fp(a));
+  setT($('#spreadLbl'), cfg.spread ? 'spr ' + fp(cfg.spread) : 'no spread');
   const eq = equity(), open = eq - T.balance;
   const closed = T.hist.reduce((s, x) => s + x.net, 0);
-  $('#aBal').textContent = money(T.balance);
-  $('#aEq').textContent = money(eq);
-  const so = $('#aOpen'); so.textContent = smoney(open); so.className = cls(open);
-  const sc = $('#aClosed'); sc.textContent = smoney(closed); sc.className = cls(closed);
-  const ret = (eq - T.start) / T.start * 100; const sr = $('#aRet'); sr.textContent = (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%'; sr.className = cls(ret);
-  $('#aDD').textContent = T.maxDD ? `${money(T.maxDD)} (${T.maxDDpct.toFixed(1)}%)` : '$0.00';
+  setT($('#aBal'), money(T.balance));
+  setT($('#aEq'), money(eq));
+  const so = $('#aOpen'); setT(so, smoney(open)); setC(so, cls(open));
+  const sc = $('#aClosed'); setT(sc, smoney(closed)); setC(sc, cls(closed));
+  const ret = (eq - T.start) / T.start * 100; const sr = $('#aRet'); setT(sr, (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%'); setC(sr, cls(ret));
+  setT($('#aDD'), T.maxDD ? `${money(T.maxDD)} (${T.maxDDpct.toFixed(1)}%)` : '$0.00');
   if (R.tables) { renderTables(); R.tables = false; }
-  for (const tr of T.trades) { const td = document.getElementById('pnl' + tr.id); if (td) { const u = unreal(tr); td.textContent = smoney(u); td.className = 'r ' + cls(u); } }
+  for (const tr of T.trades) { const td = document.getElementById('pnl' + tr.id); if (td) { const u = unreal(tr); setT(td, smoney(u)); setC(td, 'r ' + cls(u)); } }
   sizeHint();
   renderProp(); renderSim(); phoneBadges(); renderOneTap();
 }
@@ -4443,14 +4451,14 @@ function closeSheet() {
   SHEET.el = SHEET.btn = null;
   syncVeil();
 }
-// the dimmed backdrop behind menus and sheets on phones. It lingers a moment after closing so the tap that
+// the dimmed backdrop behind menus and sheets on phones. It lingers a moment (150 ms) after closing so the tap that
 // closed a menu does not also land on whatever was underneath.
 let veilT = 0;
 function syncVeil() {
   const v = $('#veil'); if (!v) return;
   const on = isM() && !!(POP.el || SHEET.el || !$('#zonePanel').hidden);
   clearTimeout(veilT);
-  if (on) v.hidden = false; else if (!v.hidden) veilT = setTimeout(() => { v.hidden = true; }, 320);
+  if (on) v.hidden = false; else if (!v.hidden) veilT = setTimeout(() => { v.hidden = true; }, 150);
 }
 // replay speed presets: about eight steps from real time to the fastest, at round numbers
 function speedPresets() {
@@ -5270,16 +5278,38 @@ function wire() {
   new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 }
 
-let lastFrame = performance.now();
+// While the tape plays, the replay advances every frame but the chart repaints only as often as leaves at least
+// half of the time free. A repaint's cost is the extra time the two frames after it take (the chart library draws in
+// the next frame, then the browser rasters its canvases): a repaint that costs 100 ms is followed by about 100 ms
+// with none, so taps and gestures are handled at once instead of queuing behind back-to-back repaints. A fast
+// device still repaints every frame; a very slow one at least four times a second.
+let lastFrame = performance.now(), lastRender = -1e9, paintCost = 0, sinceRender = 9, extra = 0;
+// The drawing overlay (sessions, zones, drawings, order labels) is redrawn when the chart repainted, its view
+// moved, or the person is touching, pointing or typing; otherwise only every quarter second, as a safety net.
+// Redrawing the whole canvas every frame kept a phone busy even with the replay paused.
+const OV = { dirty: true, at: 0 };
+const overlayDirty = () => { OV.dirty = true; };
+for (const t of ['pointerdown', 'pointermove', 'pointerup', 'touchstart', 'touchmove', 'touchend', 'mousedown', 'mousemove', 'mouseup', 'wheel', 'keydown', 'keyup'])
+  addEventListener(t, overlayDirty, { capture: true, passive: true });
 function frame(now) {
-  const dt = Math.min(0.25, (now - lastFrame) / 1000); lastFrame = now;
+  const gap = now - lastFrame;
+  if (sinceRender < 2) extra += Math.max(0, gap - 1000 / 60); // the two frames after a repaint
+  sinceRender++;
+  let rendered = false;
+  const dt = Math.min(0.25, gap / 1000); lastFrame = now;
   if (E && E.playing) {
     skipClosedGap();
     E.simTime += dt * speedMult;
     advanceTo(E.simTime);
-    render();
+    if (now - lastRender >= Math.min(250, 2 * paintCost)) {
+      if (lastRender > 0) paintCost = paintCost * 0.6 + extra * 0.4; // what the previous repaint cost
+      render(); rendered = true; lastRender = now; sinceRender = 0; extra = 0;
+    }
   }
-  if (E) { ui(false); drawOverlay(); }
+  if (E) {
+    ui(false);
+    if (rendered || OV.dirty || now - OV.at > 250) { OV.dirty = false; OV.at = now; drawOverlay(); }
+  }
   requestAnimationFrame(frame);
 }
 
