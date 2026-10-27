@@ -408,7 +408,23 @@ fieldset.pf legend .chk{font-weight:600}
 .toast{background:var(--raise);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:4px;padding:7px 11px;font-size:12px;max-width:340px;box-shadow:0 4px 18px rgba(0,0,0,.25);animation:tin .18s ease-out}
 .toast.up{border-left-color:var(--up)}.toast.down{border-left-color:var(--down)}.toast.err{border-left-color:var(--down)}
 @keyframes tin{from{transform:translateY(6px);opacity:0}}
-@media (prefers-reduced-motion: reduce){.toast{animation:none}}
+/* progress card: a bar, the step, a percentage and the time left */
+.progcard{position:fixed;z-index:35;left:50%;bottom:24px;transform:translateX(-50%);width:min(440px,calc(100vw - 32px));background:var(--raise);border:1px solid var(--line);
+  border-left:3px solid var(--accent);border-radius:10px;box-shadow:0 12px 36px rgba(0,0,0,.35);padding:12px 14px;display:flex;flex-direction:column;gap:7px;font-size:12.5px}
+.progcard[hidden]{display:none}
+.pghead{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.pghead b{font-size:13.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pgPct{font-weight:600;font-size:13.5px}
+.pgbar{position:relative;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+#pgFill{display:block;height:100%;width:0;background:var(--accent);border-radius:4px;transition:width .35s ease}
+.progcard.ind #pgFill{width:35%!important;animation:pgind 1.3s ease-in-out infinite}
+@keyframes pgind{from{transform:translateX(-100%)}to{transform:translateX(290%)}}
+.pgfoot{display:flex;justify-content:space-between;gap:12px;color:var(--muted)}
+.pgfoot span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pgfoot span:last-child{white-space:nowrap}
+#pgNote{color:var(--muted);font-size:11.5px}
+html.m .progcard{left:8px;right:8px;width:auto;transform:none;top:calc(env(safe-area-inset-top,0px) + 56px);bottom:auto;font-size:13px}
+@media (prefers-reduced-motion: reduce){.toast,.progcard.ind #pgFill{animation:none}#pgFill{transition:none}}
 
 /* ---- phones (html.m, set by script when the screen is under 900 px wide or 500 px tall) ----
    Like TradingView's app: a slim top bar, the chart filling the screen, replay controls above a tab bar,
@@ -1085,6 +1101,13 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
   <div id="spTick"></div>
 </div>
 <div id="veil" class="veil" hidden></div>
+<!-- progress of a long job: importing or opening a data file, preparing practice data -->
+<div id="progCard" class="progcard" role="status" hidden>
+  <div class="pghead"><b id="pgTitle"></b><span id="pgPct" class="num"></span></div>
+  <div class="pgbar" id="pgBar" role="progressbar" aria-labelledby="pgTitle" aria-valuemin="0" aria-valuemax="100"><i id="pgFill"></i></div>
+  <div class="pgfoot"><span id="pgStep"></span><span id="pgEta"></span></div>
+  <span id="pgNote" hidden></span>
+</div>
 
 <div id="toasts" aria-live="polite"></div>
 
@@ -1697,7 +1720,9 @@ let LOADING = false;
 async function loadSource(src, opts = {}) {
   if (LOADING) throw new Error('Still reading the previous file. Wait for it to finish.');
   LOADING = true;
-  const prog = label => f => setSaveState(`${label} ${Math.round(f * 100)}%`);
+  // the file is read once, or twice when it holds several contracts (which to follow, then the bars)
+  const prog = (label, a = 0, b = 1) => f => progSet(a + f * (b - a), label);
+  progStart(`Reading ${src.name}`);
   try {
     const dsId = opts.dsId || null;
     let C = opts.C || null, H = opts.H || null, pick = opts.pick != null ? opts.pick : null;
@@ -1706,20 +1731,21 @@ async function loadSource(src, opts = {}) {
     if (dsId && STORE) {
       // with no contract list, the whole file is one series (also how built-in data is stored)
       const tryPick = pick != null ? pick : '';
-      const hit = await loadCache(dsId, cacheKey(tryPick), prog('Opening')).catch(() => null);
+      const hit = await loadCache(dsId, cacheKey(tryPick), prog('Opening the saved copy')).catch(() => null);
       if (hit) return Object.assign(hit, { name: src.name, src, H, C, pick: tryPick, dsId });
     }
-    setSaveState(`Reading ${src.name}…`);
+    progSet(0, 'Reading the file layout');
     if (!H) H = isDbn(await firstBytes(src)) ? await dbnHead(src) : await scanHead(src);
     if (H.dbn && C && C.names) for (const [id, nm] of C.names) H.names.set(id, nm);
-    if (!C && H.ix.sym >= 0) C = await (H.dbn ? dbnCensus : census)(src, H, prog('Finding contracts'));
+    const twoPass = !C && H.ix.sym >= 0;
+    if (twoPass) C = await (H.dbn ? dbnCensus : census)(src, H, prog('Finding the contracts (pass 1 of 2)', 0, 0.5));
     if (C && C.list.length < 2) C = null;
     if (pick == null || (pick && !C)) pick = defaultPick(C);
-    const d = await (H.dbn ? dbnParse : parseAll)(src, H, pick, C, prog('Reading bars'));
+    const d = await (H.dbn ? dbnParse : parseAll)(src, H, pick, C, twoPass ? prog('Reading the bars (pass 2 of 2)', 0.5, 1) : prog('Reading the bars'));
     Object.assign(d, { name: src.name, src, H, C, pick, dsId });
     saveCache(dsId, d);
     return d;
-  } finally { LOADING = false; setSaveState(''); }
+  } finally { LOADING = false; progEnd(); }
 }
 
 /* ---------------- sample data: synthetic 1m bars, clearly labelled ---------------- */
@@ -4034,6 +4060,34 @@ function renderStats() {
 }
 
 /* ---------------- saved sessions and library ---------------- */
+/* ---------------- progress card ---------------- */
+// One long job at a time: progStart, then progSet(fraction of the whole job, step) as it goes, progEnd when done.
+// A null fraction shows a moving bar for steps that cannot measure themselves. The time left comes from the
+// average pace so far. Jobs that finish within a third of a second never show the card.
+const PG = { t0: 0, timer: 0, f: 0, id: 0 };
+function progStart(title, note = '') {
+  clearTimeout(PG.timer); PG.t0 = performance.now(); PG.f = 0; PG.id++;
+  $('#pgTitle').textContent = title; $('#pgNote').textContent = note; $('#pgNote').hidden = !note;
+  progSet(0, 'Starting');
+  PG.timer = setTimeout(() => { $('#progCard').hidden = false; }, 350);
+  return PG.id;
+}
+const leftText = s => s < 50 ? `About ${Math.max(5, Math.round(s / 5) * 5)} s left` : s < 90 ? 'About a minute left'
+  : s < 3600 ? `About ${Math.round(s / 60)} min left` : `About ${(s / 3600).toFixed(1)} h left`;
+function progSet(f, step) {
+  const card = $('#progCard'), bar = $('#pgBar');
+  if (step != null) $('#pgStep').textContent = step;
+  card.classList.toggle('ind', f == null);
+  if (f == null) { $('#pgPct').textContent = ''; $('#pgEta').textContent = ''; bar.removeAttribute('aria-valuenow'); return; }
+  f = PG.f = Math.max(PG.f, clamp(f, 0, 1)); // never moves backwards
+  $('#pgFill').style.width = (f * 100).toFixed(1) + '%';
+  $('#pgPct').textContent = Math.floor(f * 100) + '%';
+  bar.setAttribute('aria-valuenow', String(Math.floor(f * 100)));
+  const el = (performance.now() - PG.t0) / 1000;
+  $('#pgEta').textContent = f >= 1 ? '' : el > 2 && f > 0.02 ? leftText(el * (1 - f) / f) : 'Working out the time left…';
+}
+// id: end only that job (a background save must not close a newer job's card)
+function progEnd(id) { if (typeof id === 'number' && id !== PG.id) return; clearTimeout(PG.timer); $('#progCard').hidden = true; }
 function setSaveState(txt) { const s = $('#saveState'); s.hidden = !txt; s.textContent = txt || ''; }
 const sessName = () => S.name || `${D.sample ? 'Sample' : D.name.split(',')[0].replace(/\.(csv|txt|tsv|dbn)$/i, '')}${D.pick ? ' ' + pickLabel(D.pick) : ''} ${tfLabel(TF)} from ${fmtDT(D.t[E.start]).slice(0, 16)}`;
 function worthSaving() { return T.hist.length || T.trades.length || T.orders.length || (E.i - E.start) >= 50; }
@@ -4104,9 +4158,10 @@ async function loadSection(V, t0, t1) {
   if (cap > MAX_BARS * 1.1) throw new Error('That span is too long to load at once. Pick a shorter span or less history.');
   const t = new Float64Array(cap), o = new Float32Array(cap), h = new Float32Array(cap), l = new Float32Array(cap), c = new Float32Array(cap), v = new Float32Array(cap);
   let k = 0;
+  progStart(`Loading ${V.name.split(',')[0]}`);
   try {
     for (const [j, b] of blocks.entries()) {
-      setSaveState(`Loading ${V.name.split(',')[0]}: month ${j + 1} of ${blocks.length}`);
+      progSet(j / blocks.length, `Month ${j + 1} of ${blocks.length}`);
       const r = await fetch(`/api/series/${V.dsId}/${b.i}`, { headers: { 'X-Token': TOKEN } });
       if (!r.ok) throw new Error(await r.text());
       const buf = await r.arrayBuffer(), n = b.n;
@@ -4117,7 +4172,7 @@ async function loadSection(V, t0, t1) {
       l.set(col(2).subarray(lo, hi), k); c.set(col(3).subarray(lo, hi), k); v.set(col(4).subarray(lo, hi), k);
       k += m;
     }
-  } finally { setSaveState(''); }
+  } finally { progEnd(); }
   if (k < 2) throw new Error('There are no bars in that date range.');
   return { n: k, t: t.subarray(0, k), o: o.subarray(0, k), h: h.subarray(0, k), l: l.subarray(0, k), c: c.subarray(0, k), v: v.subarray(0, k),
            base: V.base, prec: V.prec, bad: 0, hasVol: V.hasVol, name: V.name, dsId: V.dsId, pick: '', chunked: true, V, window: { from: t0, to: t1 } };
@@ -4237,12 +4292,13 @@ async function synthSection(V, t0, t1) {
   for (let i = 0; i < days.length; i++) if (days[i].t1 >= t0 && days[i].t0 <= t1) want.push(i);
   if (!want.length) throw new Error('There are no bars in that date range.');
   const B = barColumns(Math.ceil(want.reduce((s, i) => s + per[days[i].off], 0) * 1.05) + 1024);
+  progStart('Preparing the practice data');
   try {
     for (const [j, i] of want.entries()) {
       synthDay(i, B, t0, t1);
-      if (j % 4 === 3) { setSaveState(`Generating practice data: ${Math.round((j + 1) / want.length * 100)}%`); await new Promise(res => setTimeout(res, 0)); }
+      if (j % 4 === 3) { progSet((j + 1) / want.length, `Trading day ${j + 1} of ${want.length}`); await new Promise(res => setTimeout(res, 0)); }
     }
-  } finally { setSaveState(''); }
+  } finally { progEnd(); }
   const k = B.n;
   if (k < 2) throw new Error('There are no bars in that date range.');
   return { n: k, t: B.t.subarray(0, k), o: B.o.subarray(0, k), h: B.h.subarray(0, k), l: B.l.subarray(0, k), c: B.c.subarray(0, k), v: B.v.subarray(0, k),
@@ -4288,7 +4344,7 @@ async function renderLib(tab) {
       body.innerHTML = `<table><thead><tr><th>File</th><th class="r">Bars</th><th class="r">Contracts</th><th>Base TF</th><th>Covers</th><th class="r">Size</th><th>Added</th><th></th></tr></thead><tbody>` +
         list.map(d => `<tr><td>${esc(d.name)}${d.builtin ? ' <span class="tag" title="Shipped inside the app">built in</span>' : ''}${d.linked ? ' <span class="tag" title="' + esc(d.linked) + '">linked</span>' : ''}${d.id === def ? ' <span class="tag live">New session data</span>' : ''}</td>
           <td class="r">${(d.bars || 0).toLocaleString('en-US')}</td><td class="r">${d.contracts || 1}</td><td>${d.base ? tfLabel({ kind: 's', sec: d.base }) : '—'}</td>
-          <td>${d.from ? fmtDay(d.from) + ' → ' + fmtDay(d.to) : '—'}</td><td class="r">${d.synthetic ? 'generated' : (d.size / 1048576).toFixed(1) + ' MB'}</td><td>${new Date(d.added).toLocaleString()}</td>
+          <td>${d.from ? fmtDay(d.from) + ' → ' + fmtDay(d.to) : '—'}</td><td class="r">${d.synthetic ? 'generated' : (d.size / 1048576).toFixed(1) + ' MB'}</td><td>${d.added ? new Date(d.added).toLocaleString() : '—'}</td>
           <td><button data-newbt="${esc(d.id)}">New backtest</button> <button data-def="${esc(d.id)}">${d.id === def ? 'Stop using for New session' : 'Use for New session'}</button> <button data-dsdel="${esc(d.id)}">Delete</button></td></tr>`).join('') + '</tbody></table>';
     }
   } catch (e) { body.innerHTML = `<div class="empty">Could not read the Library: ${esc(e.message)}</div>`; }
@@ -4997,6 +5053,7 @@ function openSetup(data) {
   simToForm(cfg.sim); fillSimPresets(cfg.sim.preset || ''); $('#sName').value = '';
   if (data !== D && data.base <= 5 && !(D && D.V === data)) $('#fTicks').value = Math.min(cfg.ticks, 4); // a few ticks per bar is plenty for seconds data
   if (E) setPlaying(false);
+  $('#lib').hidden = true; // a file imported from the Library: the form would open behind it
   $('#modal').hidden = false; $('#fStart').focus();
 }
 function confirmSetup() {
@@ -5029,13 +5086,13 @@ function confirmSetup() {
   const src = data.src;
   if (STORE && !data.dsId && src && (src.kind === 'picked' || src.kind === 'file')) {
     // add the file to the Library so this backtest can be reopened later
-    setSaveState('Saving data file…');
+    const pid = progStart('Saving the data file to your Library', 'It stays there for later backtests.'); progSet(null, data.name);
     const meta = { name: data.name, bars: data.n, base: data.base, from: data.t[0], to: data.t[data.n - 1], contracts: data.C ? data.C.list.length : 1 };
     (src.kind === 'picked' ? STORE.adopt(src.id, meta) : STORE.upload(src.file, meta)).then(m => {
       data.dsId = m.id; saveCache(m.id, data);
       if (D === data) { S.dsId = m.id; S.dirty = true; saveSession(true); }
       setSaveState('Data file saved to Library');
-    }).catch(e => { setSaveState('Data file not saved'); toast('Could not save the data file: ' + e.message, 'err'); });
+    }).catch(e => { setSaveState('Data file not saved'); toast('Could not save the data file: ' + e.message, 'err'); }).finally(() => progEnd(pid));
   }
 }
 function openLoaded(src, opts) {
@@ -5076,19 +5133,19 @@ async function importDbn(p) {
     const r = await api('import', { method: 'POST', body: JSON.stringify({ pick: p.id, name: p.name }) });
     if (!r.ok) throw new Error(await r.text());
     const { job } = await r.json();
-    toast(`Importing ${p.name}. Large files take a few minutes; keep the app open.`);
+    progStart(`Importing ${p.name}`, 'Keep the app open until it finishes.');
     for (;;) {
       await new Promise(res => setTimeout(res, 700));
       const s = await (await api('import/' + job)).json();
       if (s.state === 'error') throw new Error(s.message || 'The import failed.');
       if (s.state === 'done') {
-        setSaveState('');
+        progEnd();
         toast(`${s.dataset.name}: ${mil(s.dataset.bars)} bars in the Library.`, 'up');
         return openSetup(await openDataset(s.dataset.id, null));
       }
-      setSaveState(`Importing ${p.name}: ${s.message || ''} ${Math.round((s.progress || 0) * 100)}%`);
+      progSet(s.progress || 0, s.message || 'Importing');
     }
-  } catch (e) { setSaveState(''); toast(`${p.name}: ${e.message}`, 'err'); }
+  } catch (e) { progEnd(); toast(`${p.name}: ${e.message}`, 'err'); }
 }
 let restartArm = 0;
 function restart() {
