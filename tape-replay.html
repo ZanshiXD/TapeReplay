@@ -238,8 +238,19 @@ html.m .mmore .credit{padding:4px 4px 12px}
 .otpos[hidden]{display:none}
 .otpos b{font-weight:600}
 .otpos button{margin-left:auto;background:var(--panel);border:1px solid var(--line);border-radius:4px;color:var(--fg);padding:3px 8px;font-size:11.5px;cursor:pointer}
-html.m .otp{left:8px}
-html.m .otrow button{min-width:96px;padding:7px 12px}
+/* one-tap trading: a strip across the top of the chart (the chart starts below it), the position on a line under it */
+html.m .otp{left:0!important;right:0;top:0!important;width:auto;gap:5px;padding:6px 8px 5px;background:var(--panel);border-bottom:1px solid var(--line);z-index:6}
+html.m .otrow{height:44px;box-shadow:none;border-radius:8px;border:1px solid var(--line)}
+html.m .otrow button.sell,html.m .otrow button.buy{flex:1 1 0;min-width:0;padding:4px 10px;justify-content:center}
+html.m .otrow button span{font-size:10.5px}
+html.m .otrow button b{font-size:15px}
+html.m .otrow input{width:46px;font-size:15px;border:none;padding:0}
+html.m .otstep{display:grid;place-items:center;width:32px;min-width:0!important;flex:none;border:none;background:var(--raise);color:var(--fg);font-size:20px;line-height:1;padding:0;cursor:pointer}
+html.m .otstep:active{background:var(--line)}
+html.m .otpos{display:flex;height:26px;border:none;background:none;padding:0 2px;gap:10px;font-size:12.5px}
+html.m .otpos .flat{color:var(--muted);font-family:var(--f-ui)}
+html.m .otpos button{height:24px;padding:0 12px;border-radius:12px;font-size:12px;font-family:var(--f-ui)}
+html.m #chart,html.m #draw{top:var(--otH,0px)}
 #spreadLbl{align-self:center;font-family:var(--f-num);font-size:10px;color:var(--muted);text-align:center}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:4px;overflow:hidden}
 .seg button{border:none!important;border-radius:0!important;background:transparent!important;padding:5px 0!important;font-size:12px}
@@ -428,8 +439,8 @@ html.m .progcard{left:8px;right:8px;width:auto;transform:none;top:calc(env(safe-
 /* ---- phones (html.m, set by script when the screen is under 900 px wide or 500 px tall) ----
    Like TradingView's app: a slim top bar, the chart filling the screen, replay controls above a tab bar,
    and the ticket, positions and evaluation each on their own screen. */
-.mmore,.mreplay,.mnav,.mdraw,.mico,.mtf,.mspeed,.veil,.mevalhint{display:none}
-html:not(.m) #mTf{display:none}
+.mmore,.mreplay,.mnav,.mdraw,.mico,.mtf,.mspeed,.veil,.mevalhint,.dtools .dl,.ddone,.otstep,.dshint,.mstyle,.dsmore{display:none}
+html:not(.m) #mTf,html:not(.m) .dtools .ddone,html:not(.m) .otrow .otstep{display:none}
 html.touch #bKeys,html.touch #mmore [data-go="bKeys"],html.touch .tip,html.touch .nokeys{display:none!important}
 html.m body{margin:0}
 html.m #app{grid-template-rows:auto minmax(0,1fr) auto auto;grid-template-areas:"top" "main" "replay" "nav";gap:0;padding:0}
@@ -509,13 +520,60 @@ html.m #app[data-mview="eval"] .side:has(#simCard[hidden]):has(#propCard[hidden]
 html.m .mevalhint b{font-size:15px}
 html.m .mevalhint button{min-height:42px}
 /* the chart: drawing tools slide out from a pencil button */
-html.m .dtools{transform:translateX(-100%);transition:transform .18s ease}
-html.m .chartwrap.draw .dtools{transform:none;box-shadow:4px 0 16px rgba(0,0,0,.25)}
+/* drawing tools: a labelled bar along the bottom of the chart (the chart ends above it) */
+html.m .dtools{display:none;top:auto;bottom:0;left:0;right:0;width:auto;height:58px;flex-direction:row;align-items:stretch;gap:2px;padding:4px 6px;
+  border-right:none;border-top:1px solid var(--line);overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;z-index:6}
+html.m .dtools::-webkit-scrollbar{display:none}
+html.m .chartwrap.draw .dtools{display:flex;animation:dtin .16s ease-out}
+@keyframes dtin{from{transform:translateY(100%)}}
+html.m .dtools button{flex:none;width:auto;min-width:52px;height:auto;padding:4px 6px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:8px}
+html.m .dtools svg{width:22px;height:22px}
+html.m .dtools .dl{display:block;font-size:10.5px;font-weight:600;letter-spacing:.01em;white-space:nowrap}
+html.m .dtools hr{width:1px;height:auto;border:none;border-left:1px solid var(--line);margin:6px 2px}
+html.m .dtools .ddone{display:flex;color:var(--accent-ink);background:var(--accent);margin-right:4px}
+html.m .dtools .ddone svg{stroke-width:2.2}
+html.m .dtools button[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+html.m .chartwrap.draw #chart,html.m .chartwrap.draw #draw{bottom:59px}
+html.m .chartwrap.draw .mdraw{display:none}
+@media (prefers-reduced-motion: reduce){html.m .chartwrap.draw .dtools{animation:none}}
 html.m .mdraw{display:grid;place-items:center;position:absolute;left:8px;bottom:34px;z-index:5;width:38px;height:38px;border-radius:50%;background:var(--raise);border:1px solid var(--line);color:var(--fg);box-shadow:0 4px 14px rgba(0,0,0,.3)}
-html.m .chartwrap.draw .mdraw{left:48px;color:var(--accent);border-color:var(--accent)}
 html.m .mdraw svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round}
-html.m #legend{left:8px;top:6px;font-size:11px;gap:2px 8px;max-width:calc(100% - 70px)}
-html.m .dstyle{left:50%;bottom:8px;max-width:calc(100% - 16px)}
+html.m #legend{left:8px;top:calc(var(--otH,0px) + 6px);font-size:11px;gap:2px 8px;max-width:calc(100% - 92px)}
+/* the selected drawing's style (or the next one's), docked above the tools: swatches, width, line style, label, delete */
+html.m .dstyle{left:0;right:0;bottom:0;transform:none;max-width:none;border-radius:14px 14px 0 0;border-bottom:none;padding:10px 10px 10px;gap:8px 8px;
+  box-shadow:0 -8px 24px rgba(0,0,0,.28);font-size:13px;z-index:7;max-height:46%;overflow-y:auto}
+html.m .chartwrap.draw .dstyle{bottom:58px}
+html.m .dshint{display:block;flex-basis:100%;font-size:12.5px;color:var(--fg)}
+html.m .dshint:empty{display:none}
+html.m .mstyle{display:flex;flex-basis:100%;flex-wrap:wrap;align-items:center;gap:8px 10px}
+html.m .mstyle[hidden]{display:none}
+html.m .dsw{display:flex;gap:6px;flex-wrap:wrap}
+html.m .dsw button{width:28px;height:28px;padding:0!important;border-radius:50%!important;border:2px solid transparent!important;box-shadow:inset 0 0 0 1px rgba(127,127,127,.35)}
+html.m .dsw button[aria-pressed="true"]{border-color:var(--fg)!important}
+html.m .dsw label{position:relative;width:28px;height:28px;border-radius:50%;overflow:hidden;background:conic-gradient(#e5554c,#e2a63c,#2db38a,#4c9be8,#9b7bd4,#e5554c);box-shadow:inset 0 0 0 1px rgba(127,127,127,.35)}
+html.m .dsw label input{position:absolute;inset:0;opacity:0;width:100%;height:100%}
+html.m .mseg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+html.m .mseg button{display:grid;place-items:center;width:40px;height:34px;padding:0!important;border:none!important;border-radius:0!important;background:none!important;color:var(--muted)}
+html.m .mseg button+button{border-left:1px solid var(--line)!important}
+html.m .mseg button[aria-pressed="true"]{background:var(--raise)!important;color:var(--accent)}
+html.m .mseg svg{width:24px;height:12px;stroke:currentColor;fill:none}
+html.m #dsStyleGrp #dsColor,html.m #dsStyleGrp #dsWidth,html.m #dsStyleGrp #dsDash{display:none}
+html.m #dsStyleGrp:not(:has(#dsFillGrp:not([hidden]))){display:none}
+html.m .dstyle select,html.m .dstyle input:not([type=checkbox]):not([type=range]):not([type=color]){height:36px;font-size:14px}
+html.m .dstyle #dsLabel{flex:1 1 140px;width:auto}
+html.m .dstyle button{min-height:36px;padding:0 12px;font-size:13px}
+html.m .dstyle #dsDel{color:var(--down);border-color:color-mix(in srgb,var(--down) 50%,var(--line))}
+html.m .dstyle #fibLevels{flex:1 1 100%;width:auto}
+html.m .dstyle #dsTrade{flex-basis:100%;order:-1}
+html.m .dstyle #dsTrade button{flex:1;min-height:42px;color:var(--fg)}
+html.m .dstyle #dsMarket{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+html.m .dstyle .dsmore{display:block;font-size:18px;line-height:1;padding:0 10px}
+html.m .dstyle .dsmore[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
+html.m .dstyle #dsPresetGrp{order:5;flex-basis:100%}
+html.m .dstyle #dsPresetGrp #dsPreset{flex:1;min-width:0}
+html.m .dstyle:not(.more) #dsPresetGrp{display:none}
+html.m .dstyle.pending>:not(.dshint){display:none!important}
+html.m .dstyle.pending{padding:9px 12px}
 /* replay bar: the time and speed on top, the step buttons and play below, nothing scrolled out of sight;
    the progress bar runs along its top edge */
 html.m .mreplay{grid-area:replay;position:relative;display:grid;grid-template-columns:44px minmax(0,1fr) 68px minmax(0,1fr) minmax(0,1fr);
@@ -666,19 +724,20 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
   <main class="work">
     <section class="chartwrap" id="chartWrap">
       <div class="dtools" id="dtools" role="toolbar" aria-label="Drawing tools">
-        <button data-tool="cursor" aria-pressed="true" title="Pointer (Esc)"><svg viewBox="0 0 20 20"><path d="M5 3l10 6.2-4.6 1.4L8.4 15z"/></svg></button>
-        <button data-tool="trend" aria-pressed="false" title="Trend line"><svg viewBox="0 0 20 20"><path d="M4.5 15.5l11-11"/><circle cx="4" cy="16" r="1.7"/><circle cx="16" cy="4" r="1.7"/></svg></button>
-        <button data-tool="hline" aria-pressed="false" title="Horizontal line"><svg viewBox="0 0 20 20"><path d="M2 10h16"/><circle cx="10" cy="10" r="1.7"/></svg></button>
-        <button data-tool="vline" aria-pressed="false" title="Vertical line"><svg viewBox="0 0 20 20"><path d="M10 2v16"/><circle cx="10" cy="10" r="1.7"/></svg></button>
-        <button data-tool="rect" aria-pressed="false" title="Rectangle"><svg viewBox="0 0 20 20"><rect x="3.5" y="5" width="13" height="10" rx="1"/></svg></button>
-        <button data-tool="fib" aria-pressed="false" title="Fib retracement (OTE, STDV and your own level sets)"><svg viewBox="0 0 20 20"><path d="M3 4h14M3 8h14M3 12h14M3 16h14" style="stroke-width:1.1"/><path d="M4 16L16 4" style="stroke-dasharray:2 2"/></svg></button>
-        <button id="dMagnet" aria-pressed="false" title="Magnet: lock points and the crosshair to the candle's nearest open, high, low or close. Hold Ctrl to use it, or press M to keep it on"><svg viewBox="0 0 20 20"><path d="M5 4v6a5 5 0 0 0 10 0V4"/><path d="M5 7h3M12 7h3" style="stroke-width:2.4"/><path d="M8 4v6a2 2 0 0 0 4 0V4"/></svg></button>
-        <button id="dZones" aria-pressed="false" title="Price zones: FVG, iFVG, BPR, order blocks and breakers. Click for settings; Z shows or hides them"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="4" rx="0.5"/><rect x="6" y="12" width="11" height="4" rx="0.5" style="stroke-dasharray:2 1.5"/></svg></button>
+        <button id="dDone" class="ddone" aria-label="Close the drawing tools"><svg viewBox="0 0 20 20"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg><span class="dl">Done</span></button>
+        <button data-tool="cursor" aria-pressed="true" title="Pointer (Esc)"><svg viewBox="0 0 20 20"><path d="M5 3l10 6.2-4.6 1.4L8.4 15z"/></svg><span class="dl">Select</span></button>
+        <button data-tool="trend" aria-pressed="false" title="Trend line"><svg viewBox="0 0 20 20"><path d="M4.5 15.5l11-11"/><circle cx="4" cy="16" r="1.7"/><circle cx="16" cy="4" r="1.7"/></svg><span class="dl">Trend</span></button>
+        <button data-tool="hline" aria-pressed="false" title="Horizontal line"><svg viewBox="0 0 20 20"><path d="M2 10h16"/><circle cx="10" cy="10" r="1.7"/></svg><span class="dl">H-line</span></button>
+        <button data-tool="vline" aria-pressed="false" title="Vertical line"><svg viewBox="0 0 20 20"><path d="M10 2v16"/><circle cx="10" cy="10" r="1.7"/></svg><span class="dl">V-line</span></button>
+        <button data-tool="rect" aria-pressed="false" title="Rectangle"><svg viewBox="0 0 20 20"><rect x="3.5" y="5" width="13" height="10" rx="1"/></svg><span class="dl">Box</span></button>
+        <button data-tool="fib" aria-pressed="false" title="Fib retracement (OTE, STDV and your own level sets)"><svg viewBox="0 0 20 20"><path d="M3 4h14M3 8h14M3 12h14M3 16h14" style="stroke-width:1.1"/><path d="M4 16L16 4" style="stroke-dasharray:2 2"/></svg><span class="dl">Fib</span></button>
+        <button id="dMagnet" aria-pressed="false" title="Magnet: lock points and the crosshair to the candle's nearest open, high, low or close. Hold Ctrl to use it, or press M to keep it on"><svg viewBox="0 0 20 20"><path d="M5 4v6a5 5 0 0 0 10 0V4"/><path d="M5 7h3M12 7h3" style="stroke-width:2.4"/><path d="M8 4v6a2 2 0 0 0 4 0V4"/></svg><span class="dl">Magnet</span></button>
+        <button id="dZones" aria-pressed="false" title="Price zones: FVG, iFVG, BPR, order blocks and breakers. Click for settings; Z shows or hides them"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="4" rx="0.5"/><rect x="6" y="12" width="11" height="4" rx="0.5" style="stroke-dasharray:2 1.5"/></svg><span class="dl">Zones</span></button>
         <hr>
-        <button data-tool="long" aria-pressed="false" title="Long position"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="7.5" style="stroke:var(--up)"/><rect x="3" y="10.5" width="14" height="5.5" style="stroke:var(--down)"/></svg></button>
-        <button data-tool="short" aria-pressed="false" title="Short position"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="5.5" style="stroke:var(--down)"/><rect x="3" y="9.5" width="14" height="7.5" style="stroke:var(--up)"/></svg></button>
+        <button data-tool="long" aria-pressed="false" title="Long position"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="7.5" style="stroke:var(--up)"/><rect x="3" y="10.5" width="14" height="5.5" style="stroke:var(--down)"/></svg><span class="dl">Long</span></button>
+        <button data-tool="short" aria-pressed="false" title="Short position"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="5.5" style="stroke:var(--down)"/><rect x="3" y="9.5" width="14" height="7.5" style="stroke:var(--up)"/></svg><span class="dl">Short</span></button>
         <hr>
-        <button id="dClear" title="Remove all drawings"><svg viewBox="0 0 20 20"><path d="M4.5 6h11M8 6V4h4v2M6 6l1 10.5h6L14 6"/></svg></button>
+        <button id="dClear" title="Remove all drawings"><svg viewBox="0 0 20 20"><path d="M4.5 6h11M8 6V4h4v2M6 6l1 10.5h6L14 6"/></svg><span class="dl">Clear</span></button>
       </div>
       <div id="chart"></div>
       <canvas id="draw"></canvas>
@@ -686,13 +745,21 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
       <div id="otp" class="otp" hidden>
         <div class="otrow">
           <button id="otSell" class="sell" title="Sell at market now"><span>SELL</span><b id="otBid">—</b></button>
-          <input id="otQty" type="number" step="any" min="0" aria-label="One-tap size" title="Size (the same as the order ticket's)">
+          <button id="otMinus" class="otstep" aria-label="Smaller size">−</button>
+          <input id="otQty" type="number" step="any" min="0" inputmode="decimal" aria-label="One-tap size" title="Size (the same as the order ticket's)">
+          <button id="otPlus" class="otstep" aria-label="Larger size">+</button>
           <button id="otBuy" class="buy" title="Buy at market now"><span>BUY</span><b id="otAsk">—</b></button>
         </div>
         <div class="otpos" id="otPos" hidden></div>
       </div>
       <button id="mdraw" class="mdraw" aria-label="Drawing tools" aria-pressed="false"><svg viewBox="0 0 20 20"><path d="M4 16l1-4 8-8 3 3-8 8z"/><path d="M11.5 5.5l3 3"/></svg></button>
       <div id="dstyle" class="dstyle" hidden>
+        <span class="dshint" id="dsHint"></span>
+        <span class="mstyle" id="dsMStyle">
+          <span class="dsw" id="dsSwatches" role="group" aria-label="Color"></span>
+          <span class="mseg" id="dsWSeg" role="group" aria-label="Line width"></span>
+          <span class="mseg" id="dsDSeg" role="group" aria-label="Line style"></span>
+        </span>
         <span class="grp" id="dsStyleGrp">
           <select id="dsPreset" aria-label="Style preset"></select>
           <input id="dsColor" type="color" aria-label="Color">
@@ -718,6 +785,7 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
           <button id="dsPlace" title="Place a limit or stop order at the entry, with this stop and target">Place order</button>
           <button id="dsMarket" title="Enter at market now with this stop and target">Market now</button>
         </span>
+        <button id="dsMore" class="dsmore" aria-label="Style presets" aria-expanded="false">⋯</button>
         <button id="dsDel" title="Delete drawing (Del)">Delete</button>
       </div>
       <div id="legend"></div>
@@ -2385,19 +2453,34 @@ function setOneTap(on) {
   $('#otp').hidden = !on;
   $('#oneTap').checked = on;
   uiPref('oneTap', on);
-  ui(true);
+  ui(true); syncOtH();
+}
+// phones: the chart starts below the one-tap strip
+function syncOtH() {
+  const w = $('#chartWrap'), h = isM() && !$('#otp').hidden ? $('#otp').offsetHeight + 'px' : '';
+  if (w.style.getPropertyValue('--otH') !== h) { if (h) w.style.setProperty('--otH', h); else w.style.removeProperty('--otH'); }
+}
+// the size stepper on phones: whole contracts, or a tenth of the size's order of magnitude for big sizes
+function stepQty(dir) {
+  const q = parseFloat($('#otQty').value) || 0, st = q >= 100 ? 10 ** (Math.floor(Math.log10(q)) - 1) : q > 0 && q < 1 ? 0.1 : 1;
+  const v = Math.max(st, +(Math.round((q + dir * st) / st) * st).toPrecision(10));
+  $('#otQty').value = $('#qty').value = fmtQty(v); sizeHint();
 }
 // the one-tap panel: prices, size, and the position it works on
 function renderOneTap() {
   const p = $('#otp'); if (p.hidden || !E) return;
   $('#otBid').textContent = fp(bidPx()); $('#otAsk').textContent = fp(askPx());
   if (document.activeElement !== $('#otQty')) $('#otQty').value = $('#qty').value;
-  p.style.top = ($('#legend').offsetHeight + 14) + 'px';
+  const m = isM();
+  p.style.top = m ? '' : ($('#legend').offsetHeight + 14) + 'px';
   const { q, avg } = netPosition(), box = $('#otPos');
-  if (!q) { box.hidden = true; return; }
+  // phones keep the line (so the chart below does not jump when a position opens or closes)
+  if (!q) { box.hidden = !m; const f = '<span class="flat">No open position</span>'; if (m && box.innerHTML !== f) box.innerHTML = f; syncOtH(); return; }
   const open = T.trades.reduce((s, t) => s + unreal(t), 0);
   box.hidden = false;
-  box.innerHTML = `<span class="${q > 0 ? 'side-l' : 'side-s'}">${q > 0 ? 'LONG' : 'SHORT'} ${fmtQty(Math.abs(q))}</span><span>@ ${fp(avg)}</span><b class="${cls(open)}">${smoney(open)}</b><button data-ot="flat" title="Close the position at market">Close</button>`;
+  const h = `<span class="${q > 0 ? 'side-l' : 'side-s'}">${q > 0 ? 'LONG' : 'SHORT'} ${fmtQty(Math.abs(q))}</span><span>@ ${fp(avg)}</span><b class="${cls(open)}">${smoney(open)}</b><button data-ot="flat" title="Close the position at market">Close</button>`;
+  if (box.innerHTML !== h) box.innerHTML = h;
+  syncOtH();
 }
 function closeMarket(tr) { closeTrade(tr, tr.side > 0 ? bidPx() - cfg.slip : askPx() + cfg.slip, 'Manual', false); ui(true); }
 
@@ -2862,9 +2945,11 @@ function drawTradeLabels(g) {
   }
 }
 const inBox = (b, x, y) => b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+// how close (px) a pointer must come to grab a line, a drawing or a handle: a fingertip needs about three times more
+const HIT = TOUCH ? { line: 14, entry: 12, body: 13, handle: 20 } : { line: 6, entry: 5, body: 5, handle: 6 };
 // the line (or its tag) under the pointer; stops, targets and orders come before position lines
 function hitLine(y, x) {
-  let best = null, bd = 6;
+  let best = null, bd = HIT.line;
   for (const L of LINES) {
     if (x != null && inBox(L.box, x, y)) return L;
     if (L.kind === 'entry') continue;
@@ -2872,7 +2957,7 @@ function hitLine(y, x) {
     const d = Math.abs(yy - y); if (d < bd) { bd = d; best = L; }
   }
   if (best) return best;
-  for (const L of LINES) if (L.kind === 'entry') { const yy = cs.priceToCoordinate(L.price); if (yy != null && Math.abs(yy - y) < 5) return L; }
+  for (const L of LINES) if (L.kind === 'entry') { const yy = cs.priceToCoordinate(L.price); if (yy != null && Math.abs(yy - y) < HIT.entry) return L; }
   return null;
 }
 // the close button on a tag: close the position, remove the stop or target, or cancel the order
@@ -3094,7 +3179,7 @@ function segDist(px, py, ax, ay, bx, by) {
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 function bodyHit(d, x, y) {
-  const g = geom(d), tol = 5;
+  const g = geom(d), tol = HIT.body;
   if (d.type === 'hline') return g.y != null && Math.abs(y - g.y) <= tol;
   if (d.type === 'vline') return g.x != null && Math.abs(x - g.x) <= tol;
   if (d.type === 'trend') return g.xa != null && segDist(x, y, g.xa, g.ya, g.xb, g.yb) <= tol;
@@ -3124,7 +3209,7 @@ function bodyHit(d, x, y) {
 function hitDrawing(x, y) {
   if (!E || !DR.list.length || !nBars()) return null;
   const top = [...DR.list].reverse();
-  for (const d of [DR.sel, ...top]) { if (!d) continue; for (const h of handlesOf(d)) if (h.x != null && Math.abs(h.x - x) <= 6 && Math.abs(h.y - y) <= 6) return { d, part: h.part }; }
+  for (const d of [DR.sel, ...top]) { if (!d) continue; for (const h of handlesOf(d)) if (h.x != null && Math.abs(h.x - x) <= HIT.handle && Math.abs(h.y - y) <= HIT.handle) return { d, part: h.part }; }
   for (const d of top) { const r = bodyHit(d, x, y); if (r) return { d, part: typeof r === 'string' ? r : 'move' }; }
   return null;
 }
@@ -3169,7 +3254,7 @@ function drawDown(x, y) {
   else {
     d = { type: DR.tool, a: pt, b: { ...pt }, ...st };
     if (DR.tool === 'fib') d.fib = newFib();
-    DR.list.push(d); DR.sel = d; DR.pending = { d, x0: x, y0: y, dragged: false }; lockChart(true); return;
+    DR.list.push(d); DR.sel = d; DR.pending = { d, x0: x, y0: y, dragged: false }; lockChart(true); updateStyleBar(); return;
   }
   DR.list.push(d); finishDraw(d);
 }
@@ -3326,7 +3411,7 @@ function drawOne(g, d, pw, ph) {
     for (const h of handlesOf(d)) {
       if (h.x == null || h.y == null) continue;
       g.fillStyle = C.bg; g.strokeStyle = POS(d) ? C.fg : d.color;
-      g.beginPath(); g.rect(h.x - 4, h.y - 4, 8, 8); g.fill(); g.stroke();
+      g.beginPath(); if (TOUCH) g.arc(h.x, h.y, 7, 0, Math.PI * 2); else g.rect(h.x - 4, h.y - 4, 8, 8); g.fill(); g.stroke();
     }
   }
 }
@@ -3755,15 +3840,45 @@ function styleTarget() { return DR.sel || DR.style; }
 function fillDrawPresets(sel) {
   $('#dsPreset').innerHTML = '<option value="">Style presets…</option>' + PREFS.drawPresets.map(p => `<option${p.name === sel ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
 }
+// what to do next with the active tool, shown on phones
+const TOOL_HINT = {
+  trend: ['Trend line: tap two points, or touch and drag.', 'Now tap the second point.'],
+  rect: ['Box: tap two corners, or touch and drag.', 'Now tap the opposite corner.'],
+  fib: ['Fib: tap the start of the swing, then its end (or drag from one to the other).', 'Now tap the end of the swing.'],
+  hline: ['Horizontal line: tap the price.'], vline: ['Vertical line: tap the moment.'],
+  long: ['Long position: tap the entry price. Drag its edges to set the stop and target.'],
+  short: ['Short position: tap the entry price. Drag its edges to set the stop and target.'],
+};
+const SWATCHES = ['#e2a63c', '#e5554c', '#2db38a', '#4c9be8', '#9b7bd4', '#22b8cf', '#8692a4'];
+const DASH_ICON = { solid: '', dashed: '5 3', dotted: '1.5 3' };
+function fillMobileStyle(tgt, pos) {
+  $('#dsMStyle').hidden = pos;
+  if (pos) return;
+  const fg = css('--fg'), cols = [...SWATCHES, /^#[0-9a-f]{6}$/i.test(fg) ? fg : '#d6dce6'];
+  const cur = (tgt.color || '').toLowerCase();
+  $('#dsSwatches').innerHTML = cols.map(c => `<button type="button" data-c="${c}" style="background:${c}" aria-label="Color ${c}" aria-pressed="${String(c.toLowerCase() === cur)}"></button>`).join('') +
+    `<label title="Any color" aria-label="Any color"><input type="color" data-own="1" value="${/^#[0-9a-f]{6}$/i.test(tgt.color) ? tgt.color : '#e2a63c'}"></label>`;
+  $('#dsWSeg').innerHTML = [1, 2, 3, 4].map(w => `<button type="button" data-w="${w}" aria-label="${w} px" aria-pressed="${String(+tgt.width === w)}"><svg viewBox="0 0 24 12"><path d="M2 6h20" style="stroke-width:${w}"/></svg></button>`).join('');
+  $('#dsDSeg').innerHTML = ['solid', 'dashed', 'dotted'].map(k => `<button type="button" data-dash="${k}" aria-label="${k}" aria-pressed="${String(tgt.dash === k)}"><svg viewBox="0 0 24 12"><path d="M2 6h20" style="stroke-width:2;stroke-dasharray:${DASH_ICON[k]}"/></svg></button>`).join('');
+}
 function updateStyleBar() {
-  const d = DR.sel, bar = $('#dstyle');
-  const show = !!d || (DR.tool !== 'cursor' && DR.tool !== 'long' && DR.tool !== 'short');
+  const d = DR.sel, bar = $('#dstyle'), m = isM();
+  const posTool = DR.tool === 'long' || DR.tool === 'short';
+  // phones also show the bar for the position tools, for the hint
+  const show = !!d || (DR.tool !== 'cursor' && (m || !posTool));
   bar.hidden = !show; if (!show) return;
-  const pos = d && POS(d), tgt = styleTarget();
+  bar.classList.toggle('pending', m && !!DR.pending); // waiting for the second point: only the hint
+  $('#dsMore').hidden = !d || POS(d);
+  if (!d) { bar.classList.remove('more'); $('#dsMore').setAttribute('aria-expanded', 'false'); }
+  const hint = TOOL_HINT[DR.pending ? DR.pending.d.type : DR.tool];
+  $('#dsHint').textContent = m && hint && (DR.pending || !d) ? (DR.pending ? hint[1] || hint[0] : hint[0]) : '';
+  const pos = (d && POS(d)) || (!d && posTool), tgt = styleTarget();
+  if (m) fillMobileStyle(tgt, pos);
   $('#dsStyleGrp').hidden = pos; $('#dsPresetGrp').hidden = pos;
   $('#dsFillGrp').hidden = !((d && d.type === 'rect') || (!d && DR.tool === 'rect'));
-  $('#dsLabel').hidden = !d; $('#dsDel').hidden = !d; $('#dsTrade').hidden = !pos;
+  $('#dsLabel').hidden = !d; $('#dsDel').hidden = !d;
   $('#dsSaveBox').hidden = true; $('#dsSave').hidden = false;
+  $('#dsTrade').hidden = !(d && POS(d));
   if (!pos) {
     $('#dsColor').value = tgt.color; $('#dsWidth').value = String(tgt.width); $('#dsDash').value = tgt.dash; $('#dsFill').value = tgt.fill;
     fillDrawPresets(tgt.preset || '');
@@ -3799,6 +3914,22 @@ function wireDraw() {
     delete b.dataset.armed; DR.list = []; DR.sel = DR.hover = null; S.dirty = true; updateStyleBar(); toast('Removed all drawings.');
   };
   const edit = fn => () => { const t = styleTarget(); fn(t); t.preset = ''; if (!DR.sel) DR.style = t; S.dirty = true; fillDrawPresets(''); };
+  // phones: color swatches and buttons for the width and line style (they drive the same fields as the desktop's)
+  $('#dsMStyle').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.c) { $('#dsColor').value = b.dataset.c; $('#dsColor').dispatchEvent(new Event('input')); }
+    else if (b.dataset.w) { $('#dsWidth').value = b.dataset.w; $('#dsWidth').dispatchEvent(new Event('change')); }
+    else if (b.dataset.dash) { $('#dsDash').value = b.dataset.dash; $('#dsDash').dispatchEvent(new Event('change')); }
+    else return;
+    fillMobileStyle(styleTarget(), false);
+  });
+  $('#dsMStyle').addEventListener('input', e => {
+    if (!e.target.dataset.own) return;
+    $('#dsColor').value = e.target.value; $('#dsColor').dispatchEvent(new Event('input'));
+  });
+  $('#dsMStyle').addEventListener('change', e => { if (e.target.dataset.own) fillMobileStyle(styleTarget(), false); });
+  $('#dDone').onclick = () => $('#mdraw').click();
+  $('#dsMore').onclick = () => { const on = $('#dstyle').classList.toggle('more'); $('#dsMore').setAttribute('aria-expanded', String(on)); };
   $('#dsColor').addEventListener('input', edit(t => { t.color = $('#dsColor').value; }));
   $('#dsWidth').addEventListener('change', edit(t => { t.width = +$('#dsWidth').value; }));
   $('#dsDash').addEventListener('change', edit(t => { t.dash = $('#dsDash').value; }));
@@ -4415,13 +4546,17 @@ function phoneLayout() {
     parts.forEach(p => $('#mreplay').appendChild(p));
     $('.spnow').append($('#speed'), $('#speedLbl'));
     $('#spTick').appendChild($('#bTick')); $('#bTick').textContent = 'Step one tick';
+    $('#dsPresetGrp').prepend($('#dsPreset')); // the style preset list sits with Save and Delete, behind ⋯
   } else {
     const before = $('.bar .spacer'); parts.forEach(p => $('.bar').insertBefore(p, before));
     $('#bBar').before($('#bTick')); $('#bTick').textContent = 'Tick';
     $('.transport').append($('#speed'), $('#speedLbl'));
+    $('#dsStyleGrp').prepend($('#dsPreset'));
   }
   if (!$('#app').dataset.mview) setMview('chart');
   closePop(); closeSheet(); syncVeil();
+  if (E) { renderOneTap(); updateStyleBar(); }
+  syncOtH();
 }
 function setMview(v) {
   closeSheet();
@@ -5202,6 +5337,7 @@ function wire() {
   $('#buyBtn').onclick = () => place(1); $('#sellBtn').onclick = () => place(-1);
   $('#otBuy').onclick = () => oneTap(1); $('#otSell').onclick = () => oneTap(-1);
   $('#otQty').addEventListener('input', () => { $('#qty').value = $('#otQty').value; sizeHint(); });
+  $('#otMinus').onclick = () => stepQty(-1); $('#otPlus').onclick = () => stepQty(1);
   $('#otPos').addEventListener('click', e => { if (e.target.closest('[data-ot="flat"]')) closeAll(); });
   $('#oneTap').onchange = () => setOneTap($('#oneTap').checked);
   for (const b of document.querySelectorAll('#typeSeg button')) b.onclick = () => setType(b.dataset.type);
