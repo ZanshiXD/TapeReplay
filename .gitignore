@@ -1,0 +1,24 @@
+# real market data: licensed to you, never published (the apps ship generated practice data instead)
+*.dbn
+*.dbn.zst
+*.tapeseries
+*.tapepack
+desktop/data/
+
+# build output
+desktop/dist*/
+desktop/build/
+desktop/*.spec
+desktop/icon.ico
+__pycache__/
+ios/.build/
+ios/.swiftpm/
+ios/xtool/
+ios/AppStore/*.xcodeproj
+*.zip
+*.exe
+
+# signing keys never go in the repository (they are GitHub secrets)
+*.p8
+*.p12
+*.mobileprovision
