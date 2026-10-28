@@ -43,7 +43,8 @@ CloseApplications=force
 RestartApplications=no
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
+; ticked by default (silent installs get it too); can be unticked in the wizard
+Name: "desktopicon"; Description: "Create a desktop shortcut"
 
 [Files]
 Source: "{#SourceExe}"; DestDir: "{app}"; DestName: "TapeReplay.exe"; Flags: ignoreversion
