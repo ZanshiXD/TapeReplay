@@ -1,4 +1,5 @@
-# Builds TapeReplay.exe on a GitHub Windows machine, signs its update manifest and publishes both to the public,
+# Builds TapeReplay.exe and its installer (TapeReplay-Setup.exe) on a GitHub Windows machine, signs the update
+# manifest and publishes all three to the public,
 # binaries-only repository ZanshiXD/TapeReplay-releases. Installed copies find it there at launch and offer the
 # update. The source stays in this private repository.
 #
@@ -54,6 +55,14 @@ jobs:
           TAPE_VERSION: ${{ inputs.version }}
         run: python build.py dist
 
+      - name: Build the installer
+        working-directory: desktop
+        run: |
+          ISCC="/c/Program Files (x86)/Inno Setup 6/ISCC.exe"
+          [ -f "$ISCC" ] || choco install innosetup -y --no-progress
+          "$ISCC" -Q "-DAppVersion=$VERSION" "-DSourceExe=dist\\TapeReplay.exe" installer.iss
+          ls -l dist/TapeReplay-Setup.exe
+
       - name: Sign the update
         working-directory: desktop
         env:
@@ -62,13 +71,15 @@ jobs:
           mkdir -p "$RUNNER_TEMP/out"
           printf '%s\n' "$NOTES" | sed 's/ | /\n/g' > "$RUNNER_TEMP/notes.txt"
           cp dist/TapeReplay.exe "$RUNNER_TEMP/out/TapeReplay.exe"
+          cp dist/TapeReplay-Setup.exe "$RUNNER_TEMP/out/TapeReplay-Setup.exe"
           python release.py "$VERSION" "$RUNNER_TEMP/out/TapeReplay.exe" "$RUNNER_TEMP/notes.txt" "$RUNNER_TEMP/out/latest.json"
 
       - name: Publish to TapeReplay-releases
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
-          gh release create "v$VERSION" "$RUNNER_TEMP/out/TapeReplay.exe" "$RUNNER_TEMP/out/latest.json" \
+          printf '\n\n**New install:** download `TapeReplay-Setup.exe`. Installed copies update themselves.\n' >> "$RUNNER_TEMP/notes.txt"
+          gh release create "v$VERSION" "$RUNNER_TEMP/out/TapeReplay-Setup.exe" "$RUNNER_TEMP/out/TapeReplay.exe" "$RUNNER_TEMP/out/latest.json" \
             --repo ZanshiXD/TapeReplay-releases --title "Tape Replay $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.txt" --latest
           echo "Published $VERSION. Installed copies offer it the next time they start."
