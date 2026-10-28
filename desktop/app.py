@@ -461,6 +461,21 @@ def install_update():
                 pass
 
 
+INSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{F0F0986C-E493-40FA-80F9-277161F8B799}_is1"  # installer.iss AppId
+
+
+def note_installed_version():
+    """When this copy is the installed one, keep the version in Settings > Apps current after an update."""
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, INSTALL_KEY, 0, winreg.KEY_READ | winreg.KEY_SET_VALUE) as k:
+            where = os.path.normcase(os.path.normpath(winreg.QueryValueEx(k, "InstallLocation")[0]))
+            if where == os.path.normcase(os.path.dirname(sys.executable)) and winreg.QueryValueEx(k, "DisplayVersion")[0] != VERSION:
+                winreg.SetValueEx(k, "DisplayVersion", 0, winreg.REG_SZ, VERSION)
+    except OSError:
+        pass  # not installed (a copy run on its own), or no access
+
+
 def after_update():
     """Started by install_update: wait for the old copy to exit, then remove its file."""
     if "--after-update" in sys.argv:
@@ -810,6 +825,7 @@ def main():
         os.makedirs(d, exist_ok=True)
     if getattr(sys, "frozen", False):
         after_update()
+        note_installed_version()
         threading.Thread(target=check_update, daemon=True).start()
     shutil.rmtree(os.path.join(DATA_DIR, "tmp"), ignore_errors=True)  # leftovers from decompressed .zst files
     install_builtin()
