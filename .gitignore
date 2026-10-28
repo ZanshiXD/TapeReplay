@@ -10,6 +10,7 @@ desktop/dist*/
 desktop/build/
 desktop/*.spec
 desktop/icon.ico
+desktop/_version.py
 __pycache__/
 ios/.build/
 ios/.swiftpm/

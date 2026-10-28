@@ -2,7 +2,7 @@
 
 1. Copies ../tape-replay.html into web/index.html, pointing it at local copies of
    the chart library and fonts so the app works offline.
-2. Draws the app icon.
+2. Draws the app icon, and writes _version.py from TAPE_VERSION (the release version; 0.0.0-dev otherwise).
 3. Runs PyInstaller to produce a single-file dist/TapeReplay.exe, including .tapepack files from data/
    (build_pack.py), installed into the Library on first launch. .tapeseries files (build_series.py) are
    embedded only with TAPE_EMBED_SERIES=1; the app's built-in data is generated practice data.
@@ -111,6 +111,9 @@ def icon(path):
 def main():
     # output folder: dist/, or another one given on the command line (e.g. while dist/TapeReplay.exe is running)
     dist = os.path.join(HERE, sys.argv[1] if len(sys.argv) > 1 else "dist")
+    # the version the app reports and compares with releases (TAPE_VERSION=1.2.0 for a release build)
+    with open(os.path.join(HERE, "_version.py"), "w", encoding="utf-8") as f:
+        f.write(f'VERSION = "{os.environ.get("TAPE_VERSION") or "0.0.0-dev"}"\n')
     vendor()
     page()
     ico = os.path.join(HERE, "icon.ico")
