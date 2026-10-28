@@ -19,8 +19,15 @@ import time
 import webbrowser
 from ctypes import wintypes
 import socket
+import base64
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
+
+try:
+    from _version import VERSION  # written by build.py from the release version
+except ImportError:
+    VERSION = "0.0.0-dev"
 
 APP_NAME = "TapeReplay"
 DATA_DIR = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), APP_NAME)
@@ -357,6 +364,125 @@ def log(msg):
         pass
 
 
+# ---- updates ----
+# Releases are published to a public, binaries-only repository (the source stays private). latest.json there
+# holds the newest version's download link, size and SHA-256, signed with the release key (Ed25519). The app
+# only installs a release whose manifest verifies against the public key below and whose file matches it.
+UPDATE_MANIFEST = "https://github.com/ZanshiXD/TapeReplay-releases/releases/latest/download/latest.json"
+UPDATE_PAGE = "https://github.com/ZanshiXD/TapeReplay-releases/releases/latest"
+UPDATE_PUBKEY = "OR86zcMXI8Vj4NAhCDDBwzC7PwsTVTwtZzVC5Fg7ZWU="
+UPDATE = {"state": "idle", "manifest": None, "progress": 0.0, "error": ""}
+CLOSE_APP = None  # set by main(): saves the session and closes the window
+
+
+def version_key(v):
+    n = [int(x) for x in re.findall(r"\d+", str(v))[:3]]
+    return tuple(n + [0] * (3 - len(n)))
+
+
+def manifest_bytes(m):
+    return json.dumps(m, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def verify_manifest(doc):
+    """The manifest inside latest.json, if its signature is the release key's; raises otherwise."""
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    m = doc["manifest"]
+    Ed25519PublicKey.from_public_bytes(base64.b64decode(UPDATE_PUBKEY)).verify(base64.b64decode(doc["sig"]), manifest_bytes(m))
+    if not (isinstance(m.get("version"), str) and isinstance(m.get("sha256"), str) and isinstance(m.get("size"), int)
+            and str(m.get("url", "")).startswith("https://github.com/ZanshiXD/TapeReplay-releases/")):
+        raise ValueError("manifest is missing fields")
+    return m
+
+
+def http_get(url, timeout=20):
+    return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": f"TapeReplay/{VERSION}"}), timeout=timeout)
+
+
+def check_update():
+    """Runs once at launch, in the background. Only the installed app updates itself, not a copy run from source."""
+    if not getattr(sys, "frozen", False):
+        return
+    try:
+        with http_get(UPDATE_MANIFEST) as r:
+            m = verify_manifest(json.loads(r.read(1 << 20)))
+        if version_key(m["version"]) > version_key(VERSION):
+            UPDATE.update(state="available", manifest=m)
+            log(f"update available: {m['version']} (running {VERSION})")
+    except Exception as e:  # offline, no release yet, or a bad manifest: the app runs as it is
+        log(f"update check skipped: {e}")
+
+
+def install_update():
+    """Downloads the new EXE next to this one, checks it against the signed manifest, swaps the files and
+    restarts. The running EXE can be renamed but not overwritten, so it becomes TapeReplay.exe.old (removed
+    on the next launch)."""
+    m, exe = UPDATE["manifest"], sys.executable
+    new, old = exe + ".new", exe + ".old"
+    try:
+        UPDATE.update(state="downloading", progress=0.0, error="")
+        h, got = hashlib.sha256(), 0
+        with http_get(m["url"], timeout=60) as r, open(new, "wb") as f:
+            while True:
+                chunk = r.read(1 << 20)
+                if not chunk:
+                    break
+                f.write(chunk); h.update(chunk); got += len(chunk)
+                UPDATE["progress"] = min(1.0, got / max(1, m["size"]))
+        if got != m["size"] or h.hexdigest() != m["sha256"].lower():
+            raise ValueError("the download does not match the signed release")
+        UPDATE["state"] = "installing"
+        if os.path.exists(old):
+            os.remove(old)
+        os.replace(exe, old)
+        try:
+            os.replace(new, exe)
+        except OSError:
+            os.replace(old, exe)  # put the running version back
+            raise
+        # the new copy waits for this one to exit, so it can take the usual port; it must not reuse our unpacked files
+        env = dict(os.environ, PYINSTALLER_RESET_ENVIRONMENT="1")
+        subprocess.Popen([exe, "--after-update", str(os.getpid())], env=env, close_fds=True,
+                         creationflags=0x00000008 | 0x00000200)  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+        UPDATE["state"] = "restarting"
+        log(f"updated {VERSION} -> {m['version']}, restarting")
+        if CLOSE_APP:
+            threading.Timer(0.5, CLOSE_APP).start()
+    except PermissionError:
+        UPDATE.update(state="failed", error="This folder cannot be written to. Download the new version from the releases page instead.")
+    except Exception as e:
+        UPDATE.update(state="failed", error=str(e))
+        log(f"update failed: {e}")
+    finally:
+        if UPDATE["state"] == "failed" and os.path.exists(new):
+            try:
+                os.remove(new)
+            except OSError:
+                pass
+
+
+def after_update():
+    """Started by install_update: wait for the old copy to exit, then remove its file."""
+    if "--after-update" in sys.argv:
+        try:
+            pid = int(sys.argv[sys.argv.index("--after-update") + 1])
+            k32 = ctypes.windll.kernel32
+            hp = k32.OpenProcess(0x00100000, False, pid)  # SYNCHRONIZE
+            if hp:
+                k32.WaitForSingleObject(hp, 15000)
+                k32.CloseHandle(hp)
+        except (ValueError, IndexError, OSError):
+            pass
+    old = sys.executable + ".old"
+    for _ in range(10):
+        if not os.path.exists(old):
+            break
+        try:
+            os.remove(old)
+        except OSError:
+            time.sleep(0.5)
+
+
 class ExclusiveServer(ThreadingHTTPServer):
     """Owns its port outright. The stock server sets SO_REUSEADDR, which on Windows lets a second copy of the
     app bind the same port, so its window could end up talking to the first copy's server."""
@@ -435,7 +561,12 @@ class Handler(BaseHTTPRequestHandler):
         if parts == ["datasets"]:
             return self.send(200, [m for m in list_json(DATASETS, ".json") if "id" in m and "list" not in m])
         if parts == ["caps"]:
-            return self.send(200, {"pick": WINDOW is not None})
+            return self.send(200, {"pick": WINDOW is not None, "update": bool(getattr(sys, "frozen", False)), "version": VERSION})
+        if parts == ["update"]:
+            m = UPDATE["manifest"] or {}
+            return self.send(200, {"current": VERSION, "state": UPDATE["state"], "version": m.get("version"),
+                                   "notes": m.get("notes", ""), "progress": UPDATE["progress"], "error": UPDATE["error"],
+                                   "page": UPDATE_PAGE})
         if parts and parts[0] == "series" and len(parts) in (2, 3):
             pack = SERIES.get(parts[1])
             if not pack:
@@ -495,6 +626,12 @@ class Handler(BaseHTTPRequestHandler):
         parts = self.route()
         if not parts:
             return None if parts is False else self.fail(404, "Not found")
+        if parts == ["update"]:
+            # the page saves the session first; then download, swap and restart in the background
+            if UPDATE["state"] not in ("available", "failed") or not UPDATE["manifest"]:
+                return self.fail(409, "No update is waiting.")
+            threading.Thread(target=install_update, daemon=True).start()
+            return self.send(202, {"ok": True})
         if parts == ["pick"]:
             # native open dialog; the file is read here rather than by the web view
             if WINDOW is None:
@@ -671,6 +808,9 @@ def find_edge():
 def main():
     for d in (DATASETS, SESSIONS):
         os.makedirs(d, exist_ok=True)
+    if getattr(sys, "frozen", False):
+        after_update()
+        threading.Thread(target=check_update, daemon=True).start()
     shutil.rmtree(os.path.join(DATA_DIR, "tmp"), ignore_errors=True)  # leftovers from decompressed .zst files
     install_builtin()
     register_series()
@@ -714,6 +854,8 @@ def main():
             return False
 
         window.events.closing += on_closing
+        global CLOSE_APP
+        CLOSE_APP = flush_then_close
         webview.start(private_mode=False, storage_path=os.path.join(DATA_DIR, "webview"))
         return
     except Exception:
