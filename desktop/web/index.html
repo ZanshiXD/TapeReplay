@@ -492,7 +492,21 @@ fieldset.pf legend{padding:0 6px}
 fieldset.pf legend .chk{font-weight:600}
 .pfrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .pfrow select,.pfrow input{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:5px 7px;font-size:13px;color:var(--fg)}
-#pFields[aria-disabled="true"]{opacity:.45;pointer-events:none}
+/* Session settings: sections */
+#modal .msheet{width:min(720px,100%)}
+.msec{display:flex;flex-direction:column;gap:10px;margin:0}
+section.msec{border-top:1px solid var(--line);padding-top:12px}
+.msec>h3{margin:0;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#modal .info{background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:11.5px}
+.mchks{display:flex;flex-direction:column;gap:8px;justify-content:center}
+.mchks .chk{grid-column:auto}
+.mhow summary{cursor:pointer;font-size:12px;color:var(--muted);width:max-content}
+.mhow summary:hover{color:var(--fg)}
+.mhow p{margin-top:6px}
+fieldset.msim #sFields{display:flex;flex-direction:column;gap:10px}
+fieldset.msim #sFields[hidden]{display:none}
+html.m .mchks{grid-column:1/-1}
+#modal .hint:empty{display:none}
 .primary{background:var(--accent)!important;color:var(--accent-ink);border-color:var(--accent)!important;font-weight:600}
 
 #toasts{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:none}
@@ -732,7 +746,7 @@ html.m .mspeed{grid-area:speed;justify-self:end;display:inline-flex;align-items:
 html.m .mspeed svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
 html.m .mspeed[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
 /* tab bar */
-html.m .mnav{grid-area:nav;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:var(--panel)}
+html.m .mnav{grid-area:nav;display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--line);background:var(--panel)}
 html.m .mnav button{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0 6px;background:none;border:none;color:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:.02em}
 html.m .mnav button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
 html.m .mnav button[aria-current="page"]{color:var(--accent)}
@@ -840,6 +854,8 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
 .stcard .fgrid{gap:8px 10px}
 .stcard .seg{grid-template-columns:1fr 1fr}
 .stcard .seg button{padding:5px 4px!important}
+#stEvalRow .chk{color:var(--fg)}
+#stEvalRow.off .chk,#stEvalRow.off #stMaxRow{opacity:.45;pointer-events:none}
 .stcons{flex:1;min-height:120px;max-height:200px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px;font:11.5px/1.55 var(--f-num);color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
 .stcons .ok{color:var(--up)}.stcons .er{color:var(--down)}.stcons .pr{color:var(--fg)}
 .stfoot{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
@@ -905,10 +921,10 @@ html.m .stpick input{max-width:none}
     <span id="saveState" class="ds" hidden></span>
     <div class="tgroup">
       <button id="bLib" hidden title="Saved backtests and data files">Library</button>
-      <button id="bStrat" title="Backtest a strategy written in Python" aria-haspopup="dialog">Strategy</button>
+      <button id="bStrat" title="Backtest a strategy written in Python" aria-haspopup="dialog" aria-label="Strategy"><svg class="mico" viewBox="0 0 20 20"><path d="M7 5.5L2.5 10 7 14.5M13 5.5l4.5 4.5-4.5 4.5"/><path d="M11 4l-2 12" style="opacity:.6"/></svg><span class="mlbl">Strategy</span></button>
       <button id="bInd" title="Moving averages and VWAP on the chart" aria-haspopup="dialog" aria-label="Indicators"><svg class="mico" viewBox="0 0 20 20"><path d="M2.5 14c2.5 0 3-7 6-7s3 6 5.5 6 2.5-4 3.5-5"/><path d="M2.5 17h15" style="opacity:.5"/></svg><span class="mlbl">Indicators</span></button>
       <button id="bChart" title="Themes, colors, time zone and session lines" aria-label="Chart settings"><svg class="mico" viewBox="0 0 20 20"><path d="M3 5.5h8M15 5.5h2M3 10h2M9 10h8M3 14.5h6M13 14.5h4"/><circle cx="13" cy="5.5" r="1.8"/><circle cx="7" cy="10" r="1.8"/><circle cx="11" cy="14.5" r="1.8"/></svg><span class="mlbl">Chart</span></button>
-      <button id="bSettings" title="Start time, costs and prop rules">Session</button>
+      <button id="bSettings" title="Start time, costs and the prop simulation">Session</button>
       <button id="bKeys" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
       <button id="bSide" title="Hide or show the side panel" aria-label="Toggle side panel"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M10 2.5v11"/></svg></button>
     </div>
@@ -1060,7 +1076,7 @@ html.m .stpick input{max-width:none}
 
       <div class="card mevalhint" id="evalHint">
         <b>No evaluation running</b>
-        <p class="note">Turn on prop firm rules or the prop simulation (evaluation → funded → live) in Session settings to track them here.</p>
+        <p class="note">Turn on the prop simulation (evaluation → funded → live) in Session settings to follow it here.</p>
         <button id="evalSet" class="primary">Open session settings</button>
       </div>
     </aside>
@@ -1085,14 +1101,15 @@ html.m .stpick input{max-width:none}
 
   <!-- phones: one screen at a time, picked from the tab bar; replay controls just above it -->
   <section id="mmore" class="mmore" role="dialog" aria-label="More">
+    <h4>Backtest</h4>
+    <button data-go="bStrat"><b>Strategy</b><span>Write a strategy in Python and backtest it on this data</span></button>
     <h4>Session</h4>
     <button data-go="bHome"><b>Home</b><span>Start a new session or continue one</span></button>
-    <button data-go="bSettings"><b>Session settings</b><span>Start date, costs, prop rules and simulation</span></button>
+    <button data-go="bSettings"><b>Session settings</b><span>Start date, costs and the prop simulation</span></button>
     <button data-go="bLib"><b>Library</b><span>Saved backtests and data files</span></button>
     <button data-go="import"><b>Import data</b><span>CSV or DBN files, any size</span></button>
     <button data-go="bCopy"><b>Copy trades</b><span>Closed trades as CSV</span></button>
     <h4>Chart</h4>
-    <button data-go="bStrat"><b>Strategy</b><span>Backtest a strategy written in Python</span></button>
     <button data-go="bInd"><b>Indicators</b><span>EMA, SMA and VWAP</span></button>
     <button data-go="bChart"><b>Chart settings</b><span>Themes, colors, time zone and session lines</span></button>
     <button data-go="tour"><b>Take the tour</b><span>How the app works, in a minute</span></button>
@@ -1106,73 +1123,68 @@ html.m .stpick input{max-width:none}
     <button data-mv="trade"><svg viewBox="0 0 20 20"><path d="M4 7h11l-3-3M16 13H5l3 3"/></svg>Trade</button>
     <button data-mv="positions"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M3 8h14M7 8v8"/></svg>Positions<i id="mnPosN"></i></button>
     <button data-mv="eval"><svg viewBox="0 0 20 20"><path d="M10 3l2 4 4.5.6-3.3 3.1.8 4.4L10 13l-4 2.1.8-4.4L3.5 7.6 8 7z"/></svg>Eval<i id="mnEval"></i></button>
+    <button data-mv="strategy" id="mnStrat"><svg viewBox="0 0 20 20"><path d="M7 5.5L2.5 10 7 14.5M13 5.5l4.5 4.5-4.5 4.5"/><path d="M11 4l-2 12" style="opacity:.6"/></svg>Strategy</button>
     <button data-mv="more"><svg viewBox="0 0 20 20"><circle cx="5" cy="10" r="1.3"/><circle cx="10" cy="10" r="1.3"/><circle cx="15" cy="10" r="1.3"/></svg>More</button>
   </nav>
 </div>
 
 <div id="modal" class="modal" hidden>
-  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="sheet msheet" role="dialog" aria-modal="true" aria-labelledby="mTitle">
     <h2 id="mTitle">New replay session</h2>
-    <p id="mInfo" class="info"></p>
-    <label class="f" id="fSymRow" hidden>Contract (this file holds several)
-      <select id="fSym"></select>
-    </label>
-    <div id="fSecRow" hidden>
-      <div class="fgrid">
-        <label class="f">Replay span from the start time<select id="fSpan"></select></label>
-        <label class="f">History before the start (on the chart, not traded)<select id="fHist"></select></label>
+    <section class="msec">
+      <h3>Data</h3>
+      <p id="mInfo" class="info"></p>
+      <label class="f" id="fSymRow" hidden>Contract (this file holds several)
+        <select id="fSym"></select>
+      </label>
+      <div id="fSecRow" hidden>
+        <div class="fgrid">
+          <label class="f">Replay span from the start time<select id="fSpan"></select></label>
+          <label class="f">History before the start (shown, not traded)<select id="fHist"></select></label>
+        </div>
+        <p class="note" id="fSecNote"></p>
       </div>
-      <p class="note" id="fSecNote"></p>
-    </div>
-    <div class="fgrid">
-      <div class="f">Start replay at <span class="tzl"></span>
+      <div class="f"><span>Start replay at <span class="tzl"></span></span>
         <button type="button" id="fStart" class="dtfield" aria-label="Start time"><span></span><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg></button>
       </div>
-      <label class="f">Starting balance ($)<input id="fBal" type="number" step="any" min="0"></label>
-      <div class="f">Commission per side
-        <div class="inl"><input id="fComm" type="number" step="any" min="0" aria-label="Commission per side">
-          <select id="fCommMode" aria-label="Commission unit"><option value="fixed">$ per contract or unit</option><option value="pct">% of notional</option></select></div>
+    </section>
+    <section class="msec">
+      <h3>Account and costs</h3>
+      <div class="fgrid">
+        <label class="f">Starting balance ($)<input id="fBal" type="number" step="any" min="0"><span class="hint" id="fBalNote"></span></label>
+        <label class="f">Order size (contracts or units)<input id="fQty" type="number" step="any" min="0"></label>
+        <div class="f">Commission per side
+          <div class="inl"><input id="fComm" type="number" step="any" min="0" aria-label="Commission per side">
+            <select id="fCommMode" aria-label="Commission unit"><option value="fixed">$ per contract or unit</option><option value="pct">% of notional</option></select></div>
+        </div>
+        <label class="f">Point value ($ per 1.0 price move per unit)<input id="fPv" type="number" step="any" min="0"><span class="hint" id="fPvNote"></span></label>
+        <label class="f">Spread, in price (buys pay it)<input id="fSpread" type="number" step="any" min="0"></label>
+        <label class="f">Slippage on market and stop fills<input id="fSlip" type="number" step="any" min="0"></label>
       </div>
-      <label class="f">Spread, in price (buys pay it)<input id="fSpread" type="number" step="any" min="0"></label>
-      <label class="f">Slippage on market and stop fills<input id="fSlip" type="number" step="any" min="0"></label>
-      <label class="f">Point value ($ per 1.0 price move per unit)<input id="fPv" type="number" step="any" min="0"><span class="hint" id="fPvNote"></span></label>
-      <label class="f">Ticks per base bar (4–600)<input id="fTicks" type="number" min="4" max="600" step="1"></label>
-      <label class="f">Default order size (units)<input id="fQty" type="number" step="any" min="0"></label>
-      <label class="f chk"><input id="fPause" type="checkbox"> Pause the replay when an order fills or a stop or target is hit</label>
-      <label class="f chk" title="Normally orders work on one net position, like TradingView: a sell while long reduces, closes or flips it. Tick this to keep every order as its own trade."><input id="fHedge" type="checkbox"> Keep each order as a separate trade (no netting)</label>
-    </div>
-    <fieldset class="pf">
-      <legend><label class="f chk"><input id="pOn" type="checkbox"> Prop firm rules</label></legend>
-      <div class="pfrow">
-        <select id="pPreset" aria-label="Prop rule preset"></select>
-        <input id="pName" placeholder="Preset name" aria-label="Prop preset name">
-        <button id="pSave">Save preset</button>
-        <button id="pDel">Delete preset</button>
+    </section>
+    <section class="msec">
+      <h3>Replay</h3>
+      <div class="fgrid">
+        <label class="f">Ticks per base bar (4–600)<input id="fTicks" type="number" min="4" max="600" step="1"><span class="hint">More ticks: smoother, slower replay.</span></label>
+        <div class="mchks">
+          <label class="f chk"><input id="fPause" type="checkbox"> Pause the replay when an order fills or a stop or target is hit</label>
+          <label class="f chk" title="Normally orders work on one net position, like TradingView: a sell while long reduces, closes or flips it. Tick this to keep every order as its own trade."><input id="fHedge" type="checkbox"> Keep each order as a separate trade (no netting)</label>
+        </div>
       </div>
-      <div class="fgrid" id="pFields">
-        <label class="f">Profit target ($)<input id="pPt" type="number" step="any" min="0" placeholder="off"></label>
-        <label class="f">Minimum trading days<input id="pMin" type="number" step="1" min="0" placeholder="off"></label>
-        <label class="f">Daily loss limit, DLL ($)<input id="pDll" type="number" step="any" min="0" placeholder="off"></label>
-        <label class="f">When the DLL is hit<select id="pDllAct"><option value="lock">Close positions, lock until next day</option><option value="fail">Fail the evaluation</option></select></label>
-        <label class="f">Max loss limit, MLL ($)<input id="pMll" type="number" step="any" min="0" placeholder="off"></label>
-        <label class="f">MLL type<select id="pMllType"><option value="static">Static, from starting balance</option><option value="trailing">Trailing, intraday equity high</option><option value="eod">Trailing, end-of-day high</option></select></label>
-        <label class="f chk"><input id="pMllLock" type="checkbox"> Stop trailing once the MLL floor reaches the starting balance</label>
-        <label class="f">Consistency: best day max % of total profit<input id="pCons" type="number" step="any" min="0" max="100" placeholder="off"></label>
-        <label class="f">Max position size (units or contracts)<input id="pMax" type="number" step="any" min="0" placeholder="off"></label>
-        <label class="f">Trading day starts at (hour 0–23, New York time)<input id="pReset" type="number" step="1" min="0" max="23" placeholder="18"></label>
-        <label class="f">Must be flat by (HH:MM, chart time zone)<input id="pFlat" placeholder="off, e.g. 15:55" inputmode="numeric" maxlength="5"></label>
-      </div>
-      <p class="note">Leave a rule blank or 0 to turn it off. Daily loss counts realized and open P&amp;L from the balance at the start of the trading day. Breaking the MLL fails the evaluation and closes everything. The flat-by time closes positions and blocks new trades until the next trading day starts. The evaluation passes when closed profit reaches the target with the minimum days traded and the consistency limit met.</p>
-    </fieldset>
-    <fieldset class="pf">
+      <details class="mhow"><summary>How orders fill</summary><p class="note">Prices in the file are treated as bid. Each base bar is replayed as a price path, open → low → high → close on up bars and open → high → low → close on down bars, and every order, stop and target fills where that path crosses it. Gaps between bars fill at the next open. Times are shown in UTC.</p></details>
+    </section>
+    <fieldset class="pf msec msim">
       <legend><label class="f chk"><input id="sOn" type="checkbox"> Prop simulation: evaluation → funded → live</label></legend>
       <div class="pfrow">
         <select id="sPreset" aria-label="Prop simulation preset"></select>
-        <input id="sName" placeholder="Preset name" aria-label="Prop simulation preset name">
-        <button id="sSave">Save preset</button>
-        <button id="sDel">Delete preset</button>
       </div>
-      <div id="sFields">
+      <p class="note" id="sOffNote">Practice a prop firm's whole course: the evaluation, a funded account with payouts, then live. Pick a preset, or tick the box and set the rules yourself.</p>
+      <div id="sFields" hidden>
+        <div class="pfrow">
+          <input id="sName" placeholder="Preset name" aria-label="Prop simulation preset name">
+          <button id="sSave">Save preset</button>
+          <button id="sDel">Delete preset</button>
+        </div>
         <div class="fgrid">
           <label class="f">Account size ($)<input id="sSize" type="number" step="any" min="1"></label>
           <label class="f">Evaluation fee, per attempt ($)<input id="sFee" type="number" step="any" min="0" placeholder="0"></label>
@@ -1210,10 +1222,9 @@ html.m .stpick input{max-width:none}
           <label class="f">Live bonus: trading days needed<input id="sLBonusDays" type="number" step="1" min="0"></label>
           <label class="f">Live bonus amount ($)<input id="sLBonus" type="number" step="any" min="0" placeholder="off"></label>
         </div>
+        <details class="mhow"><summary>How the simulation works</summary><p class="note">Runs one account through its whole course in this session. Pass the evaluation and a fresh funded account opens at the same size. Each funded payout comes out of the balance and locks the max loss; after the last one the account moves to live. Live opens with no profit and the live max loss; live payouts can be taken any day. Breaking a max loss ends that account; start a new evaluation from the card, and its fee is counted. The max loss trails the end-of-day high and locks at start + the lock amount once the end-of-day balance is that far above the max loss (live: once profit reaches the max loss).</p></details>
       </div>
-      <p class="note">Runs one account through its whole course in this session. Pass the evaluation and a fresh funded account opens at the same size. Each funded payout comes out of the balance and locks the max loss; after the last one the account moves to live. Live opens with no profit and the live max loss; live payouts can be taken any day. Breaking a max loss ends that account; start a new evaluation from the card, and its fee is counted. The max loss trails the end-of-day high and locks at start + the lock amount once the end-of-day balance is that far above the max loss (live: once profit reaches the max loss). This is used instead of the prop firm rules above.</p>
     </fieldset>
-    <p class="note">Prices in the file are treated as bid. Each base bar is replayed as a price path, open → low → high → close on up bars and open → high → low → close on down bars, and every order, stop and target fills where that path crosses it. Gaps between bars fill at the next open. Times are shown in UTC.</p>
     <div class="actions"><button id="mCancel">Cancel</button><button id="mStart" class="primary">Start session</button></div>
   </div>
 </div>
@@ -1359,6 +1370,11 @@ html.m .stpick input{max-width:none}
             <div class="f">Libraries
               <div class="seg" id="stLibs"><button data-v="numpy" aria-pressed="true">numpy</button><button data-v="pandas" aria-pressed="false">numpy + pandas</button></div>
             </div>
+            <div class="f" id="stEvalRow">Prop simulation
+              <label class="f chk"><input id="stRebuy" type="checkbox"> When the account fails, buy a new evaluation and keep going</label>
+              <label class="f" id="stMaxRow">Stop after this many evaluations<input id="stMax" type="number" min="1" step="1" placeholder="no limit"></label>
+              <p class="note" id="stEvalNote"></p>
+            </div>
             <p class="note" id="stRange"></p>
           </div>
           <div class="stcard" style="flex:1">
@@ -1390,7 +1406,7 @@ html.m .stpick input{max-width:none}
         <p><code>ctx.buy(qty, sl=None, tp=None)</code> and <code>ctx.sell(…)</code> trade at market; add <code>limit=price</code> or <code>stop=price</code> for a working order. Also <code>buy_limit</code>, <code>sell_limit</code>, <code>buy_stop</code>, <code>sell_stop</code><code>(price, qty, sl, tp)</code>. Leave out <code>qty</code> to use the size in Session settings. Stop loss and take profit are prices. Each returns the order's id, or <code>None</code> if it was rejected (the console says why).</p>
         <p><code>ctx.close()</code> closes the position at market, <code>ctx.cancel(id)</code> and <code>ctx.cancel_all()</code> cancel working orders, <code>ctx.set_bracket(sl=…, tp=…)</code> moves the open position's stop and target.</p>
         <h4>How fills work</h4>
-        <p>Market orders and <code>close()</code> fill on the next tick: from <code>on_bar</code> that is the next bar's open, so a strategy cannot trade at a price it has already seen. Limit and stop orders, stop losses and take profits fill inside bars, exactly as in manual replay. Costs, spread, slippage, point value and prop rules come from <b>Session settings</b>.</p>
+        <p>Market orders and <code>close()</code> fill on the next tick: from <code>on_bar</code> that is the next bar's open, so a strategy cannot trade at a price it has already seen. Limit and stop orders, stop losses and take profits fill inside bars, exactly as in manual replay. Size, costs, spread, slippage, point value and the prop simulation come from <b>Session settings</b>.</p>
       </div>
       <div>
         <h4>What the strategy can read</h4>
@@ -3499,9 +3515,9 @@ function simFromForm() {
 // the simulation replaces the plain prop rules and sets the starting balance
 function simFormState() {
   const on = $('#sOn').checked;
-  $('#sFields').setAttribute('aria-disabled', String(!on));
-  $('#fBal').disabled = on; $('#fBal').title = on ? 'The prop simulation sets the balance to its account size.' : '';
-  if (on) { $('#pOn').checked = false; $('#pFields').setAttribute('aria-disabled', 'true'); }
+  $('#sFields').hidden = !on; $('#sOffNote').hidden = on;
+  $('#fBal').disabled = on;
+  $('#fBalNote').textContent = on ? 'The prop simulation uses its account size instead.' : '';
 }
 function fillSimPresets(sel) {
   const opt = n => `<option${n === sel ? ' selected' : ''}>${esc(n)}</option>`;
@@ -3511,7 +3527,6 @@ function fillSimPresets(sel) {
 }
 function wireSim() {
   $('#sOn').addEventListener('change', simFormState);
-  $('#pOn').addEventListener('change', () => { if ($('#pOn').checked && $('#sOn').checked) { $('#sOn').checked = false; simFormState(); } });
   $('#sPreset').addEventListener('change', () => {
     const name = $('#sPreset').value, p = SIM_BUILTIN[name] || (PREFS.simPresets.find(x => x.name === name) || {}).rules; if (!p) return;
     const cur = simFromForm();
@@ -3537,40 +3552,6 @@ function wireSim() {
 }
 // settings form <-> rules
 const PF = { pt: '#pPt', minDays: '#pMin', dll: '#pDll', mll: '#pMll', cons: '#pCons', maxSize: '#pMax' };
-function propToForm(p) {
-  p = { ...PROP_DEF, ...p };
-  $('#pOn').checked = p.on;
-  for (const [k, id] of Object.entries(PF)) $(id).value = p[k] ? p[k] : '';
-  $('#pReset').value = p.resetNY ?? 18;
-  $('#pDllAct').value = p.dllAct; $('#pMllType').value = p.mllType; $('#pMllLock').checked = p.mllLock; $('#pFlat').value = p.flatBy || '';
-  $('#pFields').setAttribute('aria-disabled', String(!p.on));
-}
-function propFromForm() {
-  const p = { ...PROP_DEF, on: $('#pOn').checked, dllAct: $('#pDllAct').value, mllType: $('#pMllType').value, mllLock: $('#pMllLock').checked, flatBy: normHM($('#pFlat').value) };
-  for (const [k, id] of Object.entries(PF)) { const v = parseFloat($(id).value); p[k] = isFinite(v) && v > 0 ? v : 0; }
-  const r = parseFloat($('#pReset').value); p.resetNY = isFinite(r) ? clamp(Math.round(r), 0, 23) : 18;
-  return p;
-}
-function fillPropPresets(sel) {
-  $('#pPreset').innerHTML = '<option value="">Prop presets…</option>' + PREFS.propPresets.map(p => `<option${p.name === sel ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
-}
-function wireProp() {
-  $('#pOn').addEventListener('change', () => $('#pFields').setAttribute('aria-disabled', String(!$('#pOn').checked)));
-  $('#pPreset').addEventListener('change', () => {
-    const p = PREFS.propPresets.find(x => x.name === $('#pPreset').value); if (!p) return;
-    propToForm({ ...migrateReset(p.rules), on: true }); $('#pName').value = p.name;
-  });
-  $('#pSave').onclick = () => {
-    const name = $('#pName').value.trim(); if (!name) return toast('Type a name for the preset first.', 'err');
-    const rules = propFromForm(); delete rules.on;
-    PREFS.propPresets = PREFS.propPresets.filter(x => x.name !== name).concat([{ name, rules }]);
-    savePrefs(); fillPropPresets(name); toast(`Saved prop preset "${name}".`);
-  };
-  $('#pDel').onclick = () => {
-    const name = $('#pPreset').value; if (!name) return toast('Choose a preset to delete.', 'err');
-    PREFS.propPresets = PREFS.propPresets.filter(x => x.name !== name); savePrefs(); fillPropPresets(''); toast(`Deleted prop preset "${name}".`);
-  };
-}
 
 /* ---------------- price lines and dragging ---------------- */
 let LINES = [];
@@ -5480,6 +5461,7 @@ function wirePhone() {
   $('#mnav').addEventListener('click', e => {
     const b = e.target.closest('button[data-mv]'); if (!b) return;
     if (b.dataset.mv === 'more') return SHEET.el === $('#mmore') ? closeSheet() : openSheet($('#mmore'), b);
+    if (b.dataset.mv === 'strategy') { closeSheet(); return openStrat(); } // a full-screen panel, not a screen
     setMview(b.dataset.mv);
   });
   $('#mdraw').onclick = () => {
@@ -5644,8 +5626,10 @@ const TOUR_STEPS = [
             desk: 'Right-click a price to place a limit or stop there. Drag order lines to move them, or drag TP and SL out of a position’s tag.' } },
   { eye: 'Results', title: 'Positions and performance', target: '.dock', view: 'positions',
     text: 'Open positions, working orders and every closed trade, with win rate, profit factor, drawdown and an equity curve.' },
+  { eye: 'Strategies', title: 'Backtest a strategy in Python', target: { phone: '#mnStrat', desk: '#bStrat' }, view: 'chart',
+    text: 'Write a strategy in Python, or start from a template, and run it over the data in seconds. Its trades show on the chart and it is saved to the Library.' },
   { eye: 'Prop firms', title: 'Practice for a funded account', target: { phone: '.side', desk: '#bSettings' }, view: 'eval',
-    text: 'Set loss limits and a profit target, or run a whole evaluation → funded → live course with payouts. Turn them on in Session settings; their progress shows here.' },
+    text: 'Run a whole evaluation → funded → live course, with loss limits, a profit target and payouts. Turn it on in Session settings; its progress shows here.' },
   STORE ? { eye: 'Library', title: 'Everything is saved', target: { phone: '#mnav [data-mv="more"]', desk: '#bHome' }, view: 'chart',
     text: { touch: 'Sessions save as you trade. Reopen them from Home or the Library, and import Databento or CSV data to replay real markets. It is all under More.',
             desk: 'Sessions save as you trade. Reopen them from Home or the Library, and import Databento or CSV data to replay real markets.' } }
@@ -6094,7 +6078,6 @@ function openSetup(data) {
   $('#fPv').value = pv;
   $('#fPvNote').textContent = inst ? `${inst.root}, ${inst.name}: $${inst.pv.toLocaleString('en-US')} a point, tick ${+inst.tick.toPrecision(6)}` : '';
   $('#fTicks').value = cfg.ticks; $('#fQty').value = qty; $('#fPause').checked = cfg.pauseFill; $('#fHedge').checked = !!cfg.hedge;
-  propToForm(cfg.prop); fillPropPresets(''); $('#pName').value = '';
   simToForm(cfg.sim); fillSimPresets(cfg.sim.preset || ''); $('#sName').value = '';
   if (data !== D && data.base <= 5 && !(D && D.V === data)) $('#fTicks').value = Math.min(cfg.ticks, 4); // a few ticks per bar is plenty for seconds data
   if (E) setPlaying(false);
@@ -6110,9 +6093,8 @@ function confirmSetup() {
   const inst = instrumentOf(data); cfg.instr = inst ? inst.root : '';
   cfg.pv = num('#fPv', 1, 1e-12); cfg.ticks = Math.round(clamp(num('#fTicks', 20, 4), 4, 600)); cfg.qty = num('#fQty', 1, 1e-12);
   cfg.pauseFill = $('#fPause').checked; cfg.hedge = $('#fHedge').checked;
-  cfg.prop = propFromForm();
+  cfg.prop = { ...PROP_DEF }; // plain prop rules are gone from the form; the prop simulation covers them
   cfg.sim = simFromForm();
-  if (cfg.sim.on) cfg.prop.on = false;
   PREFS.costs = { ...(PREFS.costs || {}), [costKey(data)]: { pv: cfg.pv, spread: cfg.spread, comm: cfg.comm, mode: cfg.commMode, qty: cfg.qty, slip: cfg.slip } };
   savePrefs();
   if (data.chunked && !data.t) {
@@ -6451,7 +6433,16 @@ def on_bar(ctx, bar):
     pass
 `,
 };
-const stratPrefs = () => (PREFS.strat ||= { name: 'MA cross', mode: 'bar', libs: 'numpy', tf: '' });
+const stratPrefs = () => (PREFS.strat ||= { name: 'MA cross', mode: 'bar', libs: 'numpy', tf: '', rebuy: false, maxEvals: 0 });
+// the prop simulation option: on only when Session settings run the simulation
+function stratEvalRow() {
+  const p = stratPrefs(), on = !!(cfg.sim && cfg.sim.on);
+  $('#stEvalRow').classList.toggle('off', !on);
+  $('#stRebuy').checked = !!p.rebuy; $('#stMax').value = p.maxEvals || '';
+  $('#stMaxRow').hidden = !p.rebuy;
+  $('#stEvalNote').textContent = on ? `Each new evaluation costs ${money(cfg.sim.fee || 0)} (the fee in Session settings).`
+    : 'Turn on the prop simulation in Session settings to use this.';
+}
 const stratCodes = () => (PREFS.strategies ||= {});
 const ymd = t => fmtDT(t).slice(0, 10);
 const ymdUtc = (s, addDays) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? zoneToUtc(+m[1], +m[2] - 1, +m[3] + addDays) : NaN; };
@@ -6516,9 +6507,11 @@ function fillStrat() {
   for (const id of ['#stFrom', '#stTo']) { $(id).min = first; $(id).max = last; }
   $('#stFrom').value = auto && auto.from ? ymd(auto.from) : ymd(D.t[E.start]);
   $('#stTo').value = auto && auto.to ? ymd(auto.to) : last;
+  stratEvalRow();
   $('#stRange').textContent = `The loaded data covers ${first} to ${last}. For other dates, load them with Session settings first.`;
 }
 function openStrat() {
+  if (typeof closeSheet === 'function') closeSheet();
   if (!E || !D) return toast('Start a session first: a strategy runs on the session’s data.', 'err');
   setPlaying(false); endTour();
   fillStrat();
@@ -6642,7 +6635,7 @@ async function runStrategy() {
     const syn = PY.fn.check(code);
     if (syn) { stratStatus('Fix the error and run again'); return stratLog(syn, 'er'); }
     // a new session from the chosen start: the one that was open is saved and stays in the Library
-    RUN.on = true; RUN.stop = false; RUN.pending = []; RUN.fills = []; RUN.rejects = new Map(); RUN.shown = 0;
+    RUN.on = true; RUN.stop = false; RUN.ended = ''; RUN.pending = []; RUN.fills = []; RUN.rejects = new Map(); RUN.shown = 0;
     setPlaying(false);
     startSession(D, start, TF);
     S.name = `${name} · Automated`;
@@ -6652,14 +6645,25 @@ async function runStrategy() {
     started = true;
     if (r.error) { fail = r.error; return; }
     stratLog(`Running ${(end - start).toLocaleString('en-US')} bars of ${tfLabel({ kind: 's', sec: D.base })} data on ${tfLabel(tf)} candles, ${fmtDT(D.t[start]).slice(0, 16)} to ${fmtDT(D.t[end - 1]).slice(0, 16)}${mode === 'tick' ? ', every tick' : ''}.`);
+    const rebuy = !!(p.rebuy && cfg.sim && cfg.sim.on), maxEvals = p.maxEvals || Infinity;
+    S.strategy.rebuy = rebuy; S.strategy.maxEvals = p.maxEvals || 0;
+    let evalEnd = '';
     const bucketOf = makeBucket(tf), total = end - start, tr0 = performance.now();
     let C = null;
-    while (E.i < end && !RUN.stop && !fail) {
+    while (E.i < end && !RUN.stop && !fail && !evalEnd) {
       const until = performance.now() + 30;
       let n = 0;
-      while (E.i < end && !fail) {
+      while (E.i < end && !fail && !evalEnd) {
         const i = E.i, queued = RUN.pending.length > 0;
         processTick(); E.stop = false; // prop rules may ask the replay to pause; a run carries on
+        if (T.sim && T.sim.over && !evalEnd) { // the account failed (its positions are already closed)
+          if (rebuy && T.sim.attempt < maxEvals) {
+            simRestart();
+            RUN.pending = []; // orders queued for the failed account are not carried over
+            stratLog(`${fmtDT(E.time).slice(0, 16)} New evaluation, attempt ${T.sim.attempt}${cfg.sim.fee ? ` (${money(cfg.sim.fee)})` : ''}.`, 'ok');
+          } else evalEnd = rebuy ? `Reached ${T.sim.attempt} evaluations, so the run ends here.` : 'The account failed, so the run ends here. Tick "buy a new evaluation" to keep going.';
+          if (evalEnd) { stratLog(`${fmtDT(E.time).slice(0, 16)} ${evalEnd}`, 'er'); RUN.ended = 'Ended: the account failed'; }
+        }
         if (queued) execPending();
         if (RUN.fills.length) fail = deliverFills(r.on_fill);
         if (!fail && mode === 'tick' && r.on_tick) fail = PY.fn.tick(E.time, E.price, zoneOff(E.time), ...stratState()) || null;
@@ -6698,22 +6702,35 @@ async function runStrategy() {
       refreshLines(); render(); ui(true);
       chart.timeScale().scrollToRealTime();
       S.dirty = true; saveSession(true);
-      if (!fail) stratStatus(RUN.stop ? 'Stopped' : 'Done', (E.i - start) / Math.max(1, end - start));
+      if (!fail) stratStatus(RUN.stop ? 'Stopped' : RUN.ended || 'Done', (E.i - start) / Math.max(1, end - start));
       const s = computeStats();
       stratLog(`${s.trades} trades, net ${smoney(s.net)}${T.trades.length ? `, ${T.trades.length} still open` : ''}.`, s.net >= 0 ? 'ok' : 'er');
+      if (T.sim) { const take = (T.sim.income || 0) - (T.sim.fees || 0); stratLog(`Prop simulation: ${T.sim.attempt} evaluation${T.sim.attempt > 1 ? 's' : ''}, ${money(T.sim.fees || 0)} in fees, ${money(T.sim.income || 0)} paid out to you: ${smoney(take)}. Account now: ${simLabel() || '—'}.`, take >= 0 ? 'ok' : 'er'); }
       stratResults();
       if (!fail) stratTab('res');
     }
   }
 }
+// with the prop simulation: what the course cost and paid
+function stratSimResults(s, label) {
+  const sim = T.sim, paid = sim.income || 0, fees = sim.fees || 0, take = paid - fees;
+  const kpi = [['Your result', smoney(take), cls(take)], ['Payouts to you', money(paid), paid ? 'pos' : ''], ['Evaluation fees', money(fees), fees ? 'neg' : ''],
+    ['Evaluations', String(sim.attempt)], ['Trades', s.trades + (s.open ? ` +${s.open}` : '')], ['Account now', label || '—', label && /ailed/.test(label) ? 'neg' : '']];
+  stratResultsBody(kpi);
+}
 // the results of the open session (a run that just finished, or an automated one reopened from the Library)
 function stratResults() {
   const s = computeStats(), h = T.hist, label = simLabel() || propLabel();
   const pf = s.pf === 'inf' ? '∞' : s.pf == null ? '—' : s.pf.toFixed(2);
+  if (T.sim) return stratSimResults(s, label);
   const kpi = [['Net P&L', smoney(s.net), cls(s.net)], ['Trades', s.trades + (s.open ? ` +${s.open}` : '')],
     ['Win rate', s.winRate == null ? '—' : s.winRate.toFixed(1) + '%'], ['Profit factor', pf],
     ['Max drawdown', s.maxDD ? `${money(s.maxDD)} (${s.maxDDpct.toFixed(1)}%)` : '$0.00', s.maxDD ? 'neg' : ''],
     [label ? 'Account' : 'Avg trade', label || (s.trades ? smoney(s.net / s.trades) : '—'), label ? (label.includes('ailed') ? 'neg' : label === 'Passed' ? 'pos' : '') : cls(s.net)]];
+  stratResultsBody(kpi);
+}
+function stratResultsBody(kpi) {
+  const h = T.hist;
   $('#stKpi').innerHTML = kpi.map(([k, v, c]) => `<div><span>${k}</span><b class="${c || ''}">${v}</b></div>`).join('');
   const pts = E.eq;
   if (pts.length > 1) {
@@ -6742,6 +6759,8 @@ function wireStrat() {
   $('#stMode').onclick = e => { const b = e.target.closest('button'); if (!b || b.disabled) return; stratPrefs().mode = b.dataset.v; segPick('#stMode', b.dataset.v); savePrefsSoon(); };
   $('#stLibs').onclick = e => { const b = e.target.closest('button'); if (!b || b.disabled) return; stratPrefs().libs = b.dataset.v; segPick('#stLibs', b.dataset.v); savePrefsSoon(); };
   $('#stTf').onchange = () => { stratPrefs().tf = $('#stTf').value; savePrefsSoon(); };
+  $('#stRebuy').onchange = () => { stratPrefs().rebuy = $('#stRebuy').checked; $('#stMaxRow').hidden = !$('#stRebuy').checked; savePrefsSoon(); };
+  $('#stMax').onchange = () => { const v = Math.round(+$('#stMax').value); stratPrefs().maxEvals = v > 0 ? v : 0; $('#stMax').value = v > 0 ? v : ''; savePrefsSoon(); };
   $('#stTpl').onchange = e => {
     const v = e.target.value; if (!v) return;
     const name = v.slice(2);
@@ -6777,7 +6796,7 @@ function wireStrat() {
 
 /* ---------------- boot ---------------- */
 if (!LW) { document.getElementById('chart').innerHTML = '<div class="empty">The charting library did not load. Check your connection and reload the page.</div>'; return; }
-initCharts(); initDrag(); wire(); wireStrat(); wireDraw(); wireProp(); wireSim(); wireChartSet(); wireZones(); initTips();
+initCharts(); initDrag(); wire(); wireStrat(); wireDraw(); wireSim(); wireChartSet(); wireZones(); initTips();
 try { const tab = localStorage.getItem('tape-replay-tab'); if (tab) document.querySelector(`.tab[data-tab="${tab}"]`)?.click(); } catch (e) {}
 // open on the labelled sample so the tool is usable at once
 // (sample costs: 0.6 pip spread, 1 standard lot; loading a CSV resets them)

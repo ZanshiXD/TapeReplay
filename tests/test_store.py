@@ -124,6 +124,48 @@ def on_bar(ctx, bar):
         kpi2 = await pg.inner_text("#stKpi")
         check(re.search(r"Trades\s+(\d+)", kpi2).group(1) == str(trades), f"same trades {kpi2} vs {trades}")
         check(await pg.input_value("#stName") == "Opening range breakout", "its code is loaded")
+
+        # Session settings: no plain prop rules; the simulation's fields show once it is on
+        await pg.click("#stClose")
+        await pg.click("#bSettings")
+        await pg.wait_for_selector("#modal:not([hidden])", timeout=30000)
+        check(await pg.locator("#pOn").count() == 0, "prop rules section removed")
+        check(not await pg.is_visible("#sFields"), "simulation fields hidden while off")
+        await pg.select_option("#sPreset", label="L Flex 50K")
+        check(await pg.is_checked("#sOn") and await pg.is_visible("#sFields"), "a preset turns the simulation on")
+        check(await pg.is_disabled("#fBal"), "balance comes from the simulation")
+        await pg.fill("#sFee", "100")
+        await pg.screenshot(path=f"{OUT}/s3-session-sim.png", full_page=True)
+        await pg.click("#mStart")
+        await pg.wait_for_function("() => document.querySelector('#modal').hidden", timeout=120000)
+        await pg.wait_for_timeout(800)
+
+        # a strategy that loses fast: with "buy a new evaluation" and a limit of 3, it buys two more, then stops
+        await pg.click("#bStrat")
+        await pg.click("#stTabs [data-st=code]")
+        check(not await pg.eval_on_selector("#stEvalRow", "e => e.classList.contains('off')"), "rebuy option available with the simulation on")
+        await pg.fill("#stName", "Blow up")
+        await pg.evaluate("""c => { const t = document.querySelector('#stSrc'); t.value = c; t.dispatchEvent(new Event('input')); }""", """
+def on_bar(ctx, bar):
+    if ctx.position <= 0:
+        ctx.close(); ctx.buy(20)
+    else:
+        ctx.close(); ctx.sell(20)
+""")
+        await pg.click("#stLibs [data-v=numpy]")
+        await pg.check("#stRebuy")
+        await pg.fill("#stMax", "3")
+        await pg.press("#stMax", "Tab")
+        await pg.click("#stRun")
+        await wait_run(pg)
+        cons = await cons_text(pg)
+        print(cons[-700:])
+        check("New evaluation, attempt 2 ($100.00)" in cons and "New evaluation, attempt 3" in cons, "bought new evaluations")
+        check("Reached 3 evaluations, so the run ends here" in cons and "attempt 4" not in cons, "stopped at the limit")
+        check("This evaluation account has failed" not in cons, "no orders after the last failure")
+        kpi3 = await pg.inner_text("#stKpi")
+        check(re.search(r"Evaluations\s+3", kpi3) and "$300.00" in kpi3, f"results show evaluations and fees: {kpi3}")
+        await pg.screenshot(path=f"{OUT}/s4-rebuy-results.png")
         check(not errors, errors)
         await b.close()
     print(f"store: {passed} checks passed")
