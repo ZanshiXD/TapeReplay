@@ -1,0 +1,117 @@
+# Checks for pull requests. Nothing here is published or signed.
+#   strategies  the Python strategy runtime, then the page in Chromium with real Python (tests/), and that the
+#               pages copied into the apps are up to date with tape-replay.html
+#   windows     builds TapeReplay.exe like the release does, kept for a week as a download on the run's page
+#   ios         compiles the iOS app (with Python bundled) for the simulator, unsigned
+name: Checks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  strategies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install the test tools
+        run: |
+          python -m pip install numpy pandas playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Strategy runtime
+        run: python tests/test_runtime.py
+
+      - name: Build the page and bundle Python
+        run: python -c "import sys; sys.path.insert(0, 'desktop'); import build; build.vendor(); build.page()"
+
+      - name: The apps' copies of the page are up to date
+        run: |
+          git diff --exit-code desktop/web/index.html || { echo "::error::desktop/web/index.html is out of date: run ios/sync_web.py (or desktop/build.py) and commit it."; exit 1; }
+          cmp desktop/web/index.html ios/Sources/TapeReplay/web/index.html || { echo "::error::The iOS copy of the page is out of date: run ios/sync_web.py and commit it."; exit 1; }
+
+      - name: Strategies in the browser
+        run: python tests/test_browser.py "$RUNNER_TEMP/shots"
+
+      - name: Strategies through the desktop app's server (Library)
+        run: python tests/test_store.py "$RUNNER_TEMP/shots"
+
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: ${{ runner.temp }}/shots
+          retention-days: 7
+          if-no-files-found: ignore
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install the build tools
+        run: python -m pip install pyinstaller==6.22.3 pywebview==6.2.1 cryptography==50.0.2
+
+      - name: Build the app
+        working-directory: desktop
+        run: |
+          python build.py dist
+          ls -l dist/TapeReplay.exe
+          test -f web/pyodide/pyodide.asm.wasm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TapeReplay-exe
+          path: desktop/dist/TapeReplay.exe
+          retention-days: 7
+
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the newest Xcode on the machine
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Bundle the page and Python
+        working-directory: ios
+        run: python3 sync_web.py
+
+      - name: Compile for the simulator (unsigned)
+        working-directory: ios/AppStore
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          xcodebuild build -project TapeReplay.xcodeproj -scheme TapeReplayApp \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO | tail -40
+          test "${PIPESTATUS[0]}" -eq 0
+
+      - name: Python is inside the app
+        run: |
+          wasm=$(find "$RUNNER_TEMP/dd/Build/Products" -path '*TapeReplay.app*' -name pyodide.asm.wasm | head -1)
+          [ -n "$wasm" ] || { echo "::error::pyodide.asm.wasm is not in the built app"; exit 1; }
+          echo "Found $wasm"
+          du -sh "$(dirname "$wasm")"
