@@ -1,7 +1,8 @@
 """Copy the app's page into the iOS app.
 
 The iOS app shows the same page as the desktop app (tape-replay.html). This builds it the way the desktop
-build does (local copies of the chart library and fonts, so it works offline) and copies the result into
+build does (local copies of the chart library and fonts, and Python for strategy backtests, so it works offline)
+and copies the result into
 Sources/TapeReplay/web. Run it after changing tape-replay.html, before `xtool dev`:
     python3 sync_web.py
 """

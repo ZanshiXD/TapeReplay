@@ -315,7 +315,10 @@ final class AppServer: @unchecked Sendable {
             return .text("Not found", status: 404)
         }
         let types = ["html": "text/html; charset=utf-8", "js": "text/javascript; charset=utf-8", "css": "text/css; charset=utf-8",
-                     "woff2": "font/woff2", "png": "image/png", "ico": "image/x-icon"]
+                     "woff2": "font/woff2", "png": "image/png", "ico": "image/x-icon",
+                     // Python for strategy backtests (web/pyodide)
+                     "wasm": "application/wasm", "json": "application/json", "zip": "application/zip", "whl": "application/zip",
+                     "mjs": "text/javascript; charset=utf-8"]
         return .bytes(data, type: types[url.pathExtension.lowercased()] ?? "application/octet-stream")
     }
 

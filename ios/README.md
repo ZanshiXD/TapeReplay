@@ -12,6 +12,7 @@ A native layer replaces the desktop's Python backend:
 | DBN import | `Sources/TapeReplay/Data/DBNImporter.swift` | Any size of `.dbn` / `.dbn.zst` file (or a batch), streamed into monthly blocks |
 | Series files | `Sources/TapeReplay/Data/SeriesFile.swift` | Monthly blocks, read one month at a time (same format as the desktop's `build_series.py`) |
 | Zstandard | `Sources/TapeReplay/Data/Zstd.swift` | Reads `.zst` files, compresses the blocks (facebook/zstd via SwiftPM) |
+| Python | `Sources/TapeReplay/web/pyodide/` | Python for strategy backtests (Pyodide, numpy, pandas), bundled so it works offline; put there by `sync_web.py`, not kept in git |
 
 The built-in data is generated practice data, not real market data. It is made on the device as you need it.
 
@@ -37,7 +38,8 @@ from `~/TapeReplay-iOS` in Ubuntu (a copy of this folder, since building on the 
 7. **Sign-in, for installing on a device.** `xtool auth`: an App Store Connect API key, or an Apple ID and
    password (a free Apple ID works; xtool's docs suggest a separate one, since password sign-in uses private Apple APIs).
 7. **Bundle ID.** Edit `xtool.yml` and change `com.example.TapeReplay` to your own ID (e.g. `com.yourname.tapereplay`).
-8. **Copy the page in.** After any change to `tape-replay.html`, from this folder run:
+8. **Copy the page in.** After any change to `tape-replay.html`, from this folder run (the first time, it also
+   downloads Python for strategy backtests, about 23 MB, into `Sources/TapeReplay/web/pyodide/`):
 
    ```bash
    python3 sync_web.py

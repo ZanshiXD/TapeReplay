@@ -43,7 +43,10 @@ WINDOW = None  # the pywebview window, used for the native file dialog
 PICKED = {}    # id -> path of a file chosen in the dialog, served to the page in chunks
 CHUNK = 8 << 20
 MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
-        ".css": "text/css; charset=utf-8", ".woff2": "font/woff2", ".ico": "image/x-icon"}
+        ".css": "text/css; charset=utf-8", ".woff2": "font/woff2", ".ico": "image/x-icon",
+        # Python for strategy backtests (web/pyodide)
+        ".wasm": "application/wasm", ".json": "application/json", ".zip": "application/zip", ".whl": "application/zip",
+        ".mjs": "text/javascript; charset=utf-8"}
 
 
 def write_atomic(path, data):

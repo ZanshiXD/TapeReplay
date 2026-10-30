@@ -6,6 +6,9 @@
 desktop/data/
 
 # build output
+# Python for strategies (Pyodide, numpy, pandas): downloaded by desktop/build.py and ios/sync_web.py
+desktop/web/pyodide/
+ios/Sources/TapeReplay/web/pyodide/
 desktop/dist*/
 desktop/build/
 desktop/*.spec
