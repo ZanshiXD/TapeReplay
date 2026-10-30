@@ -195,7 +195,9 @@ private final class Connection: @unchecked Sendable {
     private func send(_ r: HTTPResponse) {
         dispatched = true
         var out = Data("HTTP/1.1 \(r.status) \(reason(r.status))\r\n".utf8)
-        out.append(Data("Content-Type: \(r.contentType)\r\nContent-Length: \(r.body.count)\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n".utf8))
+        // cross-origin isolation: lets the page share memory with its workers (strategy optimization)
+        let isolation = "Cross-Origin-Opener-Policy: same-origin\r\nCross-Origin-Embedder-Policy: require-corp\r\nCross-Origin-Resource-Policy: same-origin\r\n"
+        out.append(Data("Content-Type: \(r.contentType)\r\nContent-Length: \(r.body.count)\r\nCache-Control: no-store\r\n\(isolation)Connection: close\r\n\r\n".utf8))
         out.append(r.body)
         nw.send(content: out, completion: .contentProcessed { [self] _ in nw.cancel() })
     }

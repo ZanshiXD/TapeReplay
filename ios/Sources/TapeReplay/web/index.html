@@ -746,7 +746,7 @@ html.m .mspeed{grid-area:speed;justify-self:end;display:inline-flex;align-items:
 html.m .mspeed svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
 html.m .mspeed[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
 /* tab bar */
-html.m .mnav{grid-area:nav;display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--line);background:var(--panel)}
+html.m .mnav{grid-area:nav;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:var(--panel)}
 html.m .mnav button{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0 6px;background:none;border:none;color:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:.02em}
 html.m .mnav button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
 html.m .mnav button[aria-current="page"]{color:var(--accent)}
@@ -926,6 +926,37 @@ html.m .stpick input{max-width:none}
 .optheat td{border:0;padding:5px 7px;text-align:center;color:#fff;border-radius:3px;cursor:pointer;min-width:46px}
 .optheat td.na{background:var(--raise);color:var(--muted)}
 .optheat .cap{font:11px var(--f-ui);color:var(--muted);margin:0 0 4px}
+
+/* phones: Strategy lives under More */
+html.m #bStrat{display:none!important}
+/* the optimizer on a phone: settings as cards, results as cards */
+html.m .optgrid{grid-template-columns:1fr}
+html.m .optlist{max-height:none;border:0}
+html.m .optlist thead{display:none}
+html.m .optlist table,html.m .optlist tbody{display:block}
+html.m .optlist tr{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:6px 8px;align-items:center;padding:10px;margin-bottom:8px;border:1px solid var(--line);border-radius:6px;background:var(--raise)}
+html.m .optlist td{border:0;padding:0;white-space:normal}
+html.m .optlist td:nth-child(2){min-width:0}
+html.m .optlist td:nth-child(3){color:var(--muted)}
+html.m .optlist td:nth-child(3)::before{content:"now ";font-family:var(--f-ui)}
+html.m .optlist td:nth-child(4){grid-column:1/-1}
+html.m .optlist td:nth-child(5){display:none}
+html.m .optlist input[type=checkbox]{width:20px;height:20px}
+html.m .optlist input.optv{min-width:0;font-size:16px;padding:7px 8px}
+html.m .optlist .hint{max-width:none;white-space:normal}
+html.m .optq{margin-left:0;flex-wrap:wrap}
+html.m #optRules{font-size:16px}
+html.m #optHeat,html.m #optCsv,html.m .optres{display:none!important}
+.optcards{display:none}
+html.m .optcards{display:flex;flex-direction:column;gap:8px}
+.optcard{border:1px solid var(--line);border-radius:6px;background:var(--raise);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.optcard .oc1{display:flex;gap:8px;align-items:baseline;font-size:13px}
+.optcard .oc1 b{font-family:var(--f-num)}
+.optcard .oc2{display:flex;flex-wrap:wrap;gap:2px 14px;font:12px var(--f-num);color:var(--muted)}
+.optcard .oc2 b{color:var(--fg);font-weight:500}
+.optcard .oc2 b.pos{color:var(--up)}.optcard .oc2 b.neg{color:var(--down)}
+.optcard .err{color:var(--down);font-size:12px}
+.optcard button{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:7px 12px;font-size:13px;color:var(--fg)}
 </style>
 
 <div id="app">
@@ -1165,7 +1196,6 @@ html.m .stpick input{max-width:none}
     <button data-mv="trade"><svg viewBox="0 0 20 20"><path d="M4 7h11l-3-3M16 13H5l3 3"/></svg>Trade</button>
     <button data-mv="positions"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M3 8h14M7 8v8"/></svg>Positions<i id="mnPosN"></i></button>
     <button data-mv="eval"><svg viewBox="0 0 20 20"><path d="M10 3l2 4 4.5.6-3.3 3.1.8 4.4L10 13l-4 2.1.8-4.4L3.5 7.6 8 7z"/></svg>Eval<i id="mnEval"></i></button>
-    <button data-mv="strategy" id="mnStrat"><svg viewBox="0 0 20 20"><path d="M7 5.5L2.5 10 7 14.5M13 5.5l4.5 4.5-4.5 4.5"/><path d="M11 4l-2 12" style="opacity:.6"/></svg>Strategy</button>
     <button data-mv="more"><svg viewBox="0 0 20 20"><circle cx="5" cy="10" r="1.3"/><circle cx="10" cy="10" r="1.3"/><circle cx="15" cy="10" r="1.3"/></svg>More</button>
   </nav>
 </div>
@@ -1467,6 +1497,7 @@ html.m .stpick input{max-width:none}
           <button id="optResume" hidden>Resume</button><button id="optZoom">Zoom in on the best</button><button id="optCsv">Copy as CSV</button></div>
         <div id="optHeat" class="optheat" hidden></div>
         <div class="sttr optres"><table><thead id="optHead"></thead><tbody id="optBody"></tbody></table></div>
+        <div class="optcards" id="optCards"></div>
       </div>
     </div>
 
@@ -1488,8 +1519,8 @@ html.m .stpick input{max-width:none}
         <p><code>ctx.df(n)</code>: the same candles as a pandas DataFrame (choose <b>numpy + pandas</b>). Building one on every bar is slow over long runs; numpy arrays are much faster.</p>
         <p><code>ctx.position</code> (+ long, − short, 0 flat), <code>ctx.position_price</code>, <code>ctx.equity</code>, <code>ctx.balance</code>, <code>ctx.time</code>, <code>ctx.price</code>, <code>ctx.orders</code>, <code>ctx.trades</code>, <code>ctx.history</code>.</p>
         <p><code>ctx.tick_size</code>, <code>ctx.ticks(n)</code> (n ticks as a price distance), <code>ctx.bid</code> and <code>ctx.ask</code> (sells fill at the bid, buys at the ask), <code>ctx.spread</code>, <code>ctx.round(price)</code> (to the data's precision), <code>ctx.point_value</code>, <code>ctx.at("09:30")</code> (a time to compare with <code>bar.time.time()</code>). Keep your own values on <code>ctx</code>, like <code>ctx.count = 0</code>.</p>
-        <h4 class="opthelp" hidden>Optimize (Windows)</h4>
-        <p class="opthelp" hidden>The Optimize tab lists the <code>NAME = value</code> settings at the top of your code (numbers, True/False and text choices; times of day are left out). Tick the ones to try, adjust the values, and it runs every combination, several at a time, ranked by your goal. A setting can also carry its own range: <code>FAST = param(9, 5, 30, step=5)</code>. <b>Check on the last</b> leaves the end of the dates out of the ranking and shows how each combination did there: a result that only works on the dates it was tuned on is luck.</p>
+        <h4 class="opthelp" hidden>Optimize</h4>
+        <p class="opthelp" hidden>The Optimize tab lists the <code>NAME = value</code> settings at the top of your code (numbers, True/False and text choices; times of day are left out). Tick the ones to try, adjust the values, and it runs every combination, several at a time, ranked by your goal. A setting can also carry its own range: <code>FAST = param(9, 5, 30, step=5)</code>. <b>Check on the last</b> leaves the end of the dates out of the ranking and shows how each combination did there: a result that only works on the dates it was tuned on is luck. On iPhone and iPad it runs one or two at a time, up to 300 combinations, and pauses if you leave the app (tap Resume when you are back).</p>
         <h4>Good to know</h4>
         <p><code>print()</code> writes to the console. Errors stop the run and show the line. A run is a new session: it is saved to the Library and opens on the chart, and the session you had stays in the Library.</p>
         <p><b>At bar close</b> is fast. <b>Every tick</b> calls Python many times per bar and is slower; the ticks are simulated from each bar's open, high, low and close. A strategy that never returns stops the app responding.</p>
@@ -2197,6 +2228,7 @@ const STORE = (TOKEN && location.protocol === 'http:') ? (() => {
     getOptim: id => call('GET', 'optims/' + id),
     saveOptim: (id, obj) => call('PUT', 'optims/' + id, JSON.stringify(obj), json),
     deleteOptim: id => call('DELETE', 'optims/' + id),
+    awake: on => call('POST', 'awake', JSON.stringify({ on }), json).catch(() => {}),
     getSession: id => call('GET', 'sessions/' + id),
     saveSession: (id, obj) => call('PUT', 'sessions/' + id, JSON.stringify(obj), json),
     renameSession: (id, name) => call('PATCH', 'sessions/' + id, JSON.stringify({ name }), json),
@@ -5754,7 +5786,6 @@ function wirePhone() {
   $('#mnav').addEventListener('click', e => {
     const b = e.target.closest('button[data-mv]'); if (!b) return;
     if (b.dataset.mv === 'more') return SHEET.el === $('#mmore') ? closeSheet() : openSheet($('#mmore'), b);
-    if (b.dataset.mv === 'strategy') { closeSheet(); return openStrat(); } // a full-screen panel, not a screen
     setMview(b.dataset.mv);
   });
   $('#mdraw').onclick = () => {
@@ -5919,8 +5950,9 @@ const TOUR_STEPS = [
             desk: 'Right-click a price to place a limit or stop there. Drag order lines to move them, or drag TP and SL out of a position’s tag.' } },
   { eye: 'Results', title: 'Positions and performance', target: '.dock', view: 'positions',
     text: 'Open positions, working orders and every closed trade, with win rate, profit factor, drawdown and an equity curve.' },
-  { eye: 'Strategies', title: 'Backtest a strategy in Python', target: { phone: '#mnStrat', desk: '#bStrat' }, view: 'chart',
-    text: 'Write a strategy in Python, or start from a template, and run it over the data in seconds. Its trades show on the chart and it is saved to the Library.' },
+  { eye: 'Strategies', title: 'Backtest a strategy in Python', target: { phone: '#mnav [data-mv="more"]', desk: '#bStrat' }, view: 'chart',
+    text: { touch: 'Under More: write a strategy in Python, or start from a template, and run it over the data in seconds. Its trades show on the chart and it is saved to the Library.',
+            desk: 'Write a strategy in Python, or start from a template, and run it over the data in seconds. Its trades show on the chart and it is saved to the Library.' } },
   { eye: 'Prop firms', title: 'Practice for a funded account', target: { phone: '.side', desk: '#bSettings' }, view: 'eval',
     text: 'Run a whole evaluation → funded → live course, with loss limits, a profit target and payouts. Turn it on in Session settings; its progress shows here.' },
   STORE ? { eye: 'Library', title: 'Everything is saved', target: { phone: '#mnav [data-mv="more"]', desk: '#bHome' }, view: 'chart',
@@ -7120,7 +7152,10 @@ function wireStrat() {
 const OPT_GOALS = { ndd: 'Net ÷ max drawdown', net: 'Net P&L', pf: 'Profit factor', take: 'Payouts − fees' };
 const OPT = { on: false, stop: false, params: [], doc: null, rows: [], workers: [], resolve: null, sortKey: 'score', sortDir: -1, sel: null, saveT: 0, detectT: 0, rateT: 0, rate: 0 };
 let CAN_OPT = false;
-const optAvailable = () => !!(STORE && CAN_OPT && !window.TAPE_IOS && !TOUCH);
+const optAvailable = () => !!(STORE && CAN_OPT);
+// iPhone and iPad: fewer runs at once (each holds its own Python, and iOS caps an app's memory), fewer combinations
+const OPT_SMALL = () => !!window.TAPE_IOS || document.documentElement.classList.contains('m');
+const optCap = () => OPT_SMALL() ? 300 : 20000;
 const optFmt = v => typeof v === 'boolean' ? (v ? 'True' : 'False') : typeof v === 'string' ? v : String(+(+v).toPrecision(10));
 const optLabel = o => Object.entries(o).map(([k, v]) => `${k}=${optFmt(v)}`).join(', ');
 const optMsg = (text, er) => { const el = $('#optCount'); el.textContent = text; el.classList.toggle('er', !!er); };
@@ -7223,7 +7258,7 @@ function optSpec() {
   for (const p of ticked) { const r = optParse(p, p.text); if (r.error) return { error: `${p.name}: ${r.error}.` }; params.push({ name: p.name, values: r.vals }); }
   const rules = $('#optRules').value.split('\n').map(x => x.trim()).filter(Boolean);
   const mode = $('#optMode [aria-pressed="true"]').dataset.v, n = Math.max(1, Math.round(+$('#optN').value || 200));
-  return { params, rules, mode, n, cap: 20000 };
+  return { params, rules, mode, n: Math.min(n, optCap()), cap: optCap() };
 }
 function optCount() {
   if (OPT.on) return;
@@ -7233,7 +7268,7 @@ function optCount() {
   const total = sp.params.reduce((s, p) => s * p.values.length, 1);
   const runs = sp.mode === 'random' ? Math.min(sp.n, total) : total;
   const per = OPT.rate ? ` About ${optDur(runs / OPT.rate)} at the speed of the last run.` : '';
-  optMsg(`${total.toLocaleString('en-US')} combination${total === 1 ? '' : 's'}${sp.mode === 'random' ? `; trying ${runs.toLocaleString('en-US')} of them` : ''}${sp.rules.length ? ', fewer after the rules' : ''}.${total > sp.cap && sp.mode !== 'random' ? ` That is more than ${sp.cap.toLocaleString('en-US')}: narrow the ranges, or use a random sample.` : per}`, total > sp.cap && sp.mode !== 'random');
+  optMsg(`${total.toLocaleString('en-US')} combination${total === 1 ? '' : 's'}${sp.mode === 'random' ? `; trying ${runs.toLocaleString('en-US')} of them` : ''}${sp.rules.length ? ', fewer after the rules' : ''}.${total > sp.cap && sp.mode !== 'random' ? ` That is more than ${sp.cap.toLocaleString('en-US')}${OPT_SMALL() ? ' (the most on iPhone and iPad)' : ''}: narrow the ranges, or use a random sample.` : per}`, total > sp.cap && sp.mode !== 'random');
 }
 const optDur = s => s < 90 ? `${Math.max(1, Math.round(s))} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`;
 async function optOpen() {
@@ -7253,6 +7288,7 @@ self.onmessage = e => { if (e.data.type === 'boot') { (0, eval)(e.data.script); 
 `;
 function optWorkerCount(bytes, shared) {
   let n = Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
+  if (OPT_SMALL()) n = Math.min(n, shared ? 2 : 1);
   if (!shared) n = Math.max(1, Math.min(n, Math.floor(1.5e9 / (bytes + 1)))); // each worker holds its own copy
   return n;
 }
@@ -7311,7 +7347,8 @@ async function optRun(resume) {
                                            libs: doc.libs === 'pandas' ? ['numpy', 'pandas'] : ['numpy'] };
   const n = Math.min(optWorkerCount(data.bytes, data.shared), todo.length);
   const runCfg = doc.cfg || JSON.parse(JSON.stringify(cfg));
-  OPT.on = true; OPT.stop = false; optRunning(true); optResultsShow();
+  OPT.on = true; OPT.stop = false; OPT.paused = false; optRunning(true); optResultsShow();
+  if (window.TAPE_IOS) STORE.awake(true);
   stratStatus(`Starting ${n} parallel run${n > 1 ? 's' : ''}…`, 0);
   optMsg(`Running ${todo.length.toLocaleString('en-US')} combinations, ${n} at a time.`);
   const url = URL.createObjectURL(new Blob([OPT_WORKER], { type: 'text/javascript' }));
@@ -7358,9 +7395,10 @@ async function optRun(resume) {
   for (const w of OPT.workers) { try { w.terminate(); } catch (e) {} }
   OPT.workers = []; OPT.resolve = null; URL.revokeObjectURL(url);
   OPT.on = false; optRunning(false);
+  if (window.TAPE_IOS) STORE.awake(false);
   if (t0 && doneNow) OPT.rate = doneNow / Math.max(0.001, (performance.now() - t0) / 1000);
   const ok = OPT.rows.filter(r => !r.res.fail).length;
-  stratStatus(OPT.stop ? `Stopped: ${OPT.rows.length} of ${total} done` : OPT.rows.length >= total ? 'Optimization done' : `${OPT.rows.length} of ${total} done`, OPT.rows.length / total);
+  stratStatus(OPT.paused ? `Paused when you left the app: ${OPT.rows.length} of ${total} done. Tap Resume to carry on.` : OPT.stop ? `Stopped: ${OPT.rows.length} of ${total} done` : OPT.rows.length >= total ? 'Optimization done' : `${OPT.rows.length} of ${total} done`, OPT.rows.length / total);
   if (!OPT.rows.length && firstErr) optMsg(firstErr, true);
   else if (firstErr && !ok) optMsg(`Every run failed: ${firstErr}`, true);
   else { optCount(); if (firstErr) optMsg(`${$('#optCount').textContent} Some runs failed: ${firstErr}`, true); }
@@ -7416,7 +7454,7 @@ function optResultsShow() {
   doc.best = best ? `${optLabel(doc.combos[best.i])}: ${optScoreTxt(best.score, goal)}` : '';
   const split = doc.splitT != null;
   $('#optSummary').innerHTML = `<b>${OPT.rows.length.toLocaleString('en-US')} of ${doc.total.toLocaleString('en-US')}</b> combinations${doc.skipped ? ` (${doc.skipped.toLocaleString('en-US')} skipped by the rules)` : ''}, ranked by ${esc(OPT_GOALS[goal])}` +
-    ` on ${ymd(doc.from)} to ${split ? ymd(doc.splitT - 1) : ymd(doc.to)}${split ? `; <b>Check</b> columns: ${ymd(doc.splitT)} to ${ymd(doc.to)}` : ''}. Click a column to sort, a row to select it.`;
+    ` on ${ymd(doc.from)} to ${split ? ymd(doc.splitT - 1) : ymd(doc.to)}${split ? `; <b>Check</b> ${OPT_SMALL() ? 'net' : 'columns'}: ${ymd(doc.splitT)} to ${ymd(doc.to)}` : ''}.${OPT_SMALL() ? '' : ' Click a column to sort, a row to select it.'}`;
   $('#optResume').hidden = OPT.on || OPT.rows.length >= doc.total;
   const sim = rows.some(r => r.res.sim);
   const cols = [['#', null], ...names.map(n => [n, 'p:' + n]), [OPT_GOALS[goal], 'score'], ['Trades', 'a.trades'], ['Net', 'a.net'], ['Win %', 'a.win'], ['PF', 'a.pf'], ['Max DD', 'a.dd'],
@@ -7435,6 +7473,15 @@ function optResultsShow() {
       `<td><button data-chart="${r.i}">Open on chart</button></td></tr>`;
   }).join('') + (rows.length > 300 ? `<tr><td colspan="${cols.length}" class="empty">The best 300 of ${rows.length.toLocaleString('en-US')} are shown. Copy as CSV for all of them.</td></tr>` : '');
   optHeat(rows, names, goal);
+  // phones: the best 20 as cards
+  $('#optCards').innerHTML = rows.slice(0, 20).map((r, k) => {
+    const c = doc.combos[r.i], res = r.res, a = res.a || {}, bb = res.b || {};
+    return `<div class="optcard" data-i="${r.i}"><div class="oc1"><b>#${k + 1}</b><span>${esc(optLabel(c))}</span></div>` +
+      (res.fail ? `<div class="err">${esc(String(res.fail).split('\n')[0])}</div>` :
+      `<div class="oc2"><span>${esc(OPT_GOALS[goal])} <b>${optScoreTxt(r.score, goal)}</b></span><span>Net <b class="${cls(a.net)}">${smoney(a.net)}</b></span><span>${a.trades} trades</span>` +
+      `<span>PF <b>${optPf(a.pf)}</b></span><span>DD <b>${money(a.dd)}</b></span>${split ? `<span>Check net <b class="${cls(bb.net || 0)}">${bb.trades ? smoney(bb.net) : '—'}</b></span>` : ''}` +
+      `${res.sim ? `<span>Payouts − fees <b class="${cls(res.sim.take)}">${smoney(res.sim.take)}</b></span>` : ''}</div><button data-chart="${r.i}">Open on chart</button>`) + '</div>';
+  }).join('') + (rows.length > 20 ? `<p class="note">The best 20 of ${rows.length.toLocaleString('en-US')}. The Windows app shows them all.</p>` : '');
   $('#optZoom').disabled = OPT.on || !best;
 }
 // two numeric settings varied: a grid of the best score for each pair
@@ -7556,9 +7603,12 @@ function wireOpt() {
     if (b) return optToChart(+b.dataset.chart);
     const tr = e.target.closest('tr[data-i]'); if (tr) pickRow(+tr.dataset.i);
   });
+  $('#optCards').addEventListener('click', e => { const b = e.target.closest('button[data-chart]'); if (b) optToChart(+b.dataset.chart); });
   $('#optHeat').addEventListener('click', e => { const td = e.target.closest('td[data-i]'); if (td) { pickRow(+td.dataset.i); $(`#optBody tr[data-i="${td.dataset.i}"]`)?.scrollIntoView({ block: 'nearest' }); } });
   // the settings list follows the code
   $('#stSrc').addEventListener('input', () => { clearTimeout(OPT.detectT); if (!$('#stOpt').hidden) OPT.detectT = setTimeout(optDetect, 700); });
+  // iOS stops the app's work in the background: stop cleanly (results saved) and offer Resume on return
+  document.addEventListener('visibilitychange', () => { if (document.hidden && OPT.on && OPT_SMALL()) { OPT.paused = true; optStop(); } });
 }
 // a combination as a normal backtest on the chart, saved to the Library
 function optToChart(i) {

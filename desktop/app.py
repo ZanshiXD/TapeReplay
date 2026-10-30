@@ -660,6 +660,8 @@ class Handler(BaseHTTPRequestHandler):
         parts = self.route()
         if not parts:
             return None if parts is False else self.fail(404, "Not found")
+        if parts == ["awake"]:  # the iOS app keeps the screen on during an optimization; nothing to do here
+            return self.send(200, {"ok": True})
         if parts == ["update"]:
             # the page saves the session first; then download, swap and restart in the background
             if UPDATE["state"] not in ("available", "failed") or not UPDATE["manifest"]:
