@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import UIKit
 
 /// The page's backend: the same /api the desktop app's Python server offers (sessions, prefs, the Library,
 /// file reads in chunks, series blocks), plus the native picker and the chunked DBN import.
@@ -63,7 +64,8 @@ final class AppServer: @unchecked Sendable {
             switch p[0] {
             case "sessions": return .json(s.listJSON(in: s.sessions, suffix: ".meta.json"))
             case "datasets": return .json(s.listJSON(in: s.datasets, suffix: ".json").filter { $0["id"] != nil && $0["list"] == nil })
-            case "caps": return .json(["pick": true, "importDbn": true, "ios": true])
+            case "caps": return .json(["pick": true, "importDbn": true, "ios": true, "optimize": true])
+            case "optims": return .json(s.listJSON(in: s.optims, suffix: ".meta.json"))
             case "prefs": return .json(s.readJSON(s.prefsURL) ?? [:])
             case "last":
                 var last = s.readJSON(s.lastURL) ?? [:]
@@ -74,6 +76,7 @@ final class AppServer: @unchecked Sendable {
         case 2:
             switch p[0] {
             case "sessions": return try file(s.sessions.appendingPathComponent(p[1] + ".json"), missing: "That backtest no longer exists.")
+            case "optims": return try file(s.optims.appendingPathComponent(p[1] + ".json"), missing: "That optimization no longer exists.")
             case "census": return try file(s.datasets.appendingPathComponent(p[1] + ".census.json"), missing: "No contract list yet")
             case "series": return .json(try SeriesFile(url: seriesURL(p[1])).index())
             case "import":
@@ -105,6 +108,12 @@ final class AppServer: @unchecked Sendable {
 
     private func post(_ p: [String], _ r: HTTPRequest) async throws -> HTTPResponse {
         switch p {
+        case ["awake"]:
+            // the screen stays on while a strategy optimization runs
+            let on = (try? jsonBody(r))?["on"] as? Bool ?? false
+            await MainActor.run { UIApplication.shared.isIdleTimerDisabled = on }
+            return .ok
+
         case ["pick"]:
             guard let urls = await AppModel.shared.pickFiles(), !urls.isEmpty else { return .noContent }
             let item = try await Task.detached { try self.prepare(urls) }.value
@@ -161,6 +170,16 @@ final class AppServer: @unchecked Sendable {
         case "census":
             try s.put(r, to: s.datasets.appendingPathComponent(p[1] + ".census.json"))
             return .ok
+        case "optims":
+            let doc = try jsonBody(r)
+            var meta: [String: Any] = [:]
+            for k in ["id", "name", "strategy", "datasetName", "created", "updated", "total", "done", "goal", "best", "from", "to", "tf"] { meta[k] = doc[k] }
+            meta["id"] = p[1]
+            try s.lock.withLock {
+                try s.writeJSON(doc, to: s.optims.appendingPathComponent(p[1] + ".json"))
+                try s.writeJSON(meta, to: s.optims.appendingPathComponent(p[1] + ".meta.json"))
+            }
+            return .ok
         case "sessions":
             var doc = try jsonBody(r)
             var meta: [String: Any] = [:]
@@ -206,6 +225,11 @@ final class AppServer: @unchecked Sendable {
             return .ok
         case "datasets":
             storage.deleteDataset(p[1])
+            return .ok
+        case "optims":
+            storage.lock.withLock {
+                for ext in [".json", ".meta.json"] { try? FileManager.default.removeItem(at: storage.optims.appendingPathComponent(p[1] + ext)) }
+            }
             return .ok
         default:
             return .text("Not found", status: 404)

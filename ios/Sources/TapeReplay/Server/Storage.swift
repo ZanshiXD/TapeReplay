@@ -4,6 +4,7 @@ import Foundation
 /// The app's saved data, laid out like the desktop app's data folder:
 ///   prefs.json, last.json
 ///   sessions/<id>.json, <id>.meta.json
+///   optimizations/<id>.json, <id>.meta.json (strategy optimizations)
 ///   datasets/<id>.json (Library entry), <id>.csv (a loaded file), <id>.tapeseries (an imported DBN, in monthly
 ///   blocks), <id>_*.bin (parsed-series caches), <id>.census.json (contracts in a file)
 ///   tmp/ (picked files and uploads on their way in)
@@ -11,6 +12,7 @@ final class Storage: @unchecked Sendable {
     let root: URL
     let datasets: URL
     let sessions: URL
+    let optims: URL
     let tmp: URL
     let lock = NSLock()
     private let fm = FileManager.default
@@ -20,8 +22,9 @@ final class Storage: @unchecked Sendable {
         root = support.appendingPathComponent("TapeReplay", isDirectory: true)
         datasets = root.appendingPathComponent("datasets", isDirectory: true)
         sessions = root.appendingPathComponent("sessions", isDirectory: true)
+        optims = root.appendingPathComponent("optimizations", isDirectory: true)
         tmp = root.appendingPathComponent("tmp", isDirectory: true)
-        for dir in [root, datasets, sessions, tmp] { try? fm.createDirectory(at: dir, withIntermediateDirectories: true) }
+        for dir in [root, datasets, sessions, optims, tmp] { try? fm.createDirectory(at: dir, withIntermediateDirectories: true) }
         // whatever an earlier run left half way (an interrupted import or upload)
         for name in (try? fm.contentsOfDirectory(atPath: tmp.path)) ?? [] { try? fm.removeItem(at: tmp.appendingPathComponent(name)) }
     }
