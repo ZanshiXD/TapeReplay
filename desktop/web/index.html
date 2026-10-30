@@ -432,7 +432,7 @@ td button{font-size:11px!important;padding:2px 7px!important}
 .palprev.sys{background:linear-gradient(135deg,var(--b) 50%,var(--b2) 50%)}
 .palsys{margin-top:2px}
 .libhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.seg.lt{grid-template-columns:repeat(2,auto)}
+.seg.lt{grid-template-columns:none;grid-auto-flow:column}
 .seg.lt button{padding:5px 14px!important}
 .libbody{overflow:auto;max-height:62vh;border:1px solid var(--line);border-radius:4px}
 .libbody td input.nm{width:240px;font-family:var(--f-ui);font-size:13px}
@@ -884,6 +884,48 @@ html.m .stkpi{grid-template-columns:repeat(2,minmax(0,1fr))}
 html.m .sthelp{grid-template-columns:1fr;max-height:none}
 html.m .sthead .spacer{display:none}
 html.m .stpick input{max-width:none}
+
+/* ---- strategy optimization (Windows app) ---- */
+.seg.st{grid-template-columns:none;grid-auto-flow:column}
+#stOpt{gap:12px}
+.optgrid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;min-height:0}
+.optleft{display:flex;flex-direction:column;gap:10px;min-width:0}
+.opthead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.opthead h3{margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.optq{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+.optq button,.opttop button,.optbtns button,.optres td button{background:var(--raise);border:1px solid var(--line);border-radius:5px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--fg)}
+.optq button:disabled,.opttop button:disabled,.optbtns button:disabled{opacity:.45;cursor:default}
+.optlist{border:1px solid var(--line);border-radius:5px;overflow:auto;max-height:36vh}
+.optlist td{vertical-align:middle;white-space:normal}
+.optlist td:first-child{width:28px}
+.optlist tr.off td:not(:first-child){opacity:.5}
+.optlist .hint{display:block;font:11px var(--f-ui);color:var(--muted);max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.optlist .tag{margin-left:6px}
+.optlist input.optv{width:100%;min-width:170px;font-family:var(--f-num)}
+.optlist input.bad{border-color:var(--down)}
+.optlist .empty{white-space:normal}
+#optRules{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 8px;font:12px/1.5 var(--f-num);color:var(--fg);resize:vertical;min-height:38px}
+.optside .seg{grid-template-columns:1fr 1fr}
+.optside .seg button{padding:5px 4px!important}
+.optbtns{display:flex;gap:8px}
+.optbtns .primary{flex:1}
+#optCount{color:var(--fg)}
+#optCount.er{color:var(--down)}
+.opttop{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.opttop .note{flex:1;min-width:240px}
+.optres{max-height:32vh}
+.optres th[data-k]{cursor:pointer;user-select:none}
+.optres th[data-k].on{color:var(--accent)}
+.optres tr{cursor:pointer}
+.optres tr.sel td{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.optres tr.low td{opacity:.45}
+.optres td.err{color:var(--down);font-family:var(--f-ui);white-space:normal}
+.optheat{overflow:auto;border:1px solid var(--line);border-radius:5px;padding:8px;background:var(--bg)}
+.optheat table{border-collapse:separate;border-spacing:2px;width:auto;font:11px var(--f-num)}
+.optheat th{position:static;background:none;border:0;padding:2px 6px;color:var(--muted);font-size:11px;text-align:center}
+.optheat td{border:0;padding:5px 7px;text-align:center;color:#fff;border-radius:3px;cursor:pointer;min-width:46px}
+.optheat td.na{background:var(--raise);color:var(--muted)}
+.optheat .cap{font:11px var(--f-ui);color:var(--muted);margin:0 0 4px}
 </style>
 
 <div id="app">
@@ -1322,6 +1364,7 @@ html.m .stpick input{max-width:none}
       <div class="seg lt" id="libTabs">
         <button data-lt="bt" aria-pressed="true">Backtests</button>
         <button data-lt="ds" aria-pressed="false">Data files</button>
+        <button data-lt="op" aria-pressed="false" id="libOpTab" hidden>Optimizations</button>
       </div>
       <span class="spacer"></span>
       <label class="btn" for="fileIn" title="Import CSV or DBN files (several at once are combined)">Import file</label>
@@ -1340,6 +1383,7 @@ html.m .stpick input{max-width:none}
       <div class="seg st" id="stTabs">
         <button data-st="code" aria-pressed="true">Code</button>
         <button data-st="res" aria-pressed="false">Results</button>
+        <button data-st="opt" aria-pressed="false" id="stTabOpt" hidden>Optimize</button>
         <button data-st="help" aria-pressed="false">Help</button>
       </div>
       <span class="spacer"></span>
@@ -1396,6 +1440,36 @@ html.m .stpick input{max-width:none}
       </div>
     </div>
 
+    <div id="stOpt" class="stres" hidden>
+      <div class="optgrid">
+        <div class="optleft">
+          <div class="opthead"><h3>Settings in your code</h3>
+            <span class="optq">Ranges for the ticked settings: <button data-q="narrow">Narrow</button><button data-q="normal">Normal</button><button data-q="wide">Wide</button></span></div>
+          <div class="optlist"><table><thead><tr><th></th><th>Setting</th><th class="r">Now</th><th>Values to try</th><th class="r">Count</th></tr></thead><tbody id="optRows"></tbody></table></div>
+          <label class="f">Rules combinations must meet (optional, one per line)<textarea id="optRules" rows="2" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="e.g. FAST < SLOW"></textarea></label>
+        </div>
+        <div class="stcard optside">
+          <h3>Search</h3>
+          <div class="seg" id="optMode"><button data-v="grid" aria-pressed="true">All combinations</button><button data-v="random" aria-pressed="false">Random sample</button></div>
+          <label class="f" id="optNRow" hidden>Combinations to try<input id="optN" type="number" min="1" step="1" value="200"></label>
+          <label class="f">Goal<select id="optGoal"><option value="ndd">Net ÷ max drawdown</option><option value="net">Net P&amp;L</option><option value="pf">Profit factor</option><option value="take">Prop simulation: payouts − fees</option></select></label>
+          <div class="fgrid">
+            <label class="f">Minimum trades<input id="optMin" type="number" min="0" step="1" value="10"></label>
+            <label class="f">Check on the last<select id="optSplit"><option value="0">Off</option><option value="20">20% of dates</option><option value="30" selected>30% of dates</option><option value="40">40% of dates</option></select></label>
+          </div>
+          <p class="note" id="optCount"></p>
+          <p class="note">Runs over the dates, timeframe and options on the Code tab, with the costs and prop simulation in Session settings. Settings that are times of day are not offered.</p>
+          <div class="optbtns"><button id="optRun" class="primary">Run optimization</button><button id="optStop" disabled>Stop</button></div>
+        </div>
+      </div>
+      <div id="optResults" class="stres" hidden>
+        <div class="opttop"><p class="note" id="optSummary"></p>
+          <button id="optResume" hidden>Resume</button><button id="optZoom">Zoom in on the best</button><button id="optCsv">Copy as CSV</button></div>
+        <div id="optHeat" class="optheat" hidden></div>
+        <div class="sttr optres"><table><thead id="optHead"></thead><tbody id="optBody"></tbody></table></div>
+      </div>
+    </div>
+
     <div id="stHelp" class="sthelp" hidden>
       <div>
         <h4>Functions you write</h4>
@@ -1414,6 +1488,8 @@ html.m .stpick input{max-width:none}
         <p><code>ctx.df(n)</code>: the same candles as a pandas DataFrame (choose <b>numpy + pandas</b>). Building one on every bar is slow over long runs; numpy arrays are much faster.</p>
         <p><code>ctx.position</code> (+ long, − short, 0 flat), <code>ctx.position_price</code>, <code>ctx.equity</code>, <code>ctx.balance</code>, <code>ctx.time</code>, <code>ctx.price</code>, <code>ctx.orders</code>, <code>ctx.trades</code>, <code>ctx.history</code>.</p>
         <p><code>ctx.tick_size</code>, <code>ctx.ticks(n)</code> (n ticks as a price distance), <code>ctx.bid</code> and <code>ctx.ask</code> (sells fill at the bid, buys at the ask), <code>ctx.spread</code>, <code>ctx.round(price)</code> (to the data's precision), <code>ctx.point_value</code>, <code>ctx.at("09:30")</code> (a time to compare with <code>bar.time.time()</code>). Keep your own values on <code>ctx</code>, like <code>ctx.count = 0</code>.</p>
+        <h4 class="opthelp" hidden>Optimize (Windows)</h4>
+        <p class="opthelp" hidden>The Optimize tab lists the <code>NAME = value</code> settings at the top of your code (numbers, True/False and text choices; times of day are left out). Tick the ones to try, adjust the values, and it runs every combination, several at a time, ranked by your goal. A setting can also carry its own range: <code>FAST = param(9, 5, 30, step=5)</code>. <b>Check on the last</b> leaves the end of the dates out of the ranking and shows how each combination did there: a result that only works on the dates it was tuned on is luck.</p>
         <h4>Good to know</h4>
         <p><code>print()</code> writes to the console. Errors stop the run and show the line. A run is a new session: it is saved to the Library and opens on the chart, and the session you had stays in the Library.</p>
         <p><b>At bar close</b> is fast. <b>Every tick</b> calls Python many times per bar and is slower; the ticks are simulated from each bar's open, high, low and close. A strategy that never returns stops the app responding.</p>
@@ -1495,8 +1571,11 @@ html.m .stpick input{max-width:none}
 <script type="text/x-python" id="trRuntime">
 # Tape Replay strategy runtime. Runs inside Pyodide; the page calls the _tr_* functions and passes an
 # `api` object whose methods return JSON strings. Every _tr_* function returns None, or an error message.
+import ast
+import itertools
 import json
 import linecache
+import random
 import re
 import sys
 import traceback
@@ -1577,6 +1656,7 @@ class Context:
         self._cap = 4096
         self._a = np.zeros((6, self._cap))
         self._rejects = {}
+        self._quiet = bool(info.get("quiet"))
 
     # ---- history of completed candles (oldest first, the current one last)
     def _push(self, t, o, h, l, c, v):
@@ -1667,6 +1747,8 @@ class Context:
         # the same rejection with different prices counts as one; each kind is printed once, then counted
         key = re.sub(r"\([^)]*\)", "()", msg)
         n = self._rejects[key] = self._rejects.get(key, 0) + 1
+        if self._quiet:
+            return
         when = f"{self.time:%Y-%m-%d %H:%M} " if self.time else ""
         if n == 1 and len(self._rejects) <= 20:
             print(f"{when}Order rejected: {msg}")
@@ -1750,6 +1832,194 @@ def _err(e=None):
     return f"{et.__name__}: {ev}" + ("\n" + "\n".join(out) if out else "")
 
 
+def param(default, lo=None, hi=None, step=None, values=None):
+    """A setting the optimizer may vary: param(9, 5, 30, step=5) or param("range", values=["range", "candle"]).
+    In a normal run it is just the default."""
+    return default
+
+
+# ---- settings the optimizer can vary: simple NAME = value lines at the top of the strategy
+_NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
+_TIME = re.compile(r"^\s*\d{1,2}:\d{2}(:\d{2})?\s*$")
+_MONEY = re.compile(r"RISK|USD|DOLLAR|CASH|BALANCE|ACCOUNT|QTY|SIZE|LOTS?$|CONTRACTS?|STEP$")
+_OFF = re.compile(r"(^|[^\d.])0\s*=\s*off", re.I)
+
+
+def _const(node):
+    """(ok, value) for a literal number, bool or text."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, (bool, int, float, str)):
+        return True, node.value
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub) and isinstance(node.operand, ast.Constant) \
+            and isinstance(node.operand.value, (int, float)) and not isinstance(node.operand.value, bool):
+        return True, -node.operand.value
+    return False, None
+
+
+def _sites(tree):
+    """name -> (assign node, value node holder, index or None, param call or None), top level only."""
+    out = {}
+    for st in tree.body:
+        if not isinstance(st, ast.Assign) or len(st.targets) != 1:
+            continue
+        t, v = st.targets[0], st.value
+        pairs = []
+        if isinstance(t, ast.Name):
+            pairs = [(t.id, None)]
+        elif isinstance(t, ast.Tuple) and isinstance(v, ast.Tuple) and len(t.elts) == len(v.elts) and all(isinstance(e, ast.Name) for e in t.elts):
+            pairs = [(e.id, k) for k, e in enumerate(t.elts)]
+        for name, k in pairs:
+            if _NAME.match(name):
+                out[name] = (st, k)
+    return out
+
+
+def _value_node(st, k):
+    return st.value if k is None else st.value.elts[k]
+
+
+def _is_param(node):
+    return isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "param" and node.args
+
+
+def _tr_params(code):
+    """JSON list of the settings found: name, kind (int, float, bool, choice), value, choices, zero_off, money,
+    and lo/hi/step/values from param(). Times (HH:MM text), None and anything computed are left out."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return json.dumps({"error": _err_syntax()})
+    lines = code.splitlines()
+    found = []
+    for name, (st, k) in _sites(tree).items():
+        node = _value_node(st, k)
+        spec = {}
+        if _is_param(node):
+            ok, value = _const(node.args[0])
+            if not ok:
+                continue
+            names = ["lo", "hi", "step"]
+            for i, a in enumerate(node.args[1:4]):
+                ok2, x = _const(a)
+                if ok2:
+                    spec[names[i]] = x
+            for kw in node.keywords:
+                if kw.arg in ("lo", "hi", "step"):
+                    ok2, x = _const(kw.value)
+                    if ok2:
+                        spec[kw.arg] = x
+                elif kw.arg == "values" and isinstance(kw.value, (ast.List, ast.Tuple)):
+                    vals = [_const(e) for e in kw.value.elts]
+                    if all(ok3 for ok3, _ in vals):
+                        spec["values"] = [x for _, x in vals]
+        else:
+            ok, value = _const(node)
+            if not ok:
+                continue
+        if isinstance(value, str) and _TIME.match(value):
+            continue  # times of day are not optimized
+        line = lines[st.lineno - 1] if st.lineno - 1 < len(lines) else ""
+        comment = line.split("#", 1)[1] if "#" in line else ""
+        kind = "bool" if isinstance(value, bool) else "int" if isinstance(value, int) else "float" if isinstance(value, float) else "choice"
+        item = {"name": name, "kind": kind, "value": value, "line": st.lineno, "comment": comment.strip(),
+                "zero_off": bool(_OFF.search(comment)), "money": bool(_MONEY.search(name)), "param": bool(spec) or _is_param(node)}
+        if kind == "choice":
+            quoted = re.findall(r'"([^"\n]+)"|\'([^\'\n]+)\'', comment)
+            choices = [a or b for a, b in quoted]
+            item["choices"] = list(dict.fromkeys([value] + [c for c in choices if not _TIME.match(c)]))
+        item.update(spec)
+        found.append(item)
+    found.sort(key=lambda x: x["line"])
+    return json.dumps({"params": found})
+
+
+def _err_syntax():
+    et, ev, tb = sys.exc_info()
+    return f"SyntaxError: {ev.msg} (line {ev.lineno})"
+
+
+def _apply(code, overrides):
+    """The strategy's code with the chosen settings written in, so constants computed from them follow."""
+    tree = ast.parse(code)
+    sites = _sites(tree)
+    for name, value in overrides.items():
+        if name not in sites:
+            raise NameError(f"The setting {name} is not in the code any more.")
+        st, k = sites[name]
+        new = ast.Constant(value)
+        node = _value_node(st, k)
+        if _is_param(node):
+            node.args[0] = new
+        elif k is None:
+            st.value = new
+        else:
+            st.value.elts[k] = new
+    return compile(ast.fix_missing_locations(tree), "<strategy>", "exec")
+
+
+def _tr_combos(spec_json):
+    """The combinations to run. spec: {params: [{name, values}], rules: [text], mode: grid|random, n, seed, cap}.
+    JSON: {combos: [{name: value}], total, skipped} or {error}."""
+    spec = json.loads(spec_json)
+    params = [p for p in spec.get("params", []) if p.get("values")]
+    names = [p["name"] for p in params]
+    rules = [r.strip() for r in spec.get("rules", []) if r.strip() and not r.strip().startswith("#")]
+    try:
+        compiled = [(r, compile(r, "<rule>", "eval")) for r in rules]
+    except SyntaxError as e:
+        return json.dumps({"error": f"This rule is not valid Python: {e.text.strip() if e.text else ''}"})
+    for r, c in compiled:
+        unknown = [n for n in c.co_names if n not in names and n not in ("abs", "min", "max", "round")]
+        if unknown:
+            return json.dumps({"error": f"The rule \"{r}\" uses {', '.join(unknown)}, which is not a ticked setting."})
+    sizes = [len(p["values"]) for p in params]
+    total = 1
+    for s in sizes:
+        total *= s
+    cap = int(spec.get("cap", 20000))
+
+    def combo(i):
+        d = {}
+        for p, s in zip(reversed(params), reversed(sizes)):
+            i, r = divmod(i, s)
+            d[p["name"]] = p["values"][r]
+        return {n: d[n] for n in names}
+
+    def ok(d):
+        env = {"abs": abs, "min": min, "max": max, "round": round}
+        try:
+            return all(eval(c, env, d) for _, c in compiled)
+        except Exception:
+            return False
+
+    if spec.get("mode") == "random":
+        n = max(1, int(spec.get("n", 100)))
+        rnd = random.Random(spec.get("seed", 1))
+        order = rnd.sample(range(total), total) if total <= 200000 else (rnd.randrange(total) for _ in range(n * 20))
+        combos, seen, skipped = [], set(), 0
+        for i in order:
+            if len(combos) >= n:
+                break
+            if i in seen:
+                continue
+            seen.add(i)
+            d = combo(i)
+            if ok(d):
+                combos.append(d)
+            else:
+                skipped += 1
+        return json.dumps({"combos": combos, "total": total, "skipped": skipped})
+    if total > cap:
+        return json.dumps({"error": f"{total:,} combinations is more than {cap:,}. Narrow the ranges, or use a random sample.", "total": total})
+    combos, skipped = [], 0
+    for i in range(total):
+        d = combo(i)
+        if ok(d):
+            combos.append(d)
+        else:
+            skipped += 1
+    return json.dumps({"combos": combos, "total": total, "skipped": skipped})
+
+
 def _tr_check(code):
     """None when the code compiles, else the syntax error."""
     try:
@@ -1771,10 +2041,13 @@ def _start(api, code, info_json):
     try:
         info = json.loads(info_json)
         ctx = Context(api, info)
-        ns = {"__name__": "strategy", "np": np, "numpy": np}
+        ns = {"__name__": "strategy", "np": np, "numpy": np, "param": param}
+        if info.get("quiet"):
+            ns["print"] = lambda *a, **k: None
         # so tracebacks can show the line of the strategy that failed
         linecache.cache["<strategy>"] = (len(code), None, code.splitlines(True), "<strategy>")
-        exec(compile(code, "<strategy>", "exec"), ns)
+        overrides = info.get("overrides") or {}
+        exec(_apply(code, overrides) if overrides else compile(code, "<strategy>", "exec"), ns)
         _S.update(ctx=ctx, ns=ns, on_bar=ns.get("on_bar"), on_tick=ns.get("on_tick"),
                   on_fill=ns.get("on_fill"), on_end=ns.get("on_end"))
         if not callable(_S["on_bar"]) and not callable(_S["on_tick"]):
@@ -1920,6 +2193,10 @@ const STORE = (TOKEN && location.protocol === 'http:') ? (() => {
   const json = { 'Content-Type': 'application/json' };
   return {
     listSessions: () => call('GET', 'sessions'),
+    listOptims: () => call('GET', 'optims'),
+    getOptim: id => call('GET', 'optims/' + id),
+    saveOptim: (id, obj) => call('PUT', 'optims/' + id, JSON.stringify(obj), json),
+    deleteOptim: id => call('DELETE', 'optims/' + id),
     getSession: id => call('GET', 'sessions/' + id),
     saveSession: (id, obj) => call('PUT', 'sessions/' + id, JSON.stringify(obj), json),
     renameSession: (id, name) => call('PATCH', 'sessions/' + id, JSON.stringify({ name }), json),
@@ -5283,6 +5560,14 @@ async function renderLib(tab) {
           <td>${s.id === S.sid ? '<span class="tag live">open now</span>' : `<span class="tag">${esc(s.status || '')}</span>`}${m.prop ? ` <span class="tag ${m.prop === 'Failed' ? 'neg' : m.prop === 'Passed' ? 'pos' : ''}">Prop: ${esc(m.prop)}</span>` : ''}</td>
           <td>${new Date(s.updated).toLocaleString()}</td>
           <td><button data-open="${esc(s.id)}">Open</button> <button data-del="${esc(s.id)}">Delete</button></td></tr>`; }).join('') + '</tbody></table>';
+    } else if (tab === 'op') {
+      $('#libNote').textContent = 'Strategy optimizations are saved here as they run. Open one to see its results, resume it, or open a combination on the chart.';
+      const list = (await STORE.listOptims()).sort((a, b) => b.updated - a.updated);
+      if (!list.length) { body.innerHTML = '<div class="empty">No optimizations yet. Run one from the Strategy panel\u2019s Optimize tab.</div>'; return; }
+      body.innerHTML = `<table><thead><tr><th>Name</th><th>Data</th><th>TF</th><th>Dates</th><th class="r">Done</th><th>Goal</th><th>Best</th><th>Saved</th><th></th></tr></thead><tbody>` +
+        list.map(o => `<tr><td>${esc(o.name || '')}</td><td>${esc(o.datasetName || '')}</td><td>${esc(o.tf || '')}</td><td>${o.from ? fmtDay(o.from).slice(0, 10) + ' → ' + fmtDay(o.to).slice(0, 10) : '—'}</td>
+          <td class="r">${(o.done || 0).toLocaleString('en-US')} / ${(o.total || 0).toLocaleString('en-US')}</td><td>${esc(OPT_GOALS[o.goal] || '')}</td><td>${esc(o.best || '—')}</td>
+          <td>${new Date(o.updated).toLocaleString()}</td><td><button data-opopen="${esc(o.id)}">Open</button> <button data-opdel="${esc(o.id)}">Delete</button></td></tr>`).join('') + '</tbody></table>';
     } else {
       $('#libNote').innerHTML = 'Data files you load are kept here, so you can start new backtests on them without finding the file again. ' +
         'For real futures data, Tape Replay reads <a href="https://databento.com/" target="_blank" rel="noopener">Databento</a> ' +
@@ -5333,6 +5618,14 @@ function wireLib() {
       } else if (b.dataset.def) {
         PREFS.defaultDs = PREFS.defaultDs && PREFS.defaultDs.id === b.dataset.def ? null : { id: b.dataset.def };
         savePrefs(); renderLib('ds');
+      } else if (b.dataset.opopen) {
+        if (!E) return toast('Open a session first: the results open in its Strategy panel.', 'err');
+        $('#lib').hidden = true; await optOpenSaved(b.dataset.opopen);
+      } else if (b.dataset.opdel) {
+        if (!armDelete(b)) return;
+        await STORE.deleteOptim(b.dataset.opdel);
+        if (OPT.doc && OPT.doc.id === b.dataset.opdel) OPT.doc = null;
+        renderLib('op');
       } else if (b.dataset.dsdel) {
         if (b.dataset.dsdel === SYNTH_ID) return toast('The practice data is built in and generated as needed, so there is nothing to delete.');
         if (!armDelete(b)) return;
@@ -6266,7 +6559,7 @@ function wire() {
       if (e.key === 'Escape') endTour(); else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); tourGo(TOUR.i + 1); } else if (e.key === 'ArrowLeft') tourGo(TOUR.i - 1);
       return;
     }
-    if (!$('#strat').hidden) { if (e.key === 'Escape' && !RUN.on) closeStrat(); return; }
+    if (!$('#strat').hidden) { if (e.key === 'Escape') closeStrat(); return; }
     if (!$('#lib').hidden) { if (e.key === 'Escape') $('#lib').hidden = true; return; }
     if (SHEET.el) { if (e.key === 'Escape') closeSheet(); return; }
     if (POP.el) { if (e.key === 'Escape') closePop(); return; }
@@ -6448,6 +6741,7 @@ const ymd = t => fmtDT(t).slice(0, 10);
 const ymdUtc = (s, addDays) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? zoneToUtc(+m[1], +m[2] - 1, +m[3] + addDays) : NaN; };
 
 function stratLog(text, kind) {
+  if (RUN.quiet) return;
   const box = $('#stCons'), d = document.createElement('div');
   if (kind) d.className = kind;
   d.textContent = text; box.appendChild(d);
@@ -6467,7 +6761,8 @@ function stratReject(msg) {
 }
 function stratTab(t) {
   for (const b of document.querySelectorAll('#stTabs button')) b.setAttribute('aria-pressed', String(b.dataset.st === t));
-  $('#stCode').hidden = t !== 'code'; $('#stRes').hidden = t !== 'res'; $('#stHelp').hidden = t !== 'help';
+  $('#stCode').hidden = t !== 'code'; $('#stRes').hidden = t !== 'res'; $('#stHelp').hidden = t !== 'help'; $('#stOpt').hidden = t !== 'opt';
+  if (t === 'opt') optOpen();
 }
 function stratLines() {
   const src = $('#stSrc');
@@ -6515,11 +6810,13 @@ function openStrat() {
   if (!E || !D) return toast('Start a session first: a strategy runs on the session’s data.', 'err');
   setPlaying(false); endTour();
   fillStrat();
+  $('#stTabOpt').hidden = !optAvailable();
+  for (const el of document.querySelectorAll('.opthelp')) el.hidden = !optAvailable();
   if (!$('#stCons').childElementCount) stratLog('Python loads the first time you run a strategy, in a few seconds.');
   $('#strat').hidden = false;
   if (S.strategy) { stratResults(); stratTab('res'); } else stratTab('code');
 }
-function closeStrat() { if (!RUN.on) $('#strat').hidden = true; }
+function closeStrat() { if (!RUN.on && !OPT.on) $('#strat').hidden = true; }
 
 function loadScript(src) {
   return new Promise((ok, bad) => {
@@ -6546,7 +6843,7 @@ async function loadPython(libs) {
       await py.loadPackage('numpy', { messageCallback: () => {}, errorCallback: m => stratLog(m, 'er') });
       py.runPython($('#trRuntime').textContent);
       const g = n => py.globals.get(n);
-      PY.fn = { check: g('_tr_check'), start: g('_tr_start'), bar: g('_tr_bar'), tick: g('_tr_tick'), fill: g('_tr_fill'), end: g('_tr_end') };
+      PY.fn = { check: g('_tr_check'), start: g('_tr_start'), bar: g('_tr_bar'), tick: g('_tr_tick'), fill: g('_tr_fill'), end: g('_tr_end'), params: g('_tr_params'), combos: g('_tr_combos') };
       PY.libs.add('numpy'); PY.py = py;
     })();
     try { await PY.loading; } finally { PY.loading = null; }
@@ -6614,19 +6911,82 @@ function setRunning(on) {
   $('#stRun').disabled = on; $('#stStop').disabled = !on; $('#stClose').disabled = on;
   for (const el of document.querySelectorAll('#stCode input, #stCode select, #stCode textarea, #stMode button, #stLibs button')) el.disabled = on;
 }
-async function runStrategy() {
-  if (RUN.on || !E || !D) return;
+// one strategy run from the engine's current state (E and T at the start bar) up to bar `end`, shared by backtests
+// on the chart and optimization runs (quiet, in workers). o.slice(done) is awaited between slices of work.
+async function stratCore(o) {
+  const { code, mode, tf, end } = o, rebuy = !!o.rebuy, maxEvals = o.maxEvals || Infinity;
+  RUN.on = true; RUN.stop = false; RUN.ended = ''; RUN.pending = []; RUN.fills = []; RUN.rejects = new Map(); RUN.shown = 0; RUN.quiet = !!o.quiet;
+  const start = E.i, total = Math.max(1, end - start), tr0 = performance.now();
+  let fail = null, started = false, evalEnd = '';
+  try {
+    const info = { name: D.name, tf: tfLabel(tf), tick: mintick(), pv: cfg.pv, spread: cfg.spread, qty: cfg.qty, prec: PREC, mode, balance: T.start,
+                   quiet: !!o.quiet, overrides: o.overrides || {} };
+    const r = JSON.parse(PY.fn.start(stratApi, code, JSON.stringify(info)));
+    started = true;
+    if (r.error) fail = r.error;
+    else {
+      if (o.onStart) o.onStart();
+      const bucketOf = makeBucket(tf);
+      let C = null;
+      while (E.i < end && !RUN.stop && !fail && !evalEnd) {
+        const until = performance.now() + 30;
+        let n = 0;
+        while (E.i < end && !fail && !evalEnd) {
+          const i = E.i, queued = RUN.pending.length > 0;
+          processTick(); E.stop = false; // prop rules may ask the replay to pause; a run carries on
+          if (T.sim && T.sim.over && !evalEnd) { // the account failed (its positions are already closed)
+            if (rebuy && T.sim.attempt < maxEvals) {
+              simRestart();
+              RUN.pending = []; // orders queued for the failed account are not carried over
+              stratLog(`${fmtDT(E.time).slice(0, 16)} New evaluation, attempt ${T.sim.attempt}${cfg.sim.fee ? ` (${money(cfg.sim.fee)})` : ''}.`, 'ok');
+            } else evalEnd = rebuy ? `Reached ${T.sim.attempt} evaluations, so the run ends here.` : 'The account failed, so the run ends here. Tick "buy a new evaluation" to keep going.';
+            if (evalEnd) { stratLog(`${fmtDT(E.time).slice(0, 16)} ${evalEnd}`, 'er'); RUN.ended = 'Ended: the account failed'; }
+          }
+          if (queued) execPending();
+          if (RUN.fills.length) fail = deliverFills(r.on_fill);
+          if (!fail && mode === 'tick' && r.on_tick) fail = PY.fn.tick(E.time, E.price, zoneOff(E.time), ...stratState()) || null;
+          if (!fail && E.i !== i) { // base bar i is done: add it to the strategy's candle
+            if (!C) C = { time: bucketOf(D.t[i]), o: D.o[i], h: D.h[i], l: D.l[i], c: D.c[i], v: D.v[i] || 0 };
+            else { if (D.h[i] > C.h) C.h = D.h[i]; if (D.l[i] < C.l) C.l = D.l[i]; C.c = D.c[i]; C.v += D.v[i] || 0; }
+            if (E.i >= end || bucketOf(D.t[E.i]) !== C.time) {
+              fail = PY.fn.bar(C.time, C.o, C.h, C.l, C.c, C.v, zoneOff(C.time), ...stratState()) || null;
+              C = null;
+            }
+          }
+          if (o.slice && (++n & 63) === 0 && performance.now() > until) break;
+        }
+        if (o.slice) await o.slice((E.i - start) / total);
+      }
+    }
+  } catch (e) {
+    fail = fail || (e && e.message) || String(e);
+  } finally {
+    if (started) { const endErr = PY.fn.end(...stratState()); fail = fail || endErr || null; }
+    RUN.on = false; RUN.fills = null; RUN.pending = [];
+  }
+  return { fail, stopped: RUN.stop, ended: RUN.ended, secs: (performance.now() - tr0) / 1000, start, end };
+}
+// the Code tab's choices: the strategy, its dates on the loaded data, and how it runs
+function stratForm() {
   const p = stratPrefs(), code = $('#stSrc').value, name = $('#stName').value.trim() || 'Strategy';
   const mode = p.mode === 'tick' ? 'tick' : 'bar', libs = p.libs === 'pandas' ? ['numpy', 'pandas'] : ['numpy'];
   const tf = parseTF($('#stTf').value), t0 = ymdUtc($('#stFrom').value, 0), t1 = ymdUtc($('#stTo').value, 1);
-  stratTab('code'); $('#stCons').textContent = '';
-  if (!isFinite(t0) || !isFinite(t1) || t1 <= t0) return stratLog('Pick a From date on or before the To date.', 'er');
-  if (p.libs !== 'pandas' && /^\s*(import\s+pandas|from\s+pandas\b)/m.test(code)) return stratLog('This strategy uses pandas: choose "numpy + pandas" under Libraries.', 'er');
+  if (!isFinite(t0) || !isFinite(t1) || t1 <= t0) return { error: 'Pick a From date on or before the To date.' };
+  if (p.libs !== 'pandas' && /^\s*(import\s+pandas|from\s+pandas\b)/m.test(code)) return { error: 'This strategy uses pandas: choose "numpy + pandas" under Libraries.' };
   const start = clamp(lowerBound(D.t, t0), 1, D.n - 1), end = clamp(lowerBound(D.t, t1), start + 1, D.n);
+  const rebuy = !!(p.rebuy && cfg.sim && cfg.sim.on);
+  return { p, code, name, mode, libs, tf, start, end, rebuy, maxEvals: p.maxEvals || 0 };
+}
+async function runStrategy(opts = {}) {
+  if (RUN.on || OPT.on || !E || !D) return;
+  stratTab('code'); $('#stCons').textContent = '';
+  const f = stratForm();
+  if (f.error) return stratLog(f.error, 'er');
+  const { p, code, name, mode, libs, tf, start, end, rebuy, maxEvals } = f, overrides = opts.overrides || null;
   $('#stName').value = name; saveStratCode(); fillStratList('u:' + name);
   p.tf = tfLabel(tf); savePrefsSoon();
   setRunning(true);
-  let fail = null, started = false;
+  let fail = null, ran = false, res = null;
   try {
     const was = !!PY.py, tl = performance.now();
     stratStatus(was ? 'Starting…' : 'Loading Python…');
@@ -6635,74 +6995,32 @@ async function runStrategy() {
     const syn = PY.fn.check(code);
     if (syn) { stratStatus('Fix the error and run again'); return stratLog(syn, 'er'); }
     // a new session from the chosen start: the one that was open is saved and stays in the Library
-    RUN.on = true; RUN.stop = false; RUN.ended = ''; RUN.pending = []; RUN.fills = []; RUN.rejects = new Map(); RUN.shown = 0;
+    RUN.on = true; // no tour or pop-ups while the session starts
     setPlaying(false);
     startSession(D, start, TF);
-    S.name = `${name} · Automated`;
-    S.strategy = { name, code, mode, libs: p.libs, tf: tfLabel(tf), from: D.t[start], to: D.t[end - 1] };
-    const info = { name: D.name, tf: tfLabel(tf), tick: mintick(), pv: cfg.pv, spread: cfg.spread, qty: cfg.qty, prec: PREC, mode, balance: T.start };
-    const r = JSON.parse(PY.fn.start(stratApi, code, JSON.stringify(info)));
-    started = true;
-    if (r.error) { fail = r.error; return; }
-    stratLog(`Running ${(end - start).toLocaleString('en-US')} bars of ${tfLabel({ kind: 's', sec: D.base })} data on ${tfLabel(tf)} candles, ${fmtDT(D.t[start]).slice(0, 16)} to ${fmtDT(D.t[end - 1]).slice(0, 16)}${mode === 'tick' ? ', every tick' : ''}.`);
-    const rebuy = !!(p.rebuy && cfg.sim && cfg.sim.on), maxEvals = p.maxEvals || Infinity;
-    S.strategy.rebuy = rebuy; S.strategy.maxEvals = p.maxEvals || 0;
-    let evalEnd = '';
-    const bucketOf = makeBucket(tf), total = end - start, tr0 = performance.now();
-    let C = null;
-    while (E.i < end && !RUN.stop && !fail && !evalEnd) {
-      const until = performance.now() + 30;
-      let n = 0;
-      while (E.i < end && !fail && !evalEnd) {
-        const i = E.i, queued = RUN.pending.length > 0;
-        processTick(); E.stop = false; // prop rules may ask the replay to pause; a run carries on
-        if (T.sim && T.sim.over && !evalEnd) { // the account failed (its positions are already closed)
-          if (rebuy && T.sim.attempt < maxEvals) {
-            simRestart();
-            RUN.pending = []; // orders queued for the failed account are not carried over
-            stratLog(`${fmtDT(E.time).slice(0, 16)} New evaluation, attempt ${T.sim.attempt}${cfg.sim.fee ? ` (${money(cfg.sim.fee)})` : ''}.`, 'ok');
-          } else evalEnd = rebuy ? `Reached ${T.sim.attempt} evaluations, so the run ends here.` : 'The account failed, so the run ends here. Tick "buy a new evaluation" to keep going.';
-          if (evalEnd) { stratLog(`${fmtDT(E.time).slice(0, 16)} ${evalEnd}`, 'er'); RUN.ended = 'Ended: the account failed'; }
-        }
-        if (queued) execPending();
-        if (RUN.fills.length) fail = deliverFills(r.on_fill);
-        if (!fail && mode === 'tick' && r.on_tick) fail = PY.fn.tick(E.time, E.price, zoneOff(E.time), ...stratState()) || null;
-        if (!fail && E.i !== i) { // base bar i is done: add it to the strategy's candle
-          if (!C) C = { time: bucketOf(D.t[i]), o: D.o[i], h: D.h[i], l: D.l[i], c: D.c[i], v: D.v[i] || 0 };
-          else { if (D.h[i] > C.h) C.h = D.h[i]; if (D.l[i] < C.l) C.l = D.l[i]; C.c = D.c[i]; C.v += D.v[i] || 0; }
-          if (E.i >= end || bucketOf(D.t[E.i]) !== C.time) {
-            fail = PY.fn.bar(C.time, C.o, C.h, C.l, C.c, C.v, zoneOff(C.time), ...stratState()) || null;
-            C = null;
-          }
-        }
-        if ((++n & 63) === 0 && performance.now() > until) break;
-      }
-      const done = (E.i - start) / total;
-      stratStatus(`${fmtDT(E.time).slice(0, 10)} · ${T.hist.length} trades`, done);
-      await new Promise(res => setTimeout(res, 0));
-    }
-    const secs = ((performance.now() - tr0) / 1000).toFixed(1);
-    if (RUN.stop) stratLog(`Stopped at ${fmtDT(E.time).slice(0, 16)}.`, 'er');
-    else if (!fail) stratLog(`Finished in ${secs} s.`, 'ok');
+    S.name = `${name}${overrides ? ` (${optLabel(overrides)})` : ''} · Automated`;
+    S.strategy = { name, code, mode, libs: p.libs, tf: tfLabel(tf), from: D.t[start], to: D.t[end - 1], rebuy, maxEvals, overrides };
+    ran = true;
+    res = await stratCore({ code, mode, tf, end, rebuy, maxEvals, overrides,
+      onStart: () => stratLog(`Running ${(end - start).toLocaleString('en-US')} bars of ${tfLabel({ kind: 's', sec: D.base })} data on ${tfLabel(tf)} candles, ${fmtDT(D.t[start]).slice(0, 16)} to ${fmtDT(D.t[end - 1]).slice(0, 16)}${mode === 'tick' ? ', every tick' : ''}${overrides ? `, with ${optLabel(overrides)}` : ''}.`),
+      slice: async done => { stratStatus(`${fmtDT(E.time).slice(0, 10)} · ${T.hist.length} trades`, done); await new Promise(r => setTimeout(r, 0)); } });
+    fail = res.fail;
+    if (res.stopped) stratLog(`Stopped at ${fmtDT(E.time).slice(0, 16)}.`, 'er');
+    else if (!fail) stratLog(`Finished in ${res.secs.toFixed(1)} s.`, 'ok');
   } catch (e) {
     fail = fail || (e && e.message) || String(e);
   } finally {
-    if (started) {
-      const endErr = PY.fn.end(...stratState());
-      fail = fail || endErr || null;
-    }
-    const wasOn = RUN.on;
-    RUN.on = false; RUN.fills = null; RUN.pending = [];
+    RUN.on = false;
     setRunning(false);
     if (fail) { stratLog(fail, 'er'); stratStatus('Stopped by an error in the strategy'); }
-    if (wasOn) {
+    if (ran) {
       for (const [k, n] of RUN.rejects) if (n > 1) stratLog(`${n} times: ${k.replace(/\(\)/g, '').replace(/\s+\./g, '.')}`, 'er');
       E.simTime = E.time;
       R.full = true; R.marks = true; R.tables = true;
       refreshLines(); render(); ui(true);
       chart.timeScale().scrollToRealTime();
       S.dirty = true; saveSession(true);
-      if (!fail) stratStatus(RUN.stop ? 'Stopped' : RUN.ended || 'Done', (E.i - start) / Math.max(1, end - start));
+      if (!fail) stratStatus(res && res.stopped ? 'Stopped' : (res && res.ended) || 'Done', (E.i - start) / Math.max(1, end - start));
       const s = computeStats();
       stratLog(`${s.trades} trades, net ${smoney(s.net)}${T.trades.length ? `, ${T.trades.length} still open` : ''}.`, s.net >= 0 ? 'ok' : 'er');
       if (T.sim) { const take = (T.sim.income || 0) - (T.sim.fees || 0); stratLog(`Prop simulation: ${T.sim.attempt} evaluation${T.sim.attempt > 1 ? 's' : ''}, ${money(T.sim.fees || 0)} in fees, ${money(T.sim.income || 0)} paid out to you: ${smoney(take)}. Account now: ${simLabel() || '—'}.`, take >= 0 ? 'ok' : 'er'); }
@@ -6753,6 +7071,7 @@ function wireStrat() {
   $('#strat').addEventListener('mousedown', e => { if (e.target.id === 'strat') closeStrat(); });
   $('#stRun').onclick = runStrategy;
   $('#stStop').onclick = () => { RUN.stop = true; };
+  wireOpt();
   $('#stTabs').onclick = e => { const b = e.target.closest('button'); if (b) stratTab(b.dataset.st); };
   $('#stAgain').onclick = () => stratTab('code');
   $('#stChart').onclick = () => { closeStrat(); if (document.documentElement.classList.contains('m')) setMview('chart'); };
@@ -6794,6 +7113,518 @@ function wireStrat() {
   });
 }
 
+/* ---------------- strategy optimization (Windows app) ---------------- */
+// Runs the strategy many times with different settings, several at once in Web Workers. Each worker runs this same
+// script (with no screen; see workerMain) so its fills, costs and prop simulation are exactly the chart's. The data
+// is shared with the workers, not copied, when the page is cross-origin isolated (the desktop server sends the headers).
+const OPT_GOALS = { ndd: 'Net ÷ max drawdown', net: 'Net P&L', pf: 'Profit factor', take: 'Payouts − fees' };
+const OPT = { on: false, stop: false, params: [], doc: null, rows: [], workers: [], resolve: null, sortKey: 'score', sortDir: -1, sel: null, saveT: 0, detectT: 0, rateT: 0, rate: 0 };
+let CAN_OPT = false;
+const optAvailable = () => !!(STORE && CAN_OPT && !window.TAPE_IOS && !TOUCH);
+const optFmt = v => typeof v === 'boolean' ? (v ? 'True' : 'False') : typeof v === 'string' ? v : String(+(+v).toPrecision(10));
+const optLabel = o => Object.entries(o).map(([k, v]) => `${k}=${optFmt(v)}`).join(', ');
+const optMsg = (text, er) => { const el = $('#optCount'); el.textContent = text; el.classList.toggle('er', !!er); };
+const niceStep = x => { if (!(x > 0)) return 1; const e = 10 ** Math.floor(Math.log10(x)); for (const m of [1, 2, 2.5, 5, 10]) if (x <= m * e * 1.0001) return m * e; return 10 * e; };
+const roundTo = (x, step) => +x.toFixed(Math.min(10, Math.max(0, -Math.floor(Math.log10(step)) + 2)));
+
+// values to try for a setting: centred on its value with a round step (narrow, normal or wide), or param()'s range
+function optValues(p, preset) {
+  if (p.kind === 'bool') return [true, false];
+  if (p.kind === 'choice') return (p.choices && p.choices.length ? p.choices : [p.value]).slice();
+  if (preset === 'param' && p.values) return p.values.slice();
+  const isInt = p.kind === 'int', v = p.value, out = [];
+  const snap = x => isInt ? Math.round(x) : x;
+  if (preset === 'param' && p.lo != null && p.hi != null) {
+    const lo = Math.min(p.lo, p.hi), hi = Math.max(p.lo, p.hi);
+    let step = p.step > 0 ? p.step : niceStep((hi - lo) / 6); if (isInt) step = Math.max(1, Math.round(step));
+    for (let n = 0; n < 2000; n++) { const x = lo + n * step; if (x > hi + step * 1e-9) break; out.push(isInt ? Math.round(x) : roundTo(x, step)); }
+  } else {
+    const [fa, fb, k] = { narrow: [0.75, 1.25, 5], normal: [0.5, 1.5, 7], wide: [0.25, 3, 9] }[preset] || [0.5, 1.5, 7];
+    let lo, hi;
+    if (v === 0) { lo = 0; hi = isInt ? k - 1 : 1; }
+    else { lo = Math.min(v * fa, v * fb); hi = Math.max(v * fa, v * fb); }
+    let step = niceStep((hi - lo) / (k - 1)); if (isInt) step = Math.max(1, Math.round(step));
+    if ((hi - lo) / step < 2) { lo = Math.min(lo, v - step); hi = Math.max(hi, v + step); } // at least three values
+    // out from the value in whole steps, both ways, inside the range
+    for (let n = -1000; n <= 1000; n++) {
+      const x = v + n * step;
+      if (x < lo - step * 1e-9 || x > hi + step * 1e-9) continue;
+      if (isInt && v >= 1 && x < 1) continue;
+      out.push(isInt ? Math.round(x) : roundTo(x, step));
+    }
+  }
+  if (!out.includes(v)) out.push(snap(v));
+  if (p.zero_off && !out.includes(0)) out.push(0);
+  return [...new Set(out)].sort((x, y) => x - y);
+}
+function optText(p, vals) {
+  if (p.kind === 'bool') return vals.map(optFmt).join(', ');
+  if (p.kind === 'choice') return vals.join(', ');
+  if (vals.length > 8) { // an even run: lo..hi step s
+    const d = vals[1] - vals[0];
+    if (vals.every((x, k) => !k || Math.abs(x - vals[k - 1] - d) < Math.abs(d) * 1e-6)) return `${optFmt(vals[0])}..${optFmt(vals[vals.length - 1])} step ${optFmt(d)}`;
+  }
+  return vals.map(optFmt).join(', ');
+}
+// what was typed: "5, 10, 20", "5..30 step 5" (or "5..30/5"); True/False; text choices
+function optParse(p, text) {
+  const s = String(text || '').trim();
+  if (!s) return { error: 'no values' };
+  if (p.kind === 'bool') {
+    const v = s.split(/[\s,]+/).filter(Boolean).map(x => /^(true|yes|on|1)$/i.test(x) ? true : /^(false|no|off|0)$/i.test(x) ? false : null);
+    return v.includes(null) ? { error: 'use True and False' } : { vals: [...new Set(v)] };
+  }
+  if (p.kind === 'choice') return { vals: [...new Set(s.split(',').map(x => x.trim().replace(/^["']|["']$/g, '')).filter(Boolean))] };
+  const m = s.match(/^(-?\d*\.?\d+)\s*\.\.\s*(-?\d*\.?\d+)(?:\s*(?:step|\/)\s*(\d*\.?\d+))?$/i);
+  if (m) {
+    let lo = +m[1], hi = +m[2]; if (lo > hi) [lo, hi] = [hi, lo];
+    const step = m[3] ? +m[3] : p.kind === 'int' ? 1 : niceStep((hi - lo) / 6);
+    if (!(step > 0)) return { error: 'the step must be more than 0' };
+    if ((hi - lo) / step > 5000) return { error: 'too many values' };
+    const vals = [];
+    for (let n = 0; ; n++) { const x = lo + n * step; if (x > hi + step * 1e-9) break; vals.push(p.kind === 'int' && Number.isInteger(step) ? Math.round(x) : roundTo(x, step)); }
+    return { vals };
+  }
+  const vals = s.split(/[\s,;]+/).filter(Boolean).map(Number);
+  return vals.some(x => !isFinite(x)) ? { error: 'numbers, separated by commas' } : { vals: [...new Set(vals)] };
+}
+
+// the settings in the code (read by Python), keeping what was ticked and typed for each
+async function optDetect() {
+  const code = $('#stSrc').value;
+  if (!PY.py) {
+    $('#optRows').innerHTML = '<tr><td colspan="5" class="empty">Loading Python to read the settings in your code…</td></tr>';
+    try { await loadPython(['numpy']); } catch (e) { $('#optRows').innerHTML = `<tr><td colspan="5" class="empty">${esc(e.message)}</td></tr>`; return; }
+  }
+  const r = JSON.parse(PY.fn.params(code));
+  if (r.error) { $('#optRows').innerHTML = `<tr><td colspan="5" class="empty">Fix the code first: ${esc(r.error)}</td></tr>`; OPT.params = []; return optCount(); }
+  const old = new Map(OPT.params.map(p => [p.name, p]));
+  OPT.params = r.params.map(p => {
+    const o = old.get(p.name), same = o && o.kind === p.kind && o.value === p.value;
+    return { ...p, on: o ? o.on : !!p.param, text: same ? o.text : optText(p, optValues(p, p.param ? 'param' : 'normal')) };
+  });
+  optRows();
+}
+function optRows() {
+  const ps = OPT.params;
+  $('#optRows').innerHTML = ps.length ? ps.map(p => {
+    const r = optParse(p, p.text);
+    return `<tr data-n="${esc(p.name)}" class="${p.on ? '' : 'off'}">
+      <td><input type="checkbox" data-on${p.on ? ' checked' : ''} aria-label="Try values for ${esc(p.name)}"></td>
+      <td><b>${esc(p.name)}</b>${p.money ? '<span class="tag" title="Money and size settings mostly scale the results, so they are not ticked for you.">size</span>' : ''}${p.kind === 'choice' ? '<span class="tag">choice</span>' : ''}<span class="hint" title="${esc(p.comment || '')}">${esc(p.comment || '')}</span></td>
+      <td class="r">${esc(optFmt(p.value))}</td>
+      <td><input class="optv${r.error ? ' bad' : ''}" data-v value="${esc(p.text)}" spellcheck="false" aria-label="Values for ${esc(p.name)}" title="${r.error ? esc(r.error) : 'A list like 5, 10, 20, or a range like 5..30 step 5'}"></td>
+      <td class="r" data-c>${r.error ? '—' : r.vals.length}</td></tr>`;
+  }).join('') : '<tr><td colspan="5" class="empty">No settings found. Put them at the top of the code as NAME = value, like FAST = 9.</td></tr>';
+  optCount();
+}
+function optSpec() {
+  const ticked = OPT.params.filter(p => p.on), params = [];
+  for (const p of ticked) { const r = optParse(p, p.text); if (r.error) return { error: `${p.name}: ${r.error}.` }; params.push({ name: p.name, values: r.vals }); }
+  const rules = $('#optRules').value.split('\n').map(x => x.trim()).filter(Boolean);
+  const mode = $('#optMode [aria-pressed="true"]').dataset.v, n = Math.max(1, Math.round(+$('#optN').value || 200));
+  return { params, rules, mode, n, cap: 20000 };
+}
+function optCount() {
+  if (OPT.on) return;
+  const sp = optSpec();
+  if (sp.error) return optMsg(sp.error, true);
+  if (!sp.params.length) return optMsg('Tick the settings to try.');
+  const total = sp.params.reduce((s, p) => s * p.values.length, 1);
+  const runs = sp.mode === 'random' ? Math.min(sp.n, total) : total;
+  const per = OPT.rate ? ` About ${optDur(runs / OPT.rate)} at the speed of the last run.` : '';
+  optMsg(`${total.toLocaleString('en-US')} combination${total === 1 ? '' : 's'}${sp.mode === 'random' ? `; trying ${runs.toLocaleString('en-US')} of them` : ''}${sp.rules.length ? ', fewer after the rules' : ''}.${total > sp.cap && sp.mode !== 'random' ? ` That is more than ${sp.cap.toLocaleString('en-US')}: narrow the ranges, or use a random sample.` : per}`, total > sp.cap && sp.mode !== 'random');
+}
+const optDur = s => s < 90 ? `${Math.max(1, Math.round(s))} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`;
+async function optOpen() {
+  clearTimeout(OPT.detectT);
+  await optDetect();
+  optResultsShow();
+}
+
+// ---- running: a pool of workers, each given combinations one at a time
+const OPT_WORKER = `
+self.window = self; self.__TAPE_WORKER = true;
+const stub = new Proxy(function () {}, { get: (t, k) => (k === 'then' || typeof k === 'symbol') ? undefined : stub, apply: () => stub, construct: () => stub, set: () => true });
+self.document = stub; self.screen = { width: 1600, height: 1000 };
+self.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+self.requestAnimationFrame = () => 0;
+self.onmessage = e => { if (e.data.type === 'boot') { (0, eval)(e.data.script); postMessage({ type: 'booted' }); } };
+`;
+function optWorkerCount(bytes, shared) {
+  let n = Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
+  if (!shared) n = Math.max(1, Math.min(n, Math.floor(1.5e9 / (bytes + 1)))); // each worker holds its own copy
+  return n;
+}
+// the bars a run needs, from the bar before the start: shared memory when the page is isolated, else copies
+function optData(start, end) {
+  const a = start - 1, n = end - a, shared = self.crossOriginIsolated === true && typeof SharedArrayBuffer === 'function';
+  let bytes = 0;
+  const col = src => {
+    const C = ArrayBuffer.isView(src) ? src.constructor : Float64Array, size = n * C.BYTES_PER_ELEMENT;
+    bytes += size;
+    const arr = new C(shared ? new SharedArrayBuffer(size) : new ArrayBuffer(size));
+    if (ArrayBuffer.isView(src)) arr.set(src.subarray(a, end)); else for (let k = 0; k < n; k++) arr[k] = src[a + k] || 0;
+    return arr;
+  };
+  const d = { name: D.name, n, t: col(D.t), o: col(D.o), h: col(D.h), l: col(D.l), c: col(D.c), v: col(D.v || new Float32Array(D.n)), base: D.base, prec: D.prec, hasVol: D.hasVol, mintick: mintick() };
+  return { d, shared, bytes };
+}
+function pageScript() { let best = ''; for (const s of document.querySelectorAll('script:not([src]):not([type])')) if (s.textContent.length > best.length) best = s.textContent; return best; }
+
+async function optRun(resume) {
+  if (OPT.on || RUN.on || !E || !D) return;
+  let doc = OPT.doc;
+  if (!resume) {
+    const f = stratForm();
+    if (f.error) return optMsg(f.error, true);
+    const sp = optSpec();
+    if (sp.error) return optMsg(sp.error, true);
+    if (!sp.params.length) return optMsg('Tick at least one setting to try.', true);
+    optMsg('Getting ready…');
+    try { await loadPython(f.libs); } catch (e) { return optMsg(e.message, true); }
+    const syn = PY.fn.check(f.code);
+    if (syn) return optMsg(syn, true);
+    sp.seed = Math.floor(Math.random() * 1e9);
+    const cr = JSON.parse(PY.fn.combos(JSON.stringify(sp)));
+    if (cr.error) return optMsg(cr.error, true);
+    if (!cr.combos.length) return optMsg('No combinations are left after the rules.', true);
+    saveStratCode();
+    const splitPct = +$('#optSplit').value, splitIdx = splitPct ? f.start + Math.floor((f.end - f.start) * (1 - splitPct / 100)) : 0;
+    doc = OPT.doc = {
+      v: 1, id: newId(), name: `${f.name} optimization`, strategy: f.name, code: f.code, mode: f.mode, libs: f.p.libs, tf: tfLabel(f.tf),
+      from: D.t[f.start], to: D.t[f.end - 1], datasetName: D.name, created: Date.now(), updated: Date.now(),
+      goal: $('#optGoal').value, minTrades: Math.max(0, Math.round(+$('#optMin').value || 0)), split: splitPct, splitT: splitIdx ? D.t[splitIdx] : null,
+      rebuy: f.rebuy, maxEvals: f.maxEvals, sim: !!(cfg.sim && cfg.sim.on), cfg: JSON.parse(JSON.stringify(cfg)),
+      spec: sp, combos: cr.combos, total: cr.combos.length, skipped: cr.skipped, rows: [], done: 0, best: '' };
+    OPT.rows = []; OPT.sel = null; OPT.sortKey = 'score'; OPT.sortDir = -1;
+  } else {
+    // the same data must be loaded, covering the optimization's dates
+    if (D.name !== doc.datasetName || D.t[0] > doc.from || D.t[D.n - 1] < doc.to) return optMsg(`Open a session on "${doc.datasetName}" covering ${ymd(doc.from)} to ${ymd(doc.to)} first, then resume.`, true);
+    try { await loadPython(doc.libs === 'pandas' ? ['numpy', 'pandas'] : ['numpy']); } catch (e) { return optMsg(e.message, true); }
+  }
+  const doneSet = new Set(OPT.rows.map(r => r.i));
+  const todo = doc.combos.map((_, i) => i).filter(i => !doneSet.has(i));
+  if (!todo.length) return optMsg('Every combination has run.');
+  const start = lowerBound(D.t, doc.from), end = Math.min(D.n, lowerBound(D.t, doc.to) + 1);
+  const data = optData(start, end), job = { code: doc.code, mode: doc.mode, tf: doc.tf, start: 1, end: data.d.n, splitT: doc.splitT, rebuy: doc.rebuy, maxEvals: doc.maxEvals,
+                                           libs: doc.libs === 'pandas' ? ['numpy', 'pandas'] : ['numpy'] };
+  const n = Math.min(optWorkerCount(data.bytes, data.shared), todo.length);
+  const runCfg = doc.cfg || JSON.parse(JSON.stringify(cfg));
+  OPT.on = true; OPT.stop = false; optRunning(true); optResultsShow();
+  stratStatus(`Starting ${n} parallel run${n > 1 ? 's' : ''}…`, 0);
+  optMsg(`Running ${todo.length.toLocaleString('en-US')} combinations, ${n} at a time.`);
+  const url = URL.createObjectURL(new Blob([OPT_WORKER], { type: 'text/javascript' }));
+  const script = pageScript(), runtime = $('#trRuntime').textContent, pyBase = new URL('pyodide/', location.href).href;
+  let next = 0, firstErr = '', t0 = 0, doneNow = 0, lastUi = 0;
+  const total = doc.total;
+  await new Promise(resolve => {
+    let alive = n;
+    OPT.resolve = resolve;
+    const finish = w => { try { w.terminate(); } catch (e) {} if (--alive === 0) resolve(); };
+    for (let k = 0; k < n; k++) {
+      const w = new Worker(url);
+      OPT.workers.push(w);
+      const give = () => {
+        if (OPT.stop || next >= todo.length) return finish(w);
+        const i = todo[next++];
+        w.postMessage({ type: 'run', idx: i, overrides: doc.combos[i] });
+      };
+      w.onmessage = ev => {
+        const m = ev.data;
+        if (m.type === 'booted') return w.postMessage({ type: 'init', data: data.d, cfg: runCfg, zone: { id: ZONE.id, tz: ZONE.tz, fixed: ZONE.fixed }, job, runtime, pyBase });
+        if (m.type === 'ready') { if (!t0) t0 = performance.now(); return give(); }
+        if (m.type === 'error' && m.idx == null) { firstErr = firstErr || m.error; return finish(w); }
+        if (m.type === 'result' || m.type === 'error') {
+          const res = m.type === 'error' ? { fail: m.error } : m.res;
+          if (res.fail) firstErr = firstErr || res.fail;
+          OPT.rows.push({ i: m.idx, res }); doneNow++;
+          const now = performance.now();
+          if (now - lastUi > 400) {
+            lastUi = now;
+            const rate = doneNow / Math.max(0.001, (now - t0) / 1000), left = (todo.length - doneNow) / rate;
+            OPT.rate = rate;
+            stratStatus(`${OPT.rows.length.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} · ${n} at a time · about ${optDur(left)} left`, OPT.rows.length / total);
+            optResultsShow();
+          }
+          if (now - OPT.saveT > 10000) optSave();
+          give();
+        }
+      };
+      w.onerror = e => { e.preventDefault(); firstErr = firstErr || (e.message || 'A worker stopped.'); finish(w); };
+      w.postMessage({ type: 'boot', script });
+    }
+  });
+  for (const w of OPT.workers) { try { w.terminate(); } catch (e) {} }
+  OPT.workers = []; OPT.resolve = null; URL.revokeObjectURL(url);
+  OPT.on = false; optRunning(false);
+  if (t0 && doneNow) OPT.rate = doneNow / Math.max(0.001, (performance.now() - t0) / 1000);
+  const ok = OPT.rows.filter(r => !r.res.fail).length;
+  stratStatus(OPT.stop ? `Stopped: ${OPT.rows.length} of ${total} done` : OPT.rows.length >= total ? 'Optimization done' : `${OPT.rows.length} of ${total} done`, OPT.rows.length / total);
+  if (!OPT.rows.length && firstErr) optMsg(firstErr, true);
+  else if (firstErr && !ok) optMsg(`Every run failed: ${firstErr}`, true);
+  else { optCount(); if (firstErr) optMsg(`${$('#optCount').textContent} Some runs failed: ${firstErr}`, true); }
+  await optSave();
+  optResultsShow();
+}
+function optStop() {
+  if (!OPT.on) return;
+  OPT.stop = true;
+  for (const w of OPT.workers) { try { w.terminate(); } catch (e) {} }
+  if (OPT.resolve) OPT.resolve();
+}
+function optRunning(on) {
+  $('#optRun').disabled = on; $('#optStop').disabled = !on; $('#stRun').disabled = on; $('#stClose').disabled = on;
+  for (const el of document.querySelectorAll('#stOpt .optleft input, #stOpt .optleft textarea, #stOpt .optleft button, #stOpt .optside select, #stOpt .optside input, #optMode button, #optZoom, #optResume, #stCode input, #stCode select, #stCode textarea')) el.disabled = on;
+}
+
+// ---- results
+function optScore(res, goal, minT) {
+  if (!res || res.fail) return -Infinity;
+  const a = res.a;
+  if (a.trades < minT) return -Infinity;
+  if (goal === 'net') return a.net;
+  if (goal === 'pf') return a.pf == null ? -1 : a.pf;
+  if (goal === 'take') return res.sim ? res.sim.take : a.net;
+  return a.dd > 0 ? a.net / a.dd : a.net > 0 ? 1e9 : a.net;
+}
+const optPf = x => x == null ? '—' : x >= 1e8 ? '∞' : x.toFixed(2);
+const optScoreTxt = (x, goal) => !isFinite(x) ? '—' : x >= 1e8 ? '∞' : goal === 'net' || goal === 'take' ? smoney(x) : x.toFixed(2);
+function optSorted() {
+  const doc = OPT.doc; if (!doc) return [];
+  const goal = $('#optGoal').value, minT = Math.max(0, Math.round(+$('#optMin').value || 0));
+  for (const r of OPT.rows) r.score = optScore(r.res, goal, minT);
+  const key = OPT.sortKey, dir = OPT.sortDir;
+  const val = r => {
+    if (key === 'score') return r.score;
+    if (key.startsWith('p:')) { const v = doc.combos[r.i][key.slice(2)]; return typeof v === 'number' ? v : String(v); }
+    const [seg, f] = key.split('.'), s = r.res && r.res[seg];
+    return s && s[f] != null ? s[f] : -Infinity;
+  };
+  return OPT.rows.slice().sort((x, y) => {
+    if (!!x.res.fail !== !!y.res.fail) return x.res.fail ? 1 : -1;
+    const a = val(x), b = val(y);
+    return (a < b ? -1 : a > b ? 1 : x.i - y.i) * dir;
+  });
+}
+function optResultsShow() {
+  const doc = OPT.doc;
+  $('#optResults').hidden = !doc;
+  if (!doc) return;
+  const rows = optSorted(), goal = $('#optGoal').value, names = doc.spec.params.map(p => p.name);
+  const best = rows.find(r => isFinite(r.score));
+  doc.best = best ? `${optLabel(doc.combos[best.i])}: ${optScoreTxt(best.score, goal)}` : '';
+  const split = doc.splitT != null;
+  $('#optSummary').innerHTML = `<b>${OPT.rows.length.toLocaleString('en-US')} of ${doc.total.toLocaleString('en-US')}</b> combinations${doc.skipped ? ` (${doc.skipped.toLocaleString('en-US')} skipped by the rules)` : ''}, ranked by ${esc(OPT_GOALS[goal])}` +
+    ` on ${ymd(doc.from)} to ${split ? ymd(doc.splitT - 1) : ymd(doc.to)}${split ? `; <b>Check</b> columns: ${ymd(doc.splitT)} to ${ymd(doc.to)}` : ''}. Click a column to sort, a row to select it.`;
+  $('#optResume').hidden = OPT.on || OPT.rows.length >= doc.total;
+  const sim = rows.some(r => r.res.sim);
+  const cols = [['#', null], ...names.map(n => [n, 'p:' + n]), [OPT_GOALS[goal], 'score'], ['Trades', 'a.trades'], ['Net', 'a.net'], ['Win %', 'a.win'], ['PF', 'a.pf'], ['Max DD', 'a.dd'],
+    ...(split ? [['Check: net', 'b.net'], ['Check: PF', 'b.pf'], ['Check: trades', 'b.trades']] : []), ...(sim ? [['Evaluations', 'sim.attempts'], ['Payouts − fees', 'sim.take']] : []), ['', null]];
+  $('#optHead').innerHTML = '<tr>' + cols.map(([l, k], j) => `<th${k ? ` data-k="${k}"` : ''} class="${j > names.length ? 'r' : ''}${k === OPT.sortKey ? ' on' : ''}">${esc(l)}${k === OPT.sortKey ? (OPT.sortDir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('') + '</tr>';
+  const show = rows.slice(0, 300);
+  $('#optBody').innerHTML = show.map((r, k) => {
+    const c = doc.combos[r.i], res = r.res;
+    if (res.fail) return `<tr data-i="${r.i}"><td>${k + 1}</td>${names.map(n => `<td>${esc(optFmt(c[n]))}</td>`).join('')}<td class="err" colspan="${cols.length - names.length - 1}">${esc(String(res.fail).split('\n')[0])}</td></tr>`;
+    const a = res.a, b = res.b || {};
+    return `<tr data-i="${r.i}" class="${r.i === OPT.sel ? 'sel' : ''}${isFinite(r.score) ? '' : ' low'}"><td>${k + 1}</td>${names.map(n => `<td>${esc(optFmt(c[n]))}</td>`).join('')}` +
+      `<td class="r"><b>${optScoreTxt(r.score, goal)}</b></td><td class="r">${a.trades}</td><td class="r ${cls(a.net)}">${smoney(a.net)}</td><td class="r">${a.win == null ? '—' : a.win.toFixed(0) + '%'}</td>` +
+      `<td class="r">${optPf(a.pf)}</td><td class="r">${money(a.dd)}</td>` +
+      (split ? `<td class="r ${cls(b.net || 0)}">${b.trades ? smoney(b.net) : '—'}</td><td class="r">${b.trades ? optPf(b.pf) : '—'}</td><td class="r">${b.trades || 0}</td>` : '') +
+      (sim ? `<td class="r">${res.sim ? res.sim.attempts : '—'}</td><td class="r ${cls(res.sim ? res.sim.take : 0)}">${res.sim ? smoney(res.sim.take) : '—'}</td>` : '') +
+      `<td><button data-chart="${r.i}">Open on chart</button></td></tr>`;
+  }).join('') + (rows.length > 300 ? `<tr><td colspan="${cols.length}" class="empty">The best 300 of ${rows.length.toLocaleString('en-US')} are shown. Copy as CSV for all of them.</td></tr>` : '');
+  optHeat(rows, names, goal);
+  $('#optZoom').disabled = OPT.on || !best;
+}
+// two numeric settings varied: a grid of the best score for each pair
+function optHeat(rows, names, goal) {
+  const doc = OPT.doc, el = $('#optHeat');
+  const num = doc.spec.params.filter(p => p.values.length > 1 && p.values.every(v => typeof v === 'number'));
+  const varied = doc.spec.params.filter(p => p.values.length > 1);
+  if (num.length !== 2 || varied.length !== 2 || !rows.length) { el.hidden = true; return; }
+  const [X, Y] = num, cell = new Map();
+  for (const r of rows) {
+    if (!isFinite(r.score)) continue;
+    const c = doc.combos[r.i], k = c[X.name] + '|' + c[Y.name], cur = cell.get(k);
+    if (!cur || r.score > cur.score) cell.set(k, r);
+  }
+  const scores = [...cell.values()].map(r => r.score).filter(x => x < 1e8).sort((a, b) => a - b);
+  const lo = scores[0], hi = scores[scores.length - 1];
+  const color = s => {
+    const f = s >= 1e8 ? 1 : hi > lo ? (s - lo) / (hi - lo) : 1;
+    return `hsl(${Math.round(f * 125)} 55% ${30 + f * 8}%)`;
+  };
+  const xs = X.values.slice().sort((a, b) => a - b), ys = Y.values.slice().sort((a, b) => b - a);
+  el.hidden = false;
+  el.innerHTML = `<p class="cap">${esc(OPT_GOALS[goal])} for each ${esc(X.name)} (across) and ${esc(Y.name)} (down). Green is better; click a square to select it.</p><table><tr><th>${esc(Y.name)} \\ ${esc(X.name)}</th>${xs.map(x => `<th>${esc(optFmt(x))}</th>`).join('')}</tr>` +
+    ys.map(y => `<tr><th>${esc(optFmt(y))}</th>${xs.map(x => { const r = cell.get(x + '|' + y); return r ? `<td data-i="${r.i}" style="background:${color(r.score)}" title="${esc(optLabel(doc.combos[r.i]))}">${optScoreTxt(r.score, goal)}</td>` : '<td class="na">—</td>'; }).join('')}</tr>`).join('') + '</table>';
+}
+// a finer search around the best (or the selected) combination
+function optZoom() {
+  const doc = OPT.doc; if (!doc || OPT.on) return;
+  const rows = optSorted(), pick = OPT.rows.find(r => r.i === OPT.sel && isFinite(r.score)) || rows.find(r => isFinite(r.score));
+  if (!pick) return;
+  const c = doc.combos[pick.i];
+  for (const sp of doc.spec.params) {
+    const p = OPT.params.find(x => x.name === sp.name); if (!p) continue;
+    const v = c[sp.name], vals = sp.values;
+    p.on = true;
+    if (typeof v !== 'number' || vals.length < 2) { p.text = optText(p, [v]); continue; }
+    const s = vals.slice().sort((a, b) => a - b), k = s.indexOf(v);
+    const lo = k > 0 ? s[k - 1] : v, hi = k < s.length - 1 ? s[k + 1] : v;
+    const gap = Math.min(...s.slice(1).map((x, j) => x - s[j]).filter(d => d > 0));
+    let step = (isFinite(gap) ? gap : Math.abs(v) || 1) / 4;
+    if (p.kind === 'int') step = Math.max(1, Math.round(step));
+    else step = niceStep(step);
+    const out = [];
+    for (let n = 0; n < 200; n++) { const x = lo + n * step; if (x > hi + step * 1e-9) break; out.push(p.kind === 'int' ? Math.round(x) : roundTo(x, step)); }
+    if (!out.includes(v)) out.push(v);
+    p.text = optText(p, [...new Set(out)].sort((a, b) => a - b));
+  }
+  for (const p of OPT.params) if (!doc.spec.params.some(sp => sp.name === p.name)) p.on = false;
+  $('#optRules').value = (doc.spec.rules || []).join('\n');
+  segPick('#optMode', 'grid'); $('#optNRow').hidden = true;
+  optRows();
+  optRun(false);
+}
+function optCsv() {
+  const doc = OPT.doc; if (!doc) return;
+  const names = doc.spec.params.map(p => p.name), split = doc.splitT != null;
+  const head = ['rank', ...names, 'goal', 'trades', 'net', 'win_pct', 'profit_factor', 'max_dd', ...(split ? ['check_trades', 'check_net', 'check_pf', 'check_dd'] : []), 'evaluations', 'payouts_minus_fees', 'error'];
+  const rows = optSorted().map((r, k) => {
+    const c = doc.combos[r.i], a = r.res.a || {}, b = r.res.b || {}, s = r.res.sim || {};
+    const f = x => x == null || !isFinite(x) ? '' : x >= 1e8 ? 'inf' : +x.toFixed(4);
+    return [k + 1, ...names.map(n => optFmt(c[n])), f(r.score), a.trades ?? '', f(a.net), f(a.win), f(a.pf), f(a.dd), ...(split ? [b.trades ?? '', f(b.net), f(b.pf), f(b.dd)] : []), s.attempts ?? '', f(s.take), r.res.fail ? JSON.stringify(String(r.res.fail).split('\n')[0]) : ''];
+  });
+  const text = [head, ...rows].map(r => r.join(',')).join('\n');
+  const done = ok => toast(ok ? `Copied ${rows.length} results as CSV.` : 'Copy was blocked.', ok ? '' : 'err');
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => done(true), () => done(false)); else done(false);
+}
+// saved to the Library (the desktop app's optimizations folder)
+async function optSave() {
+  const doc = OPT.doc; if (!doc || !STORE) return;
+  OPT.saveT = performance.now();
+  doc.rows = OPT.rows.map(r => ({ i: r.i, res: r.res }));
+  doc.done = OPT.rows.length; doc.updated = Date.now(); doc.goal = $('#optGoal').value;
+  doc.minTrades = Math.max(0, Math.round(+$('#optMin').value || 0));
+  try { await STORE.saveOptim(doc.id, doc); } catch (e) { toast('Could not save the optimization: ' + e.message, 'err'); }
+}
+async function optOpenSaved(id) {
+  const doc = await STORE.getOptim(id);
+  OPT.doc = doc; OPT.rows = (doc.rows || []).map(r => ({ i: r.i, res: r.res })); OPT.sel = null; OPT.sortKey = 'score'; OPT.sortDir = -1;
+  $('#optGoal').value = doc.goal || 'ndd'; $('#optMin').value = doc.minTrades ?? 10; $('#optSplit').value = String(doc.split ?? 30);
+  $('#optRules').value = (doc.spec.rules || []).join('\n');
+  openStrat();
+  if ($('#strat').hidden) return;
+  stratTab('opt');
+}
+function wireOpt() {
+  $('#optRows').addEventListener('input', e => {
+    const tr = e.target.closest('tr[data-n]'); if (!tr) return;
+    const p = OPT.params.find(x => x.name === tr.dataset.n); if (!p) return;
+    if (e.target.matches('[data-on]')) { p.on = e.target.checked; tr.classList.toggle('off', !p.on); }
+    if (e.target.matches('[data-v]')) {
+      p.text = e.target.value;
+      const r = optParse(p, p.text);
+      e.target.classList.toggle('bad', !!r.error); e.target.title = r.error || '';
+      tr.querySelector('[data-c]').textContent = r.error ? '—' : r.vals.length;
+    }
+    optCount();
+  });
+  for (const b of document.querySelectorAll('.optq button')) b.onclick = () => {
+    for (const p of OPT.params) if (p.on && (p.kind === 'int' || p.kind === 'float')) p.text = optText(p, optValues(p, b.dataset.q));
+    optRows();
+  };
+  $('#optRules').addEventListener('input', optCount);
+  $('#optMode').onclick = e => { const b = e.target.closest('button'); if (!b || b.disabled) return; segPick('#optMode', b.dataset.v); $('#optNRow').hidden = b.dataset.v !== 'random'; optCount(); };
+  $('#optN').addEventListener('input', optCount);
+  for (const id of ['#optGoal', '#optMin']) $(id).addEventListener('change', () => { optResultsShow(); if (OPT.doc && !OPT.on) optSave(); });
+  $('#optRun').onclick = () => optRun(false);
+  $('#optResume').onclick = () => optRun(true);
+  $('#optStop').onclick = optStop;
+  $('#optZoom').onclick = optZoom;
+  $('#optCsv').onclick = optCsv;
+  $('#optHead').addEventListener('click', e => {
+    const th = e.target.closest('th[data-k]'); if (!th) return;
+    if (OPT.sortKey === th.dataset.k) OPT.sortDir *= -1; else { OPT.sortKey = th.dataset.k; OPT.sortDir = th.dataset.k.startsWith('p:') ? 1 : -1; }
+    optResultsShow();
+  });
+  const pickRow = i => { OPT.sel = i; optResultsShow(); };
+  $('#optBody').addEventListener('click', e => {
+    const b = e.target.closest('button[data-chart]');
+    if (b) return optToChart(+b.dataset.chart);
+    const tr = e.target.closest('tr[data-i]'); if (tr) pickRow(+tr.dataset.i);
+  });
+  $('#optHeat').addEventListener('click', e => { const td = e.target.closest('td[data-i]'); if (td) { pickRow(+td.dataset.i); $(`#optBody tr[data-i="${td.dataset.i}"]`)?.scrollIntoView({ block: 'nearest' }); } });
+  // the settings list follows the code
+  $('#stSrc').addEventListener('input', () => { clearTimeout(OPT.detectT); if (!$('#stOpt').hidden) OPT.detectT = setTimeout(optDetect, 700); });
+}
+// a combination as a normal backtest on the chart, saved to the Library
+function optToChart(i) {
+  const doc = OPT.doc; if (!doc || OPT.on) return;
+  // the optimization's own code and choices
+  if ($('#stSrc').value !== doc.code || $('#stName').value.trim() !== doc.strategy) loadStrat(doc.strategy, doc.code);
+  const p = stratPrefs(); p.mode = doc.mode; p.libs = doc.libs; p.tf = doc.tf; p.rebuy = doc.rebuy; p.maxEvals = doc.maxEvals;
+  segPick('#stMode', p.mode); segPick('#stLibs', p.libs);
+  if ([...$('#stTf').options].some(o => o.value === doc.tf || o.text === doc.tf)) $('#stTf').value = doc.tf;
+  $('#stFrom').value = ymd(doc.from); $('#stTo').value = ymd(doc.to);
+  stratEvalRow();
+  runStrategy({ overrides: doc.combos[i] });
+}
+
+/* ---------------- worker mode: this script in an optimization worker, with no screen ---------------- */
+function workerMain() {
+  let job = null;
+  const totals = splitT => {
+    const seg = (lo, hi) => {
+      let trades = 0, net = 0, w = 0, gw = 0, gl = 0, cum = 0, peak = 0, dd = 0;
+      for (const x of T.hist) {
+        if (!(x.exitTime >= lo && x.exitTime < hi)) continue;
+        trades++; net += x.net; cum += x.net;
+        if (x.net > 0) { w++; gw += x.net; } else gl -= x.net;
+        if (cum > peak) peak = cum;
+        if (peak - cum > dd) dd = peak - cum;
+      }
+      return { trades, net, win: trades ? w / trades * 100 : null, pf: gl > 0 ? gw / gl : gw > 0 ? 1e9 : null, dd };
+    };
+    const a = seg(-Infinity, splitT == null ? Infinity : splitT), b = splitT == null ? null : seg(splitT, Infinity);
+    const sim = T.sim ? { attempts: T.sim.attempt, fees: T.sim.fees || 0, income: T.sim.income || 0, take: (T.sim.income || 0) - (T.sim.fees || 0), label: simLabel() } : null;
+    return { a, b, sim, open: T.trades.length };
+  };
+  self.onmessage = async ev => {
+    const m = ev.data;
+    try {
+      if (m.type === 'init') {
+        const d = m.data;
+        D = { name: d.name, n: d.n, t: d.t, o: d.o, h: d.h, l: d.l, c: d.c, v: d.v, base: d.base, prec: d.prec, hasVol: d.hasVol, mintick: d.mintick };
+        setPrec(D.prec);
+        Object.assign(cfg, m.cfg);
+        cfg.prop = { ...PROP_DEF, ...(m.cfg.prop || {}) }; cfg.sim = simConfig(m.cfg.sim);
+        Object.assign(ZONE, m.zone); zoneCache.clear();
+        TF = { kind: 's', sec: D.base }; bucket = makeBucket(TF);
+        job = m.job;
+        importScripts(m.pyBase + 'pyodide.js');
+        const py = await self.loadPyodide({ indexURL: m.pyBase });
+        py.setStdout({ batched: () => {} }); py.setStderr({ batched: () => {} });
+        for (const l of job.libs) await py.loadPackage(l, { messageCallback: () => {}, errorCallback: () => {} });
+        py.runPython(m.runtime);
+        const g = n => py.globals.get(n);
+        PY.fn = { check: g('_tr_check'), start: g('_tr_start'), bar: g('_tr_bar'), tick: g('_tr_tick'), fill: g('_tr_fill'), end: g('_tr_end') };
+        PY.py = py;
+        postMessage({ type: 'ready' });
+      } else if (m.type === 'run') {
+        E = newEngine(job.start); T = newTrading(); pushEq(D.t[E.start - 1], T.balance);
+        const res = await stratCore({ code: job.code, mode: job.mode, tf: parseTF(job.tf), end: job.end, rebuy: job.rebuy, maxEvals: job.maxEvals, overrides: m.overrides, quiet: true });
+        postMessage({ type: 'result', idx: m.idx, res: res.fail ? { fail: res.fail } : totals(job.splitT) });
+      }
+    } catch (e) {
+      postMessage({ type: 'error', idx: m.type === 'run' ? m.idx : null, error: String((e && e.message) || e) });
+    }
+  };
+}
+if (self.__TAPE_WORKER) { workerMain(); return; }
+
 /* ---------------- boot ---------------- */
 if (!LW) { document.getElementById('chart').innerHTML = '<div class="empty">The charting library did not load. Check your connection and reload the page.</div>'; return; }
 initCharts(); initDrag(); wire(); wireStrat(); wireDraw(); wireSim(); wireChartSet(); wireZones(); initTips();
@@ -6812,7 +7643,7 @@ loadPrefs().then(() => {
   if ((PREFS.ui || {}).oneTap) { $('#otp').hidden = false; $('#oneTap').checked = true; }
   if (!STORE) return bootSample();
   $('#bLib').hidden = false; wireLib();
-  fetch('/api/caps', { headers: { 'X-Token': TOKEN } }).then(r => r.json()).then(c => { CAN_PICK = !!c.pick; CAN_IMPORT_DBN = !!c.importDbn; }).catch(() => {});
+  fetch('/api/caps', { headers: { 'X-Token': TOKEN } }).then(r => r.json()).then(c => { CAN_PICK = !!c.pick; CAN_IMPORT_DBN = !!c.importDbn; CAN_OPT = !!c.optimize; $('#libOpTab').hidden = !optAvailable(); }).catch(() => {});
   setInterval(() => saveSession(false), 10000);
   // the app opens on Home: start a new session or continue a saved one
   wireHome(); showHome();

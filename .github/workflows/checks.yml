@@ -1,5 +1,6 @@
 # Checks for pull requests. Nothing here is published or signed.
-#   strategies  the Python strategy runtime, then the page in Chromium with real Python (tests/), and that the
+#   strategies  the Python strategy runtime, then the page in Chromium with real Python, and optimization in
+#               workers (tests/), and that the
 #               pages copied into the apps are up to date with tape-replay.html
 #   windows     builds TapeReplay.exe like the release does, kept for a week as a download on the run's page
 #   ios         compiles the iOS app (with Python bundled) for the simulator, unsigned
@@ -45,6 +46,9 @@ jobs:
 
       - name: Strategies through the desktop app's server (Library)
         run: python tests/test_store.py "$RUNNER_TEMP/shots"
+
+      - name: Optimization through the desktop app's server (workers, parity with the chart)
+        run: python tests/test_optimize.py "$RUNNER_TEMP/shots"
 
       - name: Keep the screenshots
         if: always()

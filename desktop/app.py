@@ -33,6 +33,7 @@ APP_NAME = "TapeReplay"
 DATA_DIR = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), APP_NAME)
 DATASETS = os.path.join(DATA_DIR, "datasets")
 SESSIONS = os.path.join(DATA_DIR, "sessions")
+OPTIMS = os.path.join(DATA_DIR, "optimizations")  # strategy optimizations saved from the Strategy panel
 BUNDLE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BUNDLE, "web")
 PACK_DIR = os.path.join(BUNDLE, "data")  # price data shipped inside the EXE (build_pack.py)
@@ -350,6 +351,8 @@ def window_handle():
 
 def list_json(folder, suffix):
     out = []
+    if not os.path.isdir(folder):
+        return out
     for name in os.listdir(folder):
         if name.endswith(suffix):
             try:
@@ -533,6 +536,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        # cross-origin isolation: lets the page share memory with its workers (parallel strategy optimization);
+        # everything the page loads comes from this server
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         self.end_headers()
         self.wfile.write(body)
 
@@ -579,7 +587,15 @@ class Handler(BaseHTTPRequestHandler):
         if parts == ["datasets"]:
             return self.send(200, [m for m in list_json(DATASETS, ".json") if "id" in m and "list" not in m])
         if parts == ["caps"]:
-            return self.send(200, {"pick": WINDOW is not None, "update": bool(getattr(sys, "frozen", False)), "version": VERSION})
+            return self.send(200, {"pick": WINDOW is not None, "update": bool(getattr(sys, "frozen", False)), "version": VERSION, "optimize": True})
+        if parts == ["optims"]:
+            return self.send(200, list_json(OPTIMS, ".meta.json"))
+        if len(parts) == 2 and parts[0] == "optims":
+            p = os.path.join(OPTIMS, parts[1] + ".json")
+            if not os.path.isfile(p):
+                return self.fail(404, "That optimization no longer exists.")
+            with open(p, "rb") as f:
+                return self.send(200, f.read())
         if parts == ["update"]:
             m = UPDATE["manifest"] or {}
             return self.send(200, {"current": VERSION, "state": UPDATE["state"], "version": m.get("version"),
@@ -748,6 +764,19 @@ class Handler(BaseHTTPRequestHandler):
             with LOCK:
                 write_atomic(os.path.join(DATA_DIR, "prefs.json"), raw)
             return self.send(200, {"ok": True})
+        if len(parts) == 2 and parts[0] == "optims":
+            raw = self.body()
+            try:
+                doc = json.loads(raw.decode("utf-8"))
+            except ValueError:
+                return self.fail(400, "Bad JSON")
+            meta = {k: doc.get(k) for k in ("id", "name", "strategy", "datasetName", "created", "updated", "total", "done", "goal", "best", "from", "to", "tf")}
+            meta["id"] = parts[1]
+            with LOCK:
+                os.makedirs(OPTIMS, exist_ok=True)
+                write_atomic(os.path.join(OPTIMS, parts[1] + ".json"), raw)
+                write_atomic(os.path.join(OPTIMS, parts[1] + ".meta.json"), json.dumps(meta).encode("utf-8"))
+            return self.send(200, {"ok": True})
         if len(parts) == 2 and parts[0] == "sessions":
             raw = self.body()
             try:
@@ -798,9 +827,9 @@ class Handler(BaseHTTPRequestHandler):
         parts = self.route()
         if not parts:
             return None if parts is False else self.fail(404, "Not found")
-        if len(parts) == 2 and parts[0] in ("sessions", "datasets"):
-            folder = SESSIONS if parts[0] == "sessions" else DATASETS
-            exts = (".json", ".meta.json") if parts[0] == "sessions" else (".csv", ".json", ".census.json")
+        if len(parts) == 2 and parts[0] in ("sessions", "datasets", "optims"):
+            folder = {"sessions": SESSIONS, "datasets": DATASETS, "optims": OPTIMS}[parts[0]]
+            exts = (".csv", ".json", ".census.json") if parts[0] == "datasets" else (".json", ".meta.json")
             with LOCK:
                 for ext in exts:
                     p = os.path.join(folder, parts[1] + ext)
@@ -824,7 +853,7 @@ def find_edge():
 
 
 def main():
-    for d in (DATASETS, SESSIONS):
+    for d in (DATASETS, SESSIONS, OPTIMS):
         os.makedirs(d, exist_ok=True)
     if getattr(sys, "frozen", False):
         after_update()

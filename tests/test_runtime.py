@@ -164,4 +164,58 @@ rt._tr_bar(0, 10, 11, 9, 10, 1, 0, 0, None, 1, 1)
 check(api.calls[0][6] == 3 and api.calls[1][1:4] == (-1, "stop", 8.75) and api.calls[1][6] == 3, api.calls)
 c = rt._S["ctx"]
 check(c.bid == 10 and c.ask == 10.25 and c.round(1.0000001) == 1.0, (c.bid, c.ask))
+
+# ---- optimizer: settings found in the code, values written in, combinations
+OPT = """
+OPEN = "08:30"          # CT
+FAST, SLOW = 9, 21
+VOL_MULT = 1.2          # 0 = off
+STOP_MODE = "range"     # "range" = range, "candle" = candle
+ALLOW_SHORT = True
+RISK_USD = 500
+MAX_QTY = None
+RR = param(2.0, 1.0, 3.0, step=0.5)
+SPAN = SLOW - FAST      # computed: follows FAST and SLOW
+lower = 3
+def on_bar(ctx, bar):
+    print("cfg", FAST, SLOW, SPAN, RR, STOP_MODE)
+"""
+ps = {p["name"]: p for p in json.loads(rt._tr_params(OPT))["params"]}
+check(set(ps) == {"FAST", "SLOW", "VOL_MULT", "STOP_MODE", "ALLOW_SHORT", "RISK_USD", "RR"}, sorted(ps))
+check(ps["VOL_MULT"]["zero_off"] and ps["RISK_USD"]["money"] and not ps["FAST"]["money"], ps["VOL_MULT"])
+check(ps["STOP_MODE"]["choices"] == ["range", "candle"] and ps["ALLOW_SHORT"]["kind"] == "bool", ps["STOP_MODE"])
+check(ps["RR"]["param"] and ps["RR"]["lo"] == 1.0 and ps["RR"]["step"] == 0.5 and ps["RR"]["value"] == 2.0, ps["RR"])
+check("error" in json.loads(rt._tr_params("def f(:\n")), "syntax error reported")
+# values written into the code before it runs: computed constants follow; param() returns the value
+api = FakeApi()
+buf = io.StringIO()
+with redirect_stdout(buf):
+    check(start(api, OPT, json.dumps({**json.loads(INFO), "overrides": {"FAST": 5, "SLOW": 30, "RR": 3.0, "STOP_MODE": "candle"}})) is None, "start with overrides")
+    rt._tr_bar(0, 1, 1, 1, 1, 1, 0, 0, None, 1, 1)
+check("cfg 5 30 25 3.0 candle" in buf.getvalue(), buf.getvalue())
+buf = io.StringIO()
+with redirect_stdout(buf):
+    start(api, OPT, INFO); rt._tr_bar(0, 1, 1, 1, 1, 1, 0, 0, None, 1, 1)
+check("cfg 9 21 12 2.0 range" in buf.getvalue(), buf.getvalue())
+# quiet: no prints and no rejection notes
+api = FakeApi(); api.reject = "nope"
+buf = io.StringIO()
+with redirect_stdout(buf):
+    start(api, OPT + "    ctx.buy(1)\n", json.dumps({**json.loads(INFO), "quiet": True}))
+    rt._tr_bar(0, 1, 1, 1, 1, 1, 0, 0, None, 1, 1)
+check(buf.getvalue() == "", repr(buf.getvalue()))
+check("not in the code" in start(FakeApi(), OPT, json.dumps({**json.loads(INFO), "overrides": {"NOPE": 1}})), "unknown override")
+# combinations: grid with a rule, random sample, too many, bad rule
+spec = {"params": [{"name": "FAST", "values": [5, 10, 20]}, {"name": "SLOW", "values": [10, 20, 30]}, {"name": "ALLOW_SHORT", "values": [True, False]}], "rules": ["FAST < SLOW"], "mode": "grid"}
+r = json.loads(rt._tr_combos(json.dumps(spec)))
+check(r["total"] == 18 and r["skipped"] == 6 and len(r["combos"]) == 12 and all(c["FAST"] < c["SLOW"] for c in r["combos"]), r)
+check(r["combos"][0] == {"FAST": 5, "SLOW": 10, "ALLOW_SHORT": True}, r["combos"][0])
+r2 = json.loads(rt._tr_combos(json.dumps({**spec, "mode": "random", "n": 5, "seed": 7})))
+check(len(r2["combos"]) == 5 and len({json.dumps(c, sort_keys=True) for c in r2["combos"]}) == 5, r2)
+check(r2 == json.loads(rt._tr_combos(json.dumps({**spec, "mode": "random", "n": 5, "seed": 7}))), "random is repeatable")
+big = {"params": [{"name": f"P{i}", "values": list(range(10))} for i in range(6)], "mode": "grid", "cap": 20000}
+check("more than" in json.loads(rt._tr_combos(json.dumps(big)))["error"], "too many")
+check(len(json.loads(rt._tr_combos(json.dumps({**big, "mode": "random", "n": 50})))["combos"]) == 50, "random from a huge grid")
+check("not valid" in json.loads(rt._tr_combos(json.dumps({**spec, "rules": ["FAST <"]})))["error"], "bad rule")
+check("not a ticked setting" in json.loads(rt._tr_combos(json.dumps({**spec, "rules": ["FAST < NOPE"]})))["error"], "unknown name in rule")
 print(f"runtime: {ok} checks passed")
