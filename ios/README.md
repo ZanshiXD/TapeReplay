@@ -60,8 +60,15 @@ and imported data stay on the device.
 
 ## Using it on a touch screen
 
-- **Draw:** pick a tool, then tap (or tap twice for lines), or drag with one finger.
-- **Move things:** drag drawings, their handles, order lines and the TP and SL buttons on a tag.
+- **Draw:** open the drawing tools (the pencil on a phone; a labelled rail on an iPad) and pick a tool. Lines and
+  boxes: tap two points, or touch and drag; after the first point, the second follows your finger until you lift
+  it. Horizontal and vertical lines and positions: touch, slide to the price or moment, and lift. The price (or
+  time) shows just above your finger while you place a point.
+- **Edit drawings:** tap a drawing to select it, then drag it or its handles (they move with your finger from where
+  you touched, without jumping). A small bar sets its color, width and line style, places a position as an order,
+  or deletes it; ⋯ opens every option (label, presets, fib levels).
+- **Undo:** the Undo tool takes back the last drawing change (Ctrl+Z or Cmd+Z with a keyboard).
+- **Order lines:** move them by their tag (the label at the right), and drag TP or SL out of a tag to add them.
 - **Pan and zoom:** drag an empty part of the chart, or pinch.
 - **Order menu:** touch and hold an empty part of the chart (the right-click menu on a desktop).
 - **Bottom panel:** drag its top edge to resize it.
