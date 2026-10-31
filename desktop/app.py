@@ -24,6 +24,8 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
+import dbn_import  # DBN files of any size, a month at a time (desktop/dbn_import.py)
+
 try:
     from _version import VERSION  # written by build.py from the release version
 except ImportError:
@@ -42,6 +44,8 @@ ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 LOCK = threading.Lock()
 WINDOW = None  # the pywebview window, used for the native file dialog
 PICKED = {}    # id -> path of a file chosen in the dialog, served to the page in chunks
+PICKED_DBN = {}  # id -> the DBN files chosen together, for the chunked import (dbn_import.py)
+IMPORTS = {}   # job id -> progress of a DBN import, polled by the page
 CHUNK = 8 << 20
 MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
         ".css": "text/css; charset=utf-8", ".woff2": "font/woff2", ".ico": "image/x-icon",
@@ -342,6 +346,47 @@ def register_series():
             log(f"could not register a built-in series\n{traceback.format_exc()}")
 
 
+def imported_pack(ds_id):
+    """A series file written by a DBN import (datasets/<id>.tapeseries), or None."""
+    path = os.path.join(DATASETS, ds_id + ".tapeseries")
+    if not os.path.isfile(path):
+        return None
+
+    def read(off, n):
+        with open(path, "rb") as f:
+            f.seek(off)
+            return f.read(n)
+    return SeriesPack(read, os.path.getsize(path))
+
+
+def import_dbn(job, files, name):
+    """Runs in the background: the DBN files become a chunked series in the Library (as in the iOS app).
+    The chosen files are only read, never moved or removed."""
+    try:
+        ds_id = hashlib.sha1(f"{name}|{[os.path.getsize(f) for f in files]}".encode()).hexdigest()[:16]
+        display = re.sub(r"\.dbn(\.zst)?", "", name, flags=re.I)
+        out = os.path.join(DATASETS, ds_id + ".tapeseries")
+
+        def progress(f, msg):
+            job.update(progress=f, message=msg)
+        header = dbn_import.run(files, ds_id, display, out, progress)
+        meta = {"id": ds_id, "name": display, "bars": header["n"], "base": header["base"], "from": header["from"],
+                "to": header["to"], "contracts": header["contracts"], "size": os.path.getsize(out),
+                "added": int(time.time() * 1000), "chunked": True, "imported": True}
+        with LOCK:
+            write_atomic(os.path.join(DATASETS, ds_id + ".json"), json.dumps(meta).encode("utf-8"))
+        job.update(state="done", progress=1.0, dataset=meta)
+        log(f"imported {name}: {header['n']} bars, {header['contracts']} contracts")
+    except dbn_import.ImportError_ as e:
+        job.update(state="error", message=str(e))
+    except MemoryError:
+        job.update(state="error", message="The computer ran out of memory during the import.")
+    except Exception as e:
+        import traceback
+        log(f"import of {name} failed\n{traceback.format_exc()}")
+        job.update(state="error", message=f"The import failed: {e}")
+
+
 def window_handle():
     try:
         return int(WINDOW.native.Handle.ToInt64())
@@ -504,6 +549,17 @@ def after_update():
             time.sleep(0.5)
 
 
+class ImportJob(dict):
+    """Progress of one DBN import: state (running, done, error), progress, message and, when done, the dataset."""
+
+    def __init__(self):
+        super().__init__(state="running", progress=0.0, message="Starting")
+
+    def update(self, **kw):
+        with LOCK:
+            dict.update(self, kw)
+
+
 class ExclusiveServer(ThreadingHTTPServer):
     """Owns its port outright. The stock server sets SO_REUSEADDR, which on Windows lets a second copy of the
     app bind the same port, so its window could end up talking to the first copy's server."""
@@ -587,7 +643,8 @@ class Handler(BaseHTTPRequestHandler):
         if parts == ["datasets"]:
             return self.send(200, [m for m in list_json(DATASETS, ".json") if "id" in m and "list" not in m])
         if parts == ["caps"]:
-            return self.send(200, {"pick": WINDOW is not None, "update": bool(getattr(sys, "frozen", False)), "version": VERSION, "optimize": True})
+            return self.send(200, {"pick": WINDOW is not None, "importDbn": True, "update": bool(getattr(sys, "frozen", False)),
+                                   "version": VERSION, "optimize": True})
         if parts == ["optims"]:
             return self.send(200, list_json(OPTIMS, ".meta.json"))
         if len(parts) == 2 and parts[0] == "optims":
@@ -601,8 +658,15 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, {"current": VERSION, "state": UPDATE["state"], "version": m.get("version"),
                                    "notes": m.get("notes", ""), "progress": UPDATE["progress"], "error": UPDATE["error"],
                                    "page": UPDATE_PAGE})
+        if len(parts) == 2 and parts[0] == "import":
+            job = IMPORTS.get(parts[1])
+            if not job:
+                return self.fail(404, "No such import")
+            with LOCK:
+                snap = dict(job)
+            return self.send(200, snap)
         if parts and parts[0] == "series" and len(parts) in (2, 3):
-            pack = SERIES.get(parts[1])
+            pack = SERIES.get(parts[1]) or imported_pack(parts[1])
             if not pack:
                 return self.fail(404, "That built-in data is not in this version of the app.")
             if len(parts) == 2:
@@ -681,6 +745,16 @@ class Handler(BaseHTTPRequestHandler):
                     name = os.path.basename(p)
                     with open(p, "rb") as f:
                         f.read(1)
+                dbn = [p.lower().endswith((".dbn", ".dbn.zst")) for p in paths]
+                if all(dbn):
+                    # DBN files of any size: imported a month at a time by the app (POST /api/import)
+                    pick_id = secrets.token_hex(8)
+                    first = os.path.basename(paths[0])
+                    PICKED[pick_id], PICKED_DBN[pick_id] = paths[0], list(paths)
+                    return self.send(200, {"id": pick_id, "name": first if len(paths) == 1 else f"{first} + {len(paths) - 1} more",
+                                           "size": sum(os.path.getsize(p) for p in paths), "dbn": True})
+                if any(dbn):
+                    return self.fail(409, "Pick either DBN files or CSV files, not both at once.")
                 if len(paths) > 1 or path.lower().endswith(".zst"):
                     # several files (a batch download) become one, as do compressed ones
                     out = os.path.join(tmp_dir(), secrets.token_hex(8) + ".csv")
@@ -711,10 +785,30 @@ class Handler(BaseHTTPRequestHandler):
                 req = json.loads(self.body().decode("utf-8"))
             except ValueError:
                 return self.fail(400, "Bad JSON")
-            src = PICKED.get(str(req.get("pick")))
+            pick = str(req.get("pick"))
+            src = PICKED.get(pick)
             if not src or not os.path.isfile(src):
                 return self.fail(404, "That file is no longer available. Load it again.")
-            return self.send(200, store_dataset(src, req.get("meta") or {}, move=False))
+            meta = store_dataset(src, req.get("meta") or {}, move=False)
+            # a decompressed or joined file has just moved into the Library: later reads of this pick
+            # (another contract in Session settings) read the Library's copy
+            stored = dataset_path(meta["id"])
+            if stored and os.path.isfile(stored):
+                PICKED[pick] = stored
+            return self.send(200, meta)
+        if parts == ["import"]:
+            try:
+                req = json.loads(self.body().decode("utf-8"))
+            except ValueError:
+                return self.fail(400, "Bad JSON")
+            files = PICKED_DBN.get(str(req.get("pick")))
+            if not files or not all(os.path.isfile(f) for f in files):
+                return self.fail(404, "That file is no longer available. Pick it again.")
+            job_id = secrets.token_hex(8)
+            job = IMPORTS[job_id] = ImportJob()
+            name = str(req.get("name") or os.path.basename(files[0]))[:200]
+            threading.Thread(target=import_dbn, args=(job, files, name), daemon=True).start()
+            return self.send(200, {"job": job_id})
         if parts == ["datasets"]:
             # upload (drag and drop): streamed to disk, never held in memory
             try:
@@ -831,7 +925,7 @@ class Handler(BaseHTTPRequestHandler):
             return None if parts is False else self.fail(404, "Not found")
         if len(parts) == 2 and parts[0] in ("sessions", "datasets", "optims"):
             folder = {"sessions": SESSIONS, "datasets": DATASETS, "optims": OPTIMS}[parts[0]]
-            exts = (".csv", ".json", ".census.json") if parts[0] == "datasets" else (".json", ".meta.json")
+            exts = (".csv", ".json", ".census.json", ".tapeseries") if parts[0] == "datasets" else (".json", ".meta.json")
             with LOCK:
                 for ext in exts:
                     p = os.path.join(folder, parts[1] + ext)
