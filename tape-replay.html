@@ -6464,7 +6464,7 @@ function loadFiles(list) {
   openLoaded(fileSource(new File([new Blob(files.flatMap(f => [f, ...sep]))], `${files[0].name} + ${files.length - 1} more`)));
 }
 let CAN_PICK = false; // the desktop app reads files itself through a native dialog
-let CAN_IMPORT_DBN = false; // the iOS app converts DBN files natively, a month at a time, whatever their size
+let CAN_IMPORT_DBN = false; // the apps convert DBN files themselves, a month at a time, whatever their size
 async function pickFile() {
   setSaveState('Choose a file…');
   try {

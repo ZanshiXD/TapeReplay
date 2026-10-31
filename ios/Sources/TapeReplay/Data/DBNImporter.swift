@@ -118,7 +118,8 @@ final class DBNImporter {
                 l.append(min(px(32), open, close))
                 c.append(close)
                 v.append(Float(raw.loadUnaligned(fromByteOffset: at + 48, as: UInt64.self)))
-                if sample.count < 800 { sample.append(Double(op) / 1e9); sample.append(Double(close)) }
+                // exact prices: a Float copy of 1.08575 (6E) would fail every decimals test and fall back to 2
+                if sample.count < 800 { sample.append(Double(op) / 1e9); sample.append(Double(raw.loadUnaligned(fromByteOffset: at + 40, as: Int64.self)) / 1e9) }
             }, chunkDone: {
                 progress(0.45 + Double(done + reader.consumed) / total * 0.55, "Writing months: \(writer.blocks.count) done (pass 2 of 2)")
             })

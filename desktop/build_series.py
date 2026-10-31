@@ -155,7 +155,7 @@ def main(path, ds_id, name, out_name, point_value=None):
         h, l = np.maximum(np.maximum(h, o), c), np.minimum(np.minimum(l, o), c)
         v = sel["v"].astype(np.float32)
         if dec == 0:
-            sample = np.concatenate([o[:400], c[:400]]).astype(np.float64)
+            sample = np.concatenate([sel["o"][:400], sel["c"][:400]]) / 1e9  # exact prices, not float32 copies
             for d in range(9):
                 if np.all(np.abs(sample * 10**d - np.round(sample * 10**d)) < 1e-6):
                     dec = d; break
