@@ -7,6 +7,7 @@
 #   ASC_ISSUER_ID    the Issuer ID shown above your keys
 #   ASC_KEY_P8       the whole text of the AuthKey_XXXXXXXXXX.p8 file
 #   APPLE_TEAM_ID    your paid developer team's ID (Membership details, 10 characters)
+# Optional: IOS_DEV_P12 and IOS_DEV_P12_PASSWORD, your Apple Development certificate (see below).
 name: iOS App Store
 
 on:
@@ -67,16 +68,43 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
-      # Built unsigned: signing it here made Xcode create a new development certificate on every run (each runner
-      # starts empty), until the account reached Apple's limit and archiving failed. The App Store signature is
-      # added in the next step, with Apple's cloud-managed distribution certificate.
+      # Optional: your own Apple Development certificate, saved once as two secrets (see ios/APP_STORE.md):
+      #   IOS_DEV_P12           the certificate with its private key, exported from Keychain Access as .p12, base64
+      #   IOS_DEV_P12_PASSWORD  the password it was exported with
+      # It goes into a temporary keychain, so Xcode signs the archive with it instead of making a new certificate.
+      - name: Development certificate (optional)
+        env:
+          IOS_DEV_P12: ${{ secrets.IOS_DEV_P12 }}
+          IOS_DEV_P12_PASSWORD: ${{ secrets.IOS_DEV_P12_PASSWORD }}
+        run: |
+          if [ -z "$IOS_DEV_P12" ]; then echo "No IOS_DEV_P12 secret: the archive is built unsigned."; exit 0; fi
+          KC="$RUNNER_TEMP/dev.keychain-db"; KCPW=$(uuidgen)
+          printf '%s' "$IOS_DEV_P12" | base64 --decode > "$RUNNER_TEMP/dev.p12"
+          security create-keychain -p "$KCPW" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KCPW" "$KC"
+          security import "$RUNNER_TEMP/dev.p12" -k "$KC" -P "$IOS_DEV_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KCPW" "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/dev.p12"
+          echo "DEV_KEYCHAIN=$KC" >> "$GITHUB_ENV"
+
+      # Without that certificate the archive is built unsigned: signing it made Xcode create a new development
+      # certificate on every run (each runner starts empty), until the account reached Apple's limit and archiving
+      # failed. Either way the App Store signature is added in the next step, with Apple's cloud-managed
+      # distribution certificate.
       - name: Build and archive
         run: |
+          if [ -n "$DEV_KEYCHAIN" ]; then
+            SIGN=(-allowProvisioningUpdates -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" CODE_SIGN_STYLE=Automatic)
+          else
+            SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="")
+          fi
           xcodebuild archive \
             -project TapeReplay.xcodeproj -scheme TapeReplayApp \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/TapeReplay.xcarchive" \
-            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="$TEAM_ID" "${SIGN[@]}" \
             MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
 
       - name: Sign for the App Store and upload
@@ -90,6 +118,8 @@ jobs:
             -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           echo "Uploaded version $VERSION (build $BUILD_NUMBER). It appears in App Store Connect > TestFlight once Apple has processed it."
 
-      - name: Remove the key
+      - name: Remove the keys
         if: always()
-        run: rm -rf "$RUNNER_TEMP/keys"
+        run: |
+          rm -rf "$RUNNER_TEMP/keys"
+          [ -z "$DEV_KEYCHAIN" ] || security delete-keychain "$DEV_KEYCHAIN" || true
