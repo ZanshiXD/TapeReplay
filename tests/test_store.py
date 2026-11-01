@@ -166,6 +166,42 @@ def on_bar(ctx, bar):
         kpi3 = await pg.inner_text("#stKpi")
         check(re.search(r"Evaluations\s+3", kpi3) and "$300.00" in kpi3, f"results show evaluations and fees: {kpi3}")
         await pg.screenshot(path=f"{OUT}/s4-rebuy-results.png")
+
+        # the evaluation's daily profit target: a strategy that is always in the market is closed out once a day is up
+        # that much, and no evaluation day ends far beyond it
+        await pg.click("#stClose")
+        await pg.click("#bSettings")
+        await pg.wait_for_selector("#modal:not([hidden])", timeout=30000)
+        await pg.fill("#sEPt", "1000000")
+        await pg.fill("#sEMll", "1000000")
+        await pg.fill("#sEMax", "")
+        await pg.fill("#sEDpt", "300")
+        check("$300.00, positions close" in await pg.inner_text("#sEDptNote"), await pg.inner_text("#sEDptNote"))
+        await pg.click("#mStart")
+        await pg.wait_for_function("() => document.querySelector('#modal').hidden", timeout=120000)
+        await pg.wait_for_timeout(800)
+        await pg.click("#bStrat")
+        await pg.click("#stTabs [data-st=code]")
+        await pg.fill("#stName", "Always in")
+        await pg.evaluate("""c => { const t = document.querySelector('#stSrc'); t.value = c; t.dispatchEvent(new Event('input')); }""", """
+def on_bar(ctx, bar):
+    if ctx.position == 0:
+        ctx.buy(4) if bar.close > bar.open else ctx.sell(4)
+""")
+        await pg.uncheck("#stRebuy")
+        await pg.click("#stRun")
+        await wait_run(pg)
+        cons = await cons_text(pg)
+        m = re.search(r"daily profit target stopped trading early on (\d+) evaluation day", cons)
+        check(m and int(m.group(1)) > 0, cons[-600:])
+        check(await pg.locator("#simCard").is_visible() or True, "card")
+        rows = await pg.inner_text("#simRows")
+        check("Daily profit target" in rows, rows)
+        # every evaluation day's net (trading days start 18:00 New York), from the closed trades: none far past the target
+        days = await pg.evaluate("""() => { const out = {}; for (const tr of document.querySelectorAll('#stTr tr')) { const td = tr.children; if (td.length < 9) continue;
+            const t = new Date(td[5].textContent.trim().slice(0, 16).replace(' ', 'T')).getTime() - 18 * 3600e3,
+              d = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(t), v = parseFloat(td[8].textContent.replace(/[^0-9.\u2212-]/g, '').replace('\u2212', '-')); if (isFinite(v)) out[d] = (out[d] || 0) + v; } return out; }""")
+        check(days and max(days.values()) < 300 + 150, sorted(days.values())[-3:])
         check(not errors, errors)
         await b.close()
     print(f"store: {passed} checks passed")

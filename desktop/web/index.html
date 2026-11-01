@@ -397,6 +397,7 @@ td button{font-size:11px!important;padding:2px 7px!important}
 .note{margin:0;font-size:12px;color:var(--muted);line-height:1.5}
 .actions{display:flex;justify-content:flex-end;gap:8px}
 /* long forms (Session settings, Chart): the buttons stay in view while the form scrolls */
+.sheet:has(>.actions){scroll-padding-bottom:72px}
 .sheet>.actions{position:sticky;bottom:-18px;margin:0 -20px -18px;padding:10px 20px 12px;background:var(--panel);border-top:1px solid var(--line);z-index:1}
 .dsplit{position:absolute;left:0;right:0;top:-8px;height:8px;cursor:row-resize;z-index:2}
 .dsplit::after{content:"";position:absolute;left:50%;top:2px;width:44px;height:3px;margin-left:-22px;border-radius:2px;background:var(--line);opacity:0;transition:opacity .15s}
@@ -1377,7 +1378,9 @@ html.m .optcard button{flex:1;min-height:40px}
           <label class="f">Consistency: best day max % of profit<input id="sECons" type="number" step="any" min="0" max="100" placeholder="off"></label>
           <label class="f">Max contracts (minis)<input id="sEMax" type="number" step="any" min="0" placeholder="no limit"></label>
           <label class="f">Minimum trading days<input id="sEMin" type="number" step="1" min="0" placeholder="off"></label>
+          <label class="f">Daily profit target: stop for the day at ($)<input id="sEDpt" type="number" step="any" min="0" placeholder="off"></label>
         </div>
+        <p class="note" id="sEDptNote"></p>
         <h4 class="sub">Funded</h4>
         <div class="fgrid">
           <label class="f">Max loss, EOD trailing ($)<input id="sFMll" type="number" step="any" min="0"></label>
@@ -2389,9 +2392,12 @@ function migrateReset(p, faithful) {
 }
 /* Prop simulation: one account's whole course, evaluation -> funded (payouts) -> live, kept apart from the
    plain prop rules. Contract limits are in minis; with micros counted, each mini allows 10 micros.
-   e* = evaluation, f* = funded, l* = live. Max loss is end-of-day trailing and locks at start + lockPad. */
+   e* = evaluation, f* = funded, l* = live. Max loss is end-of-day trailing and locks at start + lockPad.
+   eDpt: the evaluation's daily profit target, your own rule rather than the firm's: once the day is up that much,
+   positions close and trading stops until the next trading day, so one big day cannot break the consistency rule
+   and leave the account stuck in the evaluation. */
 const SIM_DEF = { on: false, preset: '', size: 50000, fee: 0, unit: 'micro', resetNY: 18, dll: 0, lockPad: 100, auto: false,
-  ePt: 3000, eMll: 2000, eCons: 50, eMax: 4, eMin: 0,
+  ePt: 3000, eMll: 2000, eCons: 50, eMax: 4, eMin: 0, eDpt: 0,
   fMll: 2000, fTiers: '0:2, 1000:3, 2000:4', fDays: 5, fDayMin: 150, fPayMin: 500, fPayMax: 2000, fPayPct: 50, split: 90, fPayouts: 5,
   lMll: 2000, lMax: 4, lBonusPt: 4000, lBonusDays: 20, lBonus: 2000 };
 // "L Flex": a futures prop firm's Flex accounts as published in October 2026 (payout rules, live structure). No daily
@@ -3876,7 +3882,7 @@ const nyOffC = {};
 const nyOff = t => { const h = Math.floor(t / 3600); return nyOffC[h] ??= tzOffset('America/New_York', h * 3600); };
 const simDay = t => Math.floor((t + nyOff(t) - (cfg.sim.resetNY || 0) * 3600) / 86400);
 function newStage(start) {
-  return { start, day: null, dayStart: start, eodPeak: start, locked: false, lockedDay: '', days: {}, cycle: 0, cycleStart: start,
+  return { start, day: null, dayStart: start, eodPeak: start, locked: false, lockedDay: '', dptDay: false, days: {}, cycle: 0, cycleStart: start,
            tierProfit: 0, paid: 0, nPay: 0, bonusPaid: false, checked: null };
 }
 function newSim() { return { stage: 'eval', attempt: 1, fees: cfg.sim.fee || 0, income: 0, payouts: [], log: [], over: '', ...newStage(cfg.sim.size) }; }
@@ -3983,7 +3989,7 @@ function simEndDay() {
 function simTick() {
   if (!simOn()) return;
   const G = cfg.sim, s = T.sim, k = simDay(E.time);
-  if (s.day !== k) { if (s.day != null) simEndDay(); s.day = k; s.dayStart = T.balance; s.lockedDay = ''; s.checked = null; }
+  if (s.day !== k) { if (s.day != null) simEndDay(); s.day = k; s.dayStart = T.balance; s.lockedDay = ''; s.dptDay = false; s.checked = null; }
   if (s.over) return;
   const eq = equity(), floor = simFloor();
   if (eq <= floor + 1e-9) return simBreach(`Max loss: equity fell to ${money(eq)}, at or below the floor of ${money(floor)}.`);
@@ -3991,6 +3997,14 @@ function simTick() {
     flattenAll('Daily loss limit');
     s.lockedDay = `daily loss limit, down ${money(s.dayStart - equity())}`;
     toast('Daily loss limit hit. Positions closed and trading locked until the next trading day.', 'err'); stopForRule();
+  }
+  // the evaluation's daily profit target: bank the day and stop, so no single day grows past the consistency rule
+  if (s.stage === 'eval' && G.eDpt > 0 && !s.lockedDay && eq - s.dayStart >= G.eDpt - 1e-9) {
+    flattenAll('Daily profit target');
+    const up = T.balance - s.dayStart;
+    s.lockedDay = `daily profit target reached, up ${money(up)} today`; s.dptDay = true; s.dptHits = (s.dptHits || 0) + 1;
+    simLog(`Daily profit target reached: up ${money(up)} today. Positions closed; trading resumes next trading day.`, 'up');
+    toast(`Daily profit target reached: up ${money(up)} today. Positions closed and trading paused until the next trading day.`, 'up'); stopForRule();
   }
   // stage checks only when the closed balance has moved and nothing is open
   if (s.checked === T.balance || T.trades.length) return;
@@ -4017,7 +4031,7 @@ function renderSim() {
   if (!on) return;
   const G = cfg.sim, s = T.sim, r = simRules(), eq = equity(), floor = simFloor(), profit = T.balance - s.start;
   $('#aPay').textContent = money(s.income);
-  const [status, kind] = s.over ? ['Failed', 'neg'] : s.lockedDay ? ['Locked today', 'warn'] : [STAGES[s.stage], s.stage === 'eval' ? '' : 'pos'];
+  const [status, kind] = s.over ? ['Failed', 'neg'] : s.lockedDay ? (s.dptDay ? ['Target hit today', 'pos'] : ['Locked today', 'warn']) : [STAGES[s.stage], s.stage === 'eval' ? '' : 'pos'];
   const tag = $('#simStatus'); tag.textContent = status; tag.className = 'tag ' + kind;
   const order = ['eval', 'funded', 'live'], at = order.indexOf(s.stage);
   $('#simTrack').innerHTML = order.map((x, i) => `<span class="${i < at ? 'done' : i === at ? 'on' : ''}">${STAGES[x]}</span>`).join('<i>→</i>');
@@ -4030,6 +4044,7 @@ function renderSim() {
     rows.push(row('Profit target', `${smoney(ev.profit)} of ${money(G.ePt)}`, meter(ev.profit / G.ePt, ev.ptOk ? 'ok' : ''), cls(ev.profit)));
     if (G.eCons) rows.push(row('Consistency', ev.consPct == null ? `no profit yet · max ${G.eCons}%` : `best day ${ev.consPct.toFixed(1)}% · max ${G.eCons}%`, meter(ev.consPct == null ? 0 : ev.consPct / G.eCons, ev.consPct != null && !ev.consOk ? 'bad' : '')));
     if (G.eMin) rows.push(row('Trading days', `${ev.nDays} of ${G.eMin}`, meter(ev.nDays / G.eMin, ev.daysOk ? 'ok' : '')));
+    if (G.eDpt > 0) { const today = eq - s.dayStart; rows.push(row('Daily profit target', s.dptDay ? `reached · ${smoney(today)} today` : `${smoney(today)} today · stop at ${money(G.eDpt)}`, meter(s.dptDay ? 1 : today / G.eDpt, s.dptDay ? 'ok' : ''), cls(today))); }
   } else if (s.stage === 'funded') {
     const p = simPayoutInfo();
     rows.push(row('Profit', smoney(profit), '', cls(profit)));
@@ -4070,7 +4085,7 @@ function renderSim() {
   }
 }
 // settings form <-> simulation
-const SIMF = { size: '#sSize', fee: '#sFee', resetNY: '#sReset', dll: '#sDll', lockPad: '#sPad', ePt: '#sEPt', eMll: '#sEMll', eCons: '#sECons', eMax: '#sEMax', eMin: '#sEMin',
+const SIMF = { size: '#sSize', fee: '#sFee', resetNY: '#sReset', dll: '#sDll', lockPad: '#sPad', ePt: '#sEPt', eMll: '#sEMll', eCons: '#sECons', eMax: '#sEMax', eMin: '#sEMin', eDpt: '#sEDpt',
   fMll: '#sFMll', fDays: '#sFDays', fDayMin: '#sFDayMin', fPayMin: '#sFPayMin', fPayMax: '#sFPayMax', fPayPct: '#sFPayPct', split: '#sSplit', fPayouts: '#sFPayouts',
   lMll: '#sLMll', lMax: '#sLMax', lBonusPt: '#sLBonusPt', lBonusDays: '#sLBonusDays', lBonus: '#sLBonus' };
 function simToForm(p) {
@@ -4078,7 +4093,16 @@ function simToForm(p) {
   $('#sOn').checked = p.on;
   for (const [k, id] of Object.entries(SIMF)) $(id).value = p[k] || p[k] === 0 && (k === 'resetNY' || k === 'lockPad') ? p[k] : '';
   $('#sFTiers').value = p.fTiers; $('#sUnit').value = p.unit; $('#sAuto').checked = p.auto;
-  simFormState();
+  simFormState(); simDptNote();
+}
+// what the daily profit target does, and the largest one that keeps every day inside the consistency rule
+function simDptNote() {
+  const pt = parseFloat($('#sEPt').value) || 0, cons = parseFloat($('#sECons').value) || 0, dpt = parseFloat($('#sEDpt').value) || 0;
+  const safe = pt > 0 && cons > 0 && cons < 100 ? Math.floor(pt * cons / 100) : 0;
+  $('#sEDptNote').textContent = (dpt > 0
+    ? `Evaluation only: once a day is up ${money(dpt)}, positions close and trading stops until the next trading day.`
+    : 'Daily profit target: once a day is up this much, positions close and trading stops until the next trading day (evaluation only).') +
+    (safe ? ` With a ${money(pt)} target and ${cons}% consistency, ${money(safe)} or less keeps every day inside the rule${dpt > safe ? `; ${money(dpt)} can still leave one day too big` : ''}.` : '');
 }
 function simFromForm() {
   const p = { ...SIM_DEF, on: $('#sOn').checked, unit: $('#sUnit').value, auto: $('#sAuto').checked, fTiers: $('#sFTiers').value.trim(), preset: $('#sPreset').value };
@@ -4101,6 +4125,7 @@ function fillSimPresets(sel) {
 }
 function wireSim() {
   $('#sOn').addEventListener('change', simFormState);
+  for (const id of ['#sEPt', '#sECons', '#sEDpt']) $(id).addEventListener('input', simDptNote);
   $('#sPreset').addEventListener('change', () => {
     const name = $('#sPreset').value, p = SIM_BUILTIN[name] || (PREFS.simPresets.find(x => x.name === name) || {}).rules; if (!p) return;
     const cur = simFromForm();
@@ -7453,7 +7478,7 @@ async function runStrategy(opts = {}) {
       if (!fail) stratStatus(res && res.stopped ? 'Stopped' : (res && res.ended) || 'Done', (E.i - start) / Math.max(1, end - start));
       const s = computeStats();
       stratLog(`${s.trades} trades, net ${smoney(s.net)}${T.trades.length ? `, ${T.trades.length} still open` : ''}.`, s.net >= 0 ? 'ok' : 'er');
-      if (T.sim) { const take = (T.sim.income || 0) - (T.sim.fees || 0); stratLog(`Prop simulation: ${T.sim.attempt} evaluation${T.sim.attempt > 1 ? 's' : ''}, ${money(T.sim.fees || 0)} in fees, ${money(T.sim.income || 0)} paid out to you: ${smoney(take)}. Account now: ${simLabel() || '—'}.`, take >= 0 ? 'ok' : 'er'); }
+      if (T.sim) { const take = (T.sim.income || 0) - (T.sim.fees || 0); stratLog(`Prop simulation: ${T.sim.attempt} evaluation${T.sim.attempt > 1 ? 's' : ''}, ${money(T.sim.fees || 0)} in fees, ${money(T.sim.income || 0)} paid out to you: ${smoney(take)}. Account now: ${simLabel() || '—'}.${T.sim.dptHits ? ` The daily profit target stopped trading early on ${T.sim.dptHits} evaluation day${T.sim.dptHits > 1 ? 's' : ''}.` : ''}`, take >= 0 ? 'ok' : 'er'); }
       stratResults();
       if (!fail) stratTab('res');
     }
