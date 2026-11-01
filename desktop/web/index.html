@@ -932,6 +932,19 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
 .stkpi div{border:1px solid var(--line);border-radius:5px;padding:8px 10px;background:var(--raise);display:flex;flex-direction:column;gap:2px;min-width:0}
 .stkpi span{font-size:11px;color:var(--muted)}
 .stkpi b{font:500 16px var(--f-num);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stsim{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.stsim[hidden]{display:none}
+.stsim section{border:1px solid var(--line);border-radius:5px;background:var(--raise);padding:8px 12px 10px}
+.stsim h4{margin:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.stsim h4 span{text-transform:none;letter-spacing:0;font-weight:400;margin-left:4px}
+.stsim dl{columns:2;column-gap:24px;margin:0;font-size:12.5px}
+.stsim dl>div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:2px 0;break-inside:avoid}
+.stsim dt{color:var(--muted);min-width:0}
+.stsim dd{margin:0;text-align:right;font-family:var(--f-num);white-space:nowrap}
+.stsim dd i{font-style:normal;color:var(--muted);font-size:11.5px;margin-left:4px}
+.stsim dd.pos{color:var(--up)}.stsim dd.neg{color:var(--down)}.stsim dd.pay{color:var(--accent)}
+html.m .stsim{grid-template-columns:1fr}
+html.m .stsim dl{columns:1}
 .steq{border:1px solid var(--line);border-radius:5px;background:var(--bg);height:170px;position:relative}
 .steq svg{position:absolute;inset:0;width:100%;height:100%}
 .sttr{border:1px solid var(--line);border-radius:5px;overflow:auto;max-height:30vh}
@@ -1569,6 +1582,7 @@ html.m .optcard button{flex:1;min-height:40px}
 
     <div id="stRes" class="stres" hidden>
       <div class="stkpi" id="stKpi"></div>
+      <div class="stsim" id="stSim" hidden></div>
       <div class="steq" id="stEq"></div>
       <div class="sttr"><table><thead><tr><th>#</th><th>Side</th><th class="r">Size</th><th>Opened</th><th class="r">Entry</th><th>Closed</th><th class="r">Exit</th><th>Exit by</th><th class="r">Net P&amp;L</th></tr></thead><tbody id="stTr"></tbody></table></div>
       <div class="stact">
@@ -3885,7 +3899,22 @@ function newStage(start) {
   return { start, day: null, dayStart: start, eodPeak: start, locked: false, lockedDay: '', dptDay: false, days: {}, cycle: 0, cycleStart: start,
            tierProfit: 0, paid: 0, nPay: 0, bonusPaid: false, checked: null };
 }
-function newSim() { return { stage: 'eval', attempt: 1, fees: cfg.sim.fee || 0, income: 0, payouts: [], log: [], over: '', ...newStage(cfg.sim.size) }; }
+function newSim() { return { stage: 'eval', attempt: 1, fees: cfg.sim.fee || 0, income: 0, payouts: [], log: [], over: '', nPassed: 0, nLive: 0, nFail: { eval: 0, funded: 0, live: 0 }, ...newStage(cfg.sim.size) }; }
+// the course in numbers: accounts bought, passed, lost at each stage and taken live; payouts to you (after the split).
+// Sessions saved before the counters existed are counted from their log.
+function simStats(sim) {
+  if (!sim) return null;
+  const log = sim.log || [], has = re => log.filter(l => re.test(l.text)).length;
+  const passed = sim.nPassed ?? has(/^Evaluation passed/), live = sim.nLive ?? has(/moves to live/);
+  const nf = sim.nFail || { eval: has(/^Evaluation account failed/), funded: has(/^Funded account failed/), live: has(/^Live account failed/) };
+  const pays = (sim.payouts || []).filter(x => !x.bonus), nets = pays.map(x => x.net), bonus = (sim.payouts || []).filter(x => x.bonus).reduce((a, x) => a + x.net, 0);
+  const paid = nets.reduce((a, x) => a + x, 0), fees = sim.fees || 0, income = sim.income || 0;
+  return { attempts: sim.attempt || 1, passed, live, failEval: nf.eval || 0, failFunded: nf.funded || 0, failLive: nf.live || 0,
+           nPay: pays.length, nPayFunded: pays.filter(x => x.stage === 'funded').length, nPayLive: pays.filter(x => x.stage === 'live').length,
+           paid, avgPay: pays.length ? paid / pays.length : null, maxPay: pays.length ? Math.max(...nets) : null, minPay: pays.length ? Math.min(...nets) : null,
+           firstPay: pays.length ? pays[0].t : null, bonus, fees, income, take: income - fees,
+           passRate: (sim.attempt || 1) ? passed / (sim.attempt || 1) * 100 : null };
+}
 function simLog(text, kind) { T.sim.log.push({ t: E.time, text }); toast(text, kind); }
 const parseTiersRaw = s => String(s || '').split(/[,;]+/).map(x => x.split(':').map(Number)).filter(a => a.length === 2 && a.every(isFinite)).sort((a, b) => a[0] - b[0]);
 // read on every tick of a funded account (through simRules): parsed once per setting, not each time
@@ -3947,6 +3976,7 @@ function simPayout(amount) {
   pushEq(E.time, equity());
   simLog(`${STAGES[s.stage]} payout ${s.nPay}: ${money(amount)} taken from the account, ${money(net)} to you after the ${G.split}% split.`, 'up');
   if (s.stage === 'funded' && s.nPay >= G.fPayouts) {
+    s.nLive = (s.nLive || 0) + 1;
     simNewAccount('live');
     simLog(`That was the last funded payout: the account moves to live, opening with a ${money(G.lMll)} max loss.`, 'up');
     stopForRule();
@@ -3955,6 +3985,7 @@ function simPayout(amount) {
 }
 function simBreach(reason) {
   const s = T.sim; s.over = reason;
+  if (s.nFail) s.nFail[s.stage] = (s.nFail[s.stage] || 0) + 1;
   flattenAll('Rule breach');
   simLog(`${STAGES[s.stage]} account failed. ${reason}`, 'err'); stopForRule();
 }
@@ -4011,6 +4042,7 @@ function simTick() {
   s.checked = T.balance;
   if (s.stage === 'eval' && simEval().passed) {
     const p = T.balance - s.start;
+    s.nPassed = (s.nPassed || 0) + 1;
     simNewAccount('funded');
     simLog(`Evaluation passed with ${money(p)} profit. A funded ${money(G.size)} account is open.`, 'up'); stopForRule();
   } else if (s.stage === 'funded' && G.auto && simPayoutInfo().ok) simPayout();
@@ -4075,8 +4107,11 @@ function renderSim() {
     $('#simAct').innerHTML = h;
   }
   const fees = s.fees, payouts = s.payouts.filter(x => !x.bonus).length;
-  $('#simSum').innerHTML = `<span>Evaluation attempts</span><b>${s.attempt}</b><span>Fees paid</span><b>${money(fees)}</b>` +
-    `<span>Payouts</span><b>${payouts}</b><span class="pay">Payout income</span><b class="pay">${money(s.income)}</b>` +
+  const st = simStats(s);
+  $('#simSum').innerHTML = `<span>Evaluations</span><b>${s.attempt}</b><span>Passed</span><b>${st.passed}${s.attempt ? ` (${Math.round(st.passRate)}%)` : ''}</b>` +
+    `<span>Went live</span><b>${st.live}</b><span>Fees paid</span><b>${money(fees)}</b>` +
+    `<span>Payouts</span><b>${payouts}</b>` + (payouts ? `<span>Average payout</span><b class="pay">${money(st.avgPay)}</b><span>Largest payout</span><b class="pay">${money(st.maxPay)}</b>` : '') +
+    `<span class="pay">Payout income</span><b class="pay">${money(s.income)}</b>` +
     `<span>Income less fees</span><b class="${cls(s.income - fees)}">${smoney(s.income - fees)}</b>`;
   const logKey = s.log.length + ':' + s.attempt;
   if ($('#simLog').dataset.key !== logKey) {
@@ -5603,7 +5638,9 @@ function renderStats() {
     ['Long / short', `${h.filter(x => x.side > 0).length} / ${h.filter(x => x.side < 0).length}`], ['Avg hold', n ? dur(avgHold) : '—'],
     ['Costs paid', money(h.reduce((s, x) => s + x.comm, 0))], ['Max drawdown', T.maxDD ? `${money(T.maxDD)} (${T.maxDDpct.toFixed(1)}%)` : '$0.00'],
   ];
-  if (T.sim) rows.push(['Payout income', `<b class="pay">${money(T.sim.income)}</b>`], ['Payouts taken', T.sim.payouts.filter(x => !x.bonus).length], ['Evaluation fees', money(T.sim.fees)]);
+  if (T.sim) { const st = simStats(T.sim);
+    rows.push(['Payout income', `<b class="pay">${money(T.sim.income)}</b>`], ['Payouts taken', st.nPay], ['Average payout', st.nPay ? money(st.avgPay) : '—'], ['Largest payout', st.nPay ? money(st.maxPay) : '—'],
+      ['Evaluation fees', money(T.sim.fees)], ['Evaluations passed', `${st.passed} of ${st.attempts}`], ['Went live', st.live]); }
   $('#sgrid').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
 }
 
@@ -7478,7 +7515,8 @@ async function runStrategy(opts = {}) {
       if (!fail) stratStatus(res && res.stopped ? 'Stopped' : (res && res.ended) || 'Done', (E.i - start) / Math.max(1, end - start));
       const s = computeStats();
       stratLog(`${s.trades} trades, net ${smoney(s.net)}${T.trades.length ? `, ${T.trades.length} still open` : ''}.`, s.net >= 0 ? 'ok' : 'er');
-      if (T.sim) { const take = (T.sim.income || 0) - (T.sim.fees || 0); stratLog(`Prop simulation: ${T.sim.attempt} evaluation${T.sim.attempt > 1 ? 's' : ''}, ${money(T.sim.fees || 0)} in fees, ${money(T.sim.income || 0)} paid out to you: ${smoney(take)}. Account now: ${simLabel() || '—'}.${T.sim.dptHits ? ` The daily profit target stopped trading early on ${T.sim.dptHits} evaluation day${T.sim.dptHits > 1 ? 's' : ''}.` : ''}`, take >= 0 ? 'ok' : 'er'); }
+      if (T.sim) { const take = (T.sim.income || 0) - (T.sim.fees || 0); const st = simStats(T.sim);
+        stratLog(`Prop simulation: ${T.sim.attempt} evaluation${T.sim.attempt > 1 ? 's' : ''} (${st.passed} passed, ${st.live} went live), ${money(T.sim.fees || 0)} in fees, ${st.nPay} payout${st.nPay === 1 ? '' : 's'}${st.nPay ? ` (average ${money(st.avgPay)}, largest ${money(st.maxPay)})` : ''}, ${money(T.sim.income || 0)} paid out to you: ${smoney(take)}. Account now: ${simLabel() || '—'}.${T.sim.dptHits ? ` The daily profit target stopped trading early on ${T.sim.dptHits} evaluation day${T.sim.dptHits > 1 ? 's' : ''}.` : ''}`, take >= 0 ? 'ok' : 'er'); }
       stratResults();
       if (!fail) stratTab('res');
     }
@@ -7487,15 +7525,48 @@ async function runStrategy(opts = {}) {
 // with the prop simulation: what the course cost and paid
 function stratSimResults(s, label) {
   const sim = T.sim, paid = sim.income || 0, fees = sim.fees || 0, take = paid - fees;
+  const st = simStats(sim);
   const kpi = [['Your result', smoney(take), cls(take)], ['Payouts to you', money(paid), paid ? 'pos' : ''], ['Evaluation fees', money(fees), fees ? 'neg' : ''],
-    ['Evaluations', String(sim.attempt)], ['Trades', s.trades + (s.open ? ` +${s.open}` : '')], ['Account now', label || '—', label && /ailed/.test(label) ? 'neg' : '']];
+    ['Evaluations', `${sim.attempt} · ${st.passed} passed`], ['Trades', s.trades + (s.open ? ` +${s.open}` : '')], ['Account now', label || '—', label && /ailed/.test(label) ? 'neg' : '']];
   stratResultsBody(kpi);
+  $('#stSim').hidden = false;
+  $('#stSim').innerHTML = simStatsHtml(st, label);
+}
+// the accounts and payouts of a prop simulation, as two lists (strategy results)
+function simStatsHtml(st, label) {
+  const pct = (a, b) => b ? ` <i>${Math.round(a / b * 100)}%</i>` : '';
+  const dl = rows => '<dl>' + rows.map(([k, v, c]) => `<div><dt>${k}</dt><dd class="${c || ''}">${v}</dd></div>`).join('') + '</dl>';
+  const funded = st.passed;
+  return `<section><h4>Accounts</h4>${dl([
+    ['Evaluations bought', st.attempts],
+    ['Evaluations passed', `${st.passed}${pct(st.passed, st.attempts)}`, st.passed ? 'pos' : ''],
+    ['Failed in the evaluation', st.failEval, st.failEval ? 'neg' : ''],
+    ['Funded accounts', funded],
+    ['Funded accounts lost', st.failFunded, st.failFunded ? 'neg' : ''],
+    ['Went live', `${st.live}${pct(st.live, funded)}`, st.live ? 'pos' : ''],
+    ['Live accounts lost', st.failLive, st.failLive ? 'neg' : ''],
+    ['Evaluation fees', money(st.fees)],
+    ['Fees per pass', st.passed ? money(st.fees / st.passed) : '—'],
+    ['Account now', esc(label || '—'), label && /ailed/.test(label) ? 'neg' : ''],
+  ])}</section><section><h4>Payouts <span>to you, after the split</span></h4>${dl([
+    ['Payouts', st.nPay ? `${st.nPay} <i>(${st.nPayFunded} funded, ${st.nPayLive} live)</i>` : '0'],
+    ['Total paid', money(st.paid), st.paid ? 'pay' : ''],
+    ['Average payout', st.nPay ? money(st.avgPay) : '—'],
+    ['Largest payout', st.nPay ? money(st.maxPay) : '—'],
+    ['Smallest payout', st.nPay ? money(st.minPay) : '—'],
+    ['Payouts per account', funded ? (st.nPay / funded).toFixed(1) : '—'],
+    ['Paid per account', funded ? money(st.paid / funded) : '—'],
+    ['Live bonus', st.bonus ? money(st.bonus) : '—', st.bonus ? 'pay' : ''],
+    ['First payout', st.firstPay ? fmtDay(st.firstPay).slice(0, 10) : '—'],
+    ['Payouts less fees', smoney(st.take), cls(st.take)],
+  ])}</section>`;
 }
 // the results of the open session (a run that just finished, or an automated one reopened from the Library)
 function stratResults() {
   const s = computeStats(), h = T.hist, label = simLabel() || propLabel();
   const pf = s.pf === 'inf' ? '∞' : s.pf == null ? '—' : s.pf.toFixed(2);
   if (T.sim) return stratSimResults(s, label);
+  $('#stSim').hidden = true;
   const kpi = [['Net P&L', smoney(s.net), cls(s.net)], ['Trades', s.trades + (s.open ? ` +${s.open}` : '')],
     ['Win rate', s.winRate == null ? '—' : s.winRate.toFixed(1) + '%'], ['Profit factor', pf],
     ['Max drawdown', s.maxDD ? `${money(s.maxDD)} (${s.maxDDpct.toFixed(1)}%)` : '$0.00', s.maxDD ? 'neg' : ''],
@@ -7952,7 +8023,7 @@ function optResultsShow() {
   $('#optResume').hidden = OPT.on || OPT.rows.length >= doc.total;
   const sim = rows.some(r => r.res.sim);
   const cols = [['#', null], ...names.map(n => [n, 'p:' + n]), [OPT_GOALS[goal], 'score'], ['Trades', 'a.trades'], ['Net', 'a.net'], ['Win %', 'a.win'], ['PF', 'a.pf'], ['Max DD', 'a.dd'],
-    ...(split ? [['Check: net', 'b.net'], ['Check: PF', 'b.pf'], ['Check: trades', 'b.trades']] : []), ...(sim ? [['Evaluations', 'sim.attempts'], ['Payouts − fees', 'sim.take']] : []), ['', null]];
+    ...(split ? [['Check: net', 'b.net'], ['Check: PF', 'b.pf'], ['Check: trades', 'b.trades']] : []), ...(sim ? [['Evaluations', 'sim.attempts'], ['Passed', 'sim.passed'], ['Live', 'sim.live'], ['Payouts', 'sim.nPay'], ['Avg payout', 'sim.avgPay'], ['Largest payout', 'sim.maxPay'], ['Payouts − fees', 'sim.take']] : []), ['', null]];
   $('#optHead').innerHTML = '<tr>' + cols.map(([l, k], j) => `<th${k ? ` data-k="${k}"` : ''} class="${j > names.length ? 'r' : ''}${k === OPT.sortKey ? ' on' : ''}">${esc(l)}${k === OPT.sortKey ? (OPT.sortDir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('') + '</tr>';
   const show = rows.slice(0, 300);
   $('#optBody').innerHTML = show.map((r, k) => {
@@ -7963,7 +8034,9 @@ function optResultsShow() {
       `<td class="r"><b>${optScoreTxt(r.score, goal)}</b></td><td class="r">${a.trades}</td><td class="r ${cls(a.net)}">${smoney(a.net)}</td><td class="r">${a.win == null ? '—' : a.win.toFixed(0) + '%'}</td>` +
       `<td class="r">${optPf(a.pf)}</td><td class="r">${money(a.dd)}</td>` +
       (split ? `<td class="r ${cls(b.net || 0)}">${b.trades ? smoney(b.net) : '—'}</td><td class="r">${b.trades ? optPf(b.pf) : '—'}</td><td class="r">${b.trades || 0}</td>` : '') +
-      (sim ? `<td class="r">${res.sim ? res.sim.attempts : '—'}</td><td class="r ${cls(res.sim ? res.sim.take : 0)}">${res.sim ? smoney(res.sim.take) : '—'}</td>` : '') +
+      (sim ? (() => { const m = res.sim || {}, n = x => x == null ? '—' : x, $m = x => x == null ? '—' : money(x);
+        return `<td class="r">${n(m.attempts)}</td><td class="r">${n(m.passed)}</td><td class="r">${n(m.live)}</td><td class="r">${n(m.nPay)}</td><td class="r pay">${$m(m.avgPay)}</td><td class="r pay">${$m(m.maxPay)}</td>` +
+          `<td class="r ${cls(m.take || 0)}">${m.take == null ? '—' : smoney(m.take)}</td>`; })() : '') +
       `<td class="act"><button data-chart="${r.i}" title="Run it as a backtest on the chart">Open on chart</button><button data-use="${r.i}" title="Write these values into the settings at the top of the code">Use in code</button></td></tr>`;
   }).join('') + (rows.length > 300 ? `<tr><td colspan="${cols.length}" class="empty">The best 300 of ${rows.length.toLocaleString('en-US')} are shown. Copy as CSV for all of them.</td></tr>` : '');
   optHeat(rows, names, goal);
@@ -7974,7 +8047,7 @@ function optResultsShow() {
       (res.fail ? `<div class="err">${esc(String(res.fail).split('\n')[0])}</div>` :
       `<div class="oc2"><span>${esc(OPT_GOALS[goal])} <b>${optScoreTxt(r.score, goal)}</b></span><span>Net <b class="${cls(a.net)}">${smoney(a.net)}</b></span><span>${a.trades} trades</span>` +
       `<span>PF <b>${optPf(a.pf)}</b></span><span>DD <b>${money(a.dd)}</b></span>${split ? `<span>Check net <b class="${cls(bb.net || 0)}">${bb.trades ? smoney(bb.net) : '—'}</b></span>` : ''}` +
-      `${res.sim ? `<span>Payouts − fees <b class="${cls(res.sim.take)}">${smoney(res.sim.take)}</b></span>` : ''}</div><div class="ocb"><button data-chart="${r.i}" title="Run it as a backtest on the chart">Open on chart</button><button data-use="${r.i}" title="Write these values into the settings at the top of the code">Use in code</button></div>`) + '</div>';
+      `${res.sim ? `<span>Passed <b>${res.sim.passed ?? '—'} of ${res.sim.attempts}</b></span><span>Live <b>${res.sim.live ?? '—'}</b></span><span>Payouts <b>${res.sim.nPay ?? '—'}</b></span>${res.sim.nPay ? `<span>Avg <b class="pay">${money(res.sim.avgPay)}</b></span><span>Largest <b class="pay">${money(res.sim.maxPay)}</b></span>` : ''}<span>Payouts − fees <b class="${cls(res.sim.take)}">${smoney(res.sim.take)}</b></span>` : ''}</div><div class="ocb"><button data-chart="${r.i}" title="Run it as a backtest on the chart">Open on chart</button><button data-use="${r.i}" title="Write these values into the settings at the top of the code">Use in code</button></div>`) + '</div>';
   }).join('') + (rows.length > 20 ? `<p class="note">The best 20 of ${rows.length.toLocaleString('en-US')}. The Windows app shows them all.</p>` : '');
   $('#optZoom').disabled = OPT.on || !best;
   robShow(rows);
@@ -8033,11 +8106,11 @@ function optZoom() {
 function optCsv() {
   const doc = OPT.doc; if (!doc) return;
   const names = doc.spec.params.map(p => p.name), split = doc.splitT != null;
-  const head = ['rank', ...names, 'goal', 'trades', 'net', 'win_pct', 'profit_factor', 'max_dd', ...(split ? ['check_trades', 'check_net', 'check_pf', 'check_dd'] : []), 'evaluations', 'payouts_minus_fees', 'error'];
+  const head = ['rank', ...names, 'goal', 'trades', 'net', 'win_pct', 'profit_factor', 'max_dd', ...(split ? ['check_trades', 'check_net', 'check_pf', 'check_dd'] : []), 'evaluations', 'passed', 'went_live', 'payouts', 'avg_payout', 'largest_payout', 'payouts_minus_fees', 'error'];
   const rows = optSorted().map((r, k) => {
     const c = doc.combos[r.i], a = r.res.a || {}, b = r.res.b || {}, s = r.res.sim || {};
     const f = x => x == null || !isFinite(x) ? '' : x >= 1e8 ? 'inf' : +x.toFixed(4);
-    return [k + 1, ...names.map(n => optFmt(c[n])), f(r.score), a.trades ?? '', f(a.net), f(a.win), f(a.pf), f(a.dd), ...(split ? [b.trades ?? '', f(b.net), f(b.pf), f(b.dd)] : []), s.attempts ?? '', f(s.take), r.res.fail ? JSON.stringify(String(r.res.fail).split('\n')[0]) : ''];
+    return [k + 1, ...names.map(n => optFmt(c[n])), f(r.score), a.trades ?? '', f(a.net), f(a.win), f(a.pf), f(a.dd), ...(split ? [b.trades ?? '', f(b.net), f(b.pf), f(b.dd)] : []), s.attempts ?? '', s.passed ?? '', s.live ?? '', s.nPay ?? '', f(s.avgPay), f(s.maxPay), f(s.take), r.res.fail ? JSON.stringify(String(r.res.fail).split('\n')[0]) : ''];
   });
   const text = [head, ...rows].map(r => r.join(',')).join('\n');
   const done = ok => toast(ok ? `Copied ${rows.length} results as CSV.` : 'Copy was blocked.', ok ? '' : 'err');
@@ -8469,7 +8542,9 @@ function workerMain() {
       return { trades, net, win: trades ? w / trades * 100 : null, pf: gl > 0 ? gw / gl : gw > 0 ? 1e9 : null, dd };
     };
     const a = seg(-Infinity, splitT == null ? Infinity : splitT), b = splitT == null ? null : seg(splitT, Infinity);
-    const sim = T.sim ? { attempts: T.sim.attempt, fees: T.sim.fees || 0, income: T.sim.income || 0, take: (T.sim.income || 0) - (T.sim.fees || 0), label: simLabel() } : null;
+    const st = simStats(T.sim);
+    const sim = T.sim ? { attempts: T.sim.attempt, fees: T.sim.fees || 0, income: T.sim.income || 0, take: (T.sim.income || 0) - (T.sim.fees || 0), label: simLabel(),
+                          passed: st.passed, live: st.live, nPay: st.nPay, avgPay: st.avgPay, maxPay: st.maxPay } : null;
     return { a, b, sim, open: T.trades.length };
   };
   self.onmessage = async ev => {

@@ -165,6 +165,8 @@ def on_bar(ctx, bar):
         check("This evaluation account has failed" not in cons, "no orders after the last failure")
         kpi3 = await pg.inner_text("#stKpi")
         check(re.search(r"Evaluations\s+3", kpi3) and "$300.00" in kpi3, f"results show evaluations and fees: {kpi3}")
+        stats = re.sub(r"\s+", " ", await pg.inner_text("#stSim"))
+        check("Evaluations bought 3" in stats and "Failed in the evaluation 3" in stats and "Evaluations passed 0" in stats and "Payouts 0" in stats, stats)
         await pg.screenshot(path=f"{OUT}/s4-rebuy-results.png")
 
         # the evaluation's daily profit target: a strategy that is always in the market is closed out once a day is up
