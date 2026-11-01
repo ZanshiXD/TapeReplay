@@ -41,6 +41,16 @@ signs it for the App Store with your API key, and uploads it to App Store Connec
    | `ASC_KEY_P8` | the whole text of `AuthKey_<KeyID>.p8` (open it in Notepad, copy everything) |
    | `APPLE_TEAM_ID` | your Team ID |
 
+### Optional: your own development certificate
+
+The workflow builds the archive unsigned and signs it only for the App Store, so it makes no certificates. To have
+the archive signed with your own Apple Development certificate instead (still without making new ones):
+
+1. Xcode > Settings > Accounts > your team > **Manage Certificates** > **+** > Apple Development.
+2. Keychain Access > My Certificates > the "Apple Development" certificate > Export as `.p12`, with a password.
+3. Two more secrets: `IOS_DEV_P12`, the file as base64 (`base64 -i dev.p12 | pbcopy` on a Mac), and
+   `IOS_DEV_P12_PASSWORD`. Each run loads it into a temporary keychain and deletes that keychain at the end.
+
 ## 3. Each release
 
 1. Repository > **Actions** > **iOS App Store** > **Run workflow**, type the version (e.g. `1.0.0`), Run.
@@ -68,4 +78,6 @@ Build numbers come from the workflow's run number, so every upload is higher tha
 
 Open the failed step's log. Common causes: a missing secret (the "Check the secrets" step names it), an API key
 without the Admin role ("No signing certificate"), the bundle ID not registered or no app created in App Store
-Connect, or a version already approved (raise the version).
+Connect, or a version already approved (raise the version). "Your account has reached the maximum number of certificates": old
+runs each made a development certificate; revoke the unused ones in Certificates, Identifiers & Profiles >
+Certificates (the workflow no longer makes them).
