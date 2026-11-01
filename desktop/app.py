@@ -939,6 +939,9 @@ class Handler(BaseHTTPRequestHandler):
         self.fail(404, "Not found")
 
 
+BACKGROUND_FLAGS = "--disable-renderer-backgrounding --disable-background-timer-throttling"
+
+
 def find_edge():
     for base in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles"), os.environ.get("LOCALAPPDATA")):
         if base:
@@ -968,6 +971,11 @@ def main():
     url = f"http://127.0.0.1:{server.server_address[1]}/index.html?t={TOKEN}"
 
     global WINDOW
+    # Long work (an optimization, a backtest) keeps its speed while the window is minimized or behind others: like
+    # Chrome, WebView2 otherwise lowers a hidden page's process priority (efficiency mode on Windows 11), which slows
+    # the optimization workers, and throttles its timers. Appended to pywebview's own arguments.
+    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = " ".join(
+        x for x in (os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", ""), BACKGROUND_FLAGS) if x)
     try:
         import webview
         # links meant for a new window (the chart credit's link to tradingview.com) open in the browser
@@ -1010,7 +1018,7 @@ def main():
     if edge:
         profile = os.path.join(DATA_DIR, "edge-profile")
         subprocess.Popen([edge, f"--app={url}", f"--user-data-dir={profile}", "--no-first-run",
-                          "--window-size=1480,920"]).wait()
+                          "--window-size=1480,920", *BACKGROUND_FLAGS.split()]).wait()
     else:
         webbrowser.open(url)
         while True:

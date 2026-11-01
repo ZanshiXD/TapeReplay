@@ -43,8 +43,9 @@ class FakeApi:
     def trades(self):
         return "[]"
 
-    def history(self):
-        return "[]"
+    def history(self, start=0):
+        self.calls.append(("history", start))
+        return json.dumps(getattr(self, "closed", [])[start:])
 
 
 INFO = json.dumps({"name": "ES", "tf": "5m", "tick": 0.25, "pv": 50, "mode": "bar", "balance": 50000, "qty": 3, "spread": 0.25, "prec": 2})
@@ -218,4 +219,20 @@ check("more than" in json.loads(rt._tr_combos(json.dumps(big)))["error"], "too m
 check(len(json.loads(rt._tr_combos(json.dumps({**big, "mode": "random", "n": 50})))["combos"]) == 50, "random from a huge grid")
 check("not valid" in json.loads(rt._tr_combos(json.dumps({**spec, "rules": ["FAST <"]})))["error"], "bad rule")
 check("not a ticked setting" in json.loads(rt._tr_combos(json.dumps({**spec, "rules": ["FAST < NOPE"]})))["error"], "unknown name in rule")
+# ctx.history: only trades closed since the last read cross over, and every read sees all of them
+api = FakeApi(); api.closed = []
+HIST = """
+def on_bar(ctx, bar):
+    h = ctx.history
+    print("hist", len(h), h[-1]["pnl"] if h else None)
+    h.append("mine")  # a strategy changing its copy changes nothing for the next read
+"""
+buf = io.StringIO()
+with redirect_stdout(buf):
+    check(start(api, HIST, INFO) is None, "history strategy starts")
+    for i in range(5):
+        api.closed += [{"id": len(api.closed) + 1, "pnl": float(i)}] * (i % 2)
+        rt._tr_bar(i * 60.0, 1, 2, 0.5, 1.5, 3, 0, 0, None, 1, 1)
+check(re.findall(r"hist (\d+) (\S+)", buf.getvalue()) == [("0", "None"), ("1", "1.0"), ("1", "1.0"), ("2", "3.0"), ("2", "3.0")], buf.getvalue())
+check([c[1] for c in api.calls if c[0] == "history"] == [0, 0, 1, 1, 2], api.calls)
 print(f"runtime: {ok} checks passed")
