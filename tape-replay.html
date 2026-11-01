@@ -1686,6 +1686,7 @@ class Context:
         self._cap = 4096
         self._a = np.zeros((6, self._cap))
         self._rejects = {}
+        self._hist = []
         self._quiet = bool(info.get("quiet"))
 
     # ---- history of completed candles (oldest first, the current one last)
@@ -1832,7 +1833,11 @@ class Context:
     @property
     def history(self):
         """Closed trades: dicts with id, side, qty, entry, exit, reason, pnl, entry_time, exit_time."""
-        return json.loads(self._api.history())
+        # only the trades closed since the last call cross from the page (all of them each time made a run
+        # that reads ctx.history on every bar slow down as trades piled up); a new list of the same dicts
+        h = self._hist
+        h.extend(json.loads(self._api.history(len(h))))
+        return list(h)
 
     def _state(self, pos, avg, eq, bal):
         self.position = pos
@@ -2153,6 +2158,15 @@ def _tr_end(pos, avg, eq, bal):
 'use strict';
 const LW = window.LightweightCharts;
 const $ = s => document.querySelector(s);
+// a pause in long work so the page can paint and take input. A message rather than setTimeout(0): while the window is
+// hidden or minimized, Chromium (and the Windows app's WebView2) runs such timers once a second at most, and after
+// five minutes once a minute, so a backtest left running in the background crawled.
+const yieldTask = (() => {
+  if (typeof MessageChannel !== 'function') return () => new Promise(r => setTimeout(r, 0));
+  const ch = new MessageChannel(), waiting = [];
+  ch.port1.onmessage = () => { const r = waiting.shift(); if (r) r(); };
+  return () => new Promise(r => { waiting.push(r); ch.port2.postMessage(0); });
+})();
 // The iOS app, or any touch screen without a mouse: messages talk about tapping and touching, not keys and clicks,
 // and the keyboard shortcut list and hover tips (which name keys) are hidden. The shortcuts themselves still work
 // with a keyboard attached to an iPad.
@@ -3073,26 +3087,38 @@ function indicatorsChanged() {
 }
 
 /* ---------------- replay engine ---------------- */
-function buildTicks(i) {
+// The ticks of base bar i: cfg.ticks evenly spaced points along open -> low -> high -> close (or open -> high ->
+// low -> close), plus the turning points, written to F (fraction of the bar) and P (price); returns how many.
+// Runs for every bar of every backtest and optimization run, so it allocates nothing.
+function buildTicks(i, F, P) {
   const o = D.o[i], h = D.h[i], l = D.l[i], c = D.c[i];
-  const pts = c >= o ? [o, l, h, c] : [o, h, l, c];
-  const s0 = Math.abs(pts[1] - pts[0]), s1 = Math.abs(pts[2] - pts[1]), s2 = Math.abs(pts[3] - pts[2]), tot = s0 + s1 + s2;
-  if (tot === 0) return [{ f: 0, p: o }, { f: 1, p: c }];
-  const fs = new Set([s0 / tot, (s0 + s1) / tot]);
-  const N = cfg.ticks; for (let k = 0; k < N; k++) fs.add(k / (N - 1));
+  const p0 = o, p1 = c >= o ? l : h, p2 = c >= o ? h : l, p3 = c;
+  const s0 = Math.abs(p1 - p0), s1 = Math.abs(p2 - p1), s2 = Math.abs(p3 - p2), tot = s0 + s1 + s2;
+  if (tot === 0) { F[0] = 0; P[0] = o; F[1] = 1; P[1] = c; return 2; }
   const at = f => {
     const d = f * tot;
-    if (d <= s0) return s0 ? pts[0] + (pts[1] - pts[0]) * d / s0 : pts[0];
-    if (d <= s0 + s1) return s1 ? pts[1] + (pts[2] - pts[1]) * (d - s0) / s1 : pts[1];
-    return s2 ? pts[2] + (pts[3] - pts[2]) * Math.min(1, (d - s0 - s1) / s2) : pts[2];
+    if (d <= s0) return s0 ? p0 + (p1 - p0) * d / s0 : p0;
+    if (d <= s0 + s1) return s1 ? p1 + (p2 - p1) * (d - s0) / s1 : p1;
+    return s2 ? p2 + (p3 - p2) * Math.min(1, (d - s0 - s1) / s2) : p2;
   };
-  return [...fs].sort((a, b) => a - b).map(f => ({ f, p: rp(at(f)) }));
+  // the even grid merged with the two turning points, in order, each fraction once
+  const N = cfg.ticks, ta = s0 / tot, tb = (s0 + s1) / tot;
+  let n = 0, j = 0;
+  const put = f => { if (n === 0 || F[n - 1] !== f) F[n++] = f; };
+  for (let k = 0; k < N; k++) {
+    const g = k / (N - 1);
+    for (; j < 2; j++) { const x = j ? tb : ta; if (x < g) put(x); else break; }
+    put(g);
+  }
+  for (; j < 2; j++) put(j ? tb : ta);
+  for (let k = 0; k < n; k++) P[k] = rp(at(F[k]));
+  return n;
 }
 
 function newEngine(startIdx) {
   const prevT = startIdx > 0 ? D.t[startIdx - 1] : D.t[0] - D.base;
   return {
-    start: startIdx, i: startIdx, k: 0, ticks: null, F: null, P: null,
+    start: startIdx, i: startIdx, k: 0, nt: 0, tkF: new Float64Array(608), tkP: new Float64Array(608), F: null, P: null,
     price: startIdx > 0 ? D.c[startIdx - 1] : null, prevClose: startIdx > 0 ? D.c[startIdx - 1] : null,
     time: prevT + D.base, simTime: prevT + D.base, barTime: prevT,
     playing: false, stop: false, tfCandles: [], mas: [], maVals: [], eq: [], eqStride: Math.max(1, Math.floor(D.n / 5000)),
@@ -3127,10 +3153,10 @@ function rebuild() {
 }
 function processTick() {
   const i = E.i; if (i >= D.n) return;
-  if (!E.ticks) E.ticks = buildTicks(i);
-  const tk = E.ticks[E.k], p = tk.p;
+  if (!E.nt) E.nt = buildTicks(i, E.tkF, E.tkP);
+  const f = E.tkF[E.k], p = E.tkP[E.k];
   E.barTime = D.t[i];
-  E.time = D.t[i] + tk.f * D.base;
+  E.time = D.t[i] + f * D.base;
   if (E.k === 0) {
     const b = E.F ? Math.max(bucket(D.t[i]), E.F.time) : bucket(D.t[i]);
     if (!E.F || E.F.time !== b) { if (E.F) completeForming(); E.F = { time: b, o: p, h: p, l: p, c: p, v: 0 }; }
@@ -3145,11 +3171,11 @@ function processTick() {
     if (p > P.h) P.h = p; if (p < P.l) P.l = p; P.c = p;
     if (!E.silent) onTick(from, p, false);
   }
-  const dv = D.v[i] * (tk.f - (E.k ? E.ticks[E.k - 1].f : 0));
+  const dv = D.v[i] * (f - (E.k ? E.tkF[E.k - 1] : 0));
   E.F.v += dv; E.P.v += dv;
   E.k++;
-  if (E.k >= E.ticks.length) {
-    E.prevClose = p; E.i++; E.k = 0; E.ticks = null; E.P = null;
+  if (E.k >= E.nt) {
+    E.prevClose = p; E.i++; E.k = 0; E.nt = 0; E.P = null;
     const eq = equity(); trackDD(eq);
     if ((i - E.start) % E.eqStride === 0) pushEq(D.t[i], eq);
   }
@@ -3172,8 +3198,8 @@ function skipClosedGap() {
 const shownTime = () => Math.max(E.time, E.simTime);
 function nextTickTime() {
   if (E.i >= D.n) return Infinity;
-  if (!E.ticks) E.ticks = buildTicks(E.i);
-  return D.t[E.i] + E.ticks[E.k].f * D.base;
+  if (!E.nt) E.nt = buildTicks(E.i, E.tkF, E.tkP);
+  return D.t[E.i] + E.tkF[E.k] * D.base;
 }
 function atEnd() {
   if (E.i < D.n) return false;
@@ -3219,7 +3245,7 @@ async function skipTo(target) {
     let budget = 60000;
     while (budget-- > 0 && E.i < D.n && D.t[E.i] < target && !E.stop) processTick();
     btn.textContent = `Skipping ${Math.round(clamp((E.time - from) / (target - from), 0, 1) * 100)}%`;
-    await new Promise(r => setTimeout(r, 0));
+    await yieldTask();
   }
   btn.innerHTML = html; btn.disabled = false;
   E.simTime = E.time; render(); ui(true);
@@ -3553,6 +3579,7 @@ function propFail(reason) {
   toast('Evaluation failed. ' + reason, 'err'); stopForRule();
 }
 // runs after every tick: day rollover, loss limits, flat-by time and the pass check
+const PROP_CHK = { st: null, m: -1, b: NaN, p: null }; // what the last pass check saw (kept out of the saved state)
 function propTick() {
   if (!propOn()) return;
   const P = cfg.prop, st = T.prop, k = dayKey(E.time);
@@ -3574,7 +3601,11 @@ function propTick() {
   if (P.flatBy && inFlat(E.time) && (T.trades.length || T.orders.length)) {
     flattenAll('Flat-by time'); toast(`It is past the ${P.flatBy} flat-by time: positions closed and orders cancelled.`);
   }
-  if (!st.passedAt && propEval().passed) { st.passedAt = E.time; toast('Profit target reached with every rule met. Evaluation passed.', 'up'); stopForRule(); }
+  // passing depends on the rules, closed results and trading days, which change only with the settings, a fill (a new
+  // mark) or the balance: checked then, not on every tick (propEval walks every trading day so far, slowing long runs)
+  const K = PROP_CHK;
+  if (!st.passedAt && (K.st !== st || K.m !== T.marks.length || K.b !== T.balance || K.p !== P) &&
+      (Object.assign(K, { st, m: T.marks.length, b: T.balance, p: P }), propEval().passed)) { st.passedAt = E.time; toast('Profit target reached with every rule met. Evaluation passed.', 'up'); stopForRule(); }
 }
 function propBlock(qtyAdd) {
   if (!propOn()) return null;
@@ -3618,7 +3649,10 @@ function newStage(start) {
 }
 function newSim() { return { stage: 'eval', attempt: 1, fees: cfg.sim.fee || 0, income: 0, payouts: [], log: [], over: '', ...newStage(cfg.sim.size) }; }
 function simLog(text, kind) { T.sim.log.push({ t: E.time, text }); toast(text, kind); }
-const parseTiers = s => String(s || '').split(/[,;]+/).map(x => x.split(':').map(Number)).filter(a => a.length === 2 && a.every(isFinite)).sort((a, b) => a[0] - b[0]);
+const parseTiersRaw = s => String(s || '').split(/[,;]+/).map(x => x.split(':').map(Number)).filter(a => a.length === 2 && a.every(isFinite)).sort((a, b) => a[0] - b[0]);
+// read on every tick of a funded account (through simRules): parsed once per setting, not each time
+const tierCache = { s: null, v: [] };
+const parseTiers = s => { if (tierCache.s !== s) { tierCache.v = parseTiersRaw(s); tierCache.s = s; } return tierCache.v; };
 function simTier() { const tiers = parseTiers(cfg.sim.fTiers); let n = tiers.length ? tiers[0][1] : 0; for (const [p, c] of tiers) if (T.sim.tierProfit >= p) n = c; return n; }
 // the current stage's max loss, size limit (in the contracts you trade) and the end-of-day high that locks the floor
 function simRules() {
@@ -5553,7 +5587,7 @@ async function synthSection(V, t0, t1) {
   try {
     for (const [j, i] of want.entries()) {
       synthDay(i, B, t0, t1);
-      if (j % 4 === 3) { progSet((j + 1) / want.length, `Trading day ${j + 1} of ${want.length}`); await new Promise(res => setTimeout(res, 0)); }
+      if (j % 4 === 3) { progSet((j + 1) / want.length, `Trading day ${j + 1} of ${want.length}`); await yieldTask(); }
     }
   } finally { progEnd(); }
   const k = B.n;
@@ -6914,7 +6948,8 @@ const stratApi = {
   },
   orders: () => JSON.stringify(T.orders.map(o => ({ id: o.id, side: o.side > 0 ? 'buy' : 'sell', type: o.type, price: o.price, qty: o.qty, sl: o.sl ?? null, tp: o.tp ?? null }))),
   trades: () => JSON.stringify(T.trades.map(t => ({ id: t.id, side: t.side > 0 ? 'long' : 'short', qty: t.qty, entry: t.entry, sl: t.sl ?? null, tp: t.tp ?? null, pnl: unreal(t) }))),
-  history: () => JSON.stringify(T.hist.map(h => ({ id: h.id, side: h.side > 0 ? 'long' : 'short', qty: h.qty, entry: h.entry, exit: h.exit, reason: h.reason, pnl: h.net, entry_time: h.time, exit_time: h.exitTime }))),
+  // closed trades from index `from` on: Python keeps the earlier ones, so reading ctx.history on every bar stays cheap
+  history: from => JSON.stringify(T.hist.slice(from || 0).map(h => ({ id: h.id, side: h.side > 0 ? 'long' : 'short', qty: h.qty, entry: h.entry, exit: h.exit, reason: h.reason, pnl: h.net, entry_time: h.time, exit_time: h.exitTime }))),
 };
 // market orders and closes queued by the strategy, filled at this tick's price (the same checks as the ticket)
 function execPending() {
@@ -7034,7 +7069,7 @@ async function runStrategy(opts = {}) {
     ran = true;
     res = await stratCore({ code, mode, tf, end, rebuy, maxEvals, overrides,
       onStart: () => stratLog(`Running ${(end - start).toLocaleString('en-US')} bars of ${tfLabel({ kind: 's', sec: D.base })} data on ${tfLabel(tf)} candles, ${fmtDT(D.t[start]).slice(0, 16)} to ${fmtDT(D.t[end - 1]).slice(0, 16)}${mode === 'tick' ? ', every tick' : ''}${overrides ? `, with ${optLabel(overrides)}` : ''}.`),
-      slice: async done => { stratStatus(`${fmtDT(E.time).slice(0, 10)} · ${T.hist.length} trades`, done); await new Promise(r => setTimeout(r, 0)); } });
+      slice: async done => { stratStatus(`${fmtDT(E.time).slice(0, 10)} · ${T.hist.length} trades`, done); await yieldTask(); } });
     fail = res.fail;
     if (res.stopped) stratLog(`Stopped at ${fmtDT(E.time).slice(0, 16)}.`, 'er');
     else if (!fail) stratLog(`Finished in ${res.secs.toFixed(1)} s.`, 'ok');
@@ -7352,7 +7387,10 @@ async function optRun(resume) {
   optMsg(`Running ${todo.length.toLocaleString('en-US')} combinations, ${n} at a time.`);
   const url = URL.createObjectURL(new Blob([OPT_WORKER], { type: 'text/javascript' }));
   const script = pageScript(), runtime = $('#trRuntime').textContent, pyBase = new URL('pyodide/', location.href).href;
-  let next = 0, firstErr = '', t0 = 0, doneNow = 0, lastUi = 0;
+  // the results table is re-sorted and redrawn, and the optimization saved, as results come in; with thousands of
+  // results each takes a while, and the workers wait on this thread for their next combination, so the gaps grow
+  // with the time those take
+  let next = 0, firstErr = '', t0 = 0, doneNow = 0, lastUi = 0, uiGap = 400, saveGap = 10000;
   const total = doc.total;
   await new Promise(resolve => {
     let alive = n;
@@ -7376,14 +7414,15 @@ async function optRun(resume) {
           if (res.fail) firstErr = firstErr || res.fail;
           OPT.rows.push({ i: m.idx, res }); doneNow++;
           const now = performance.now();
-          if (now - lastUi > 400) {
+          if (now - lastUi > uiGap) {
             lastUi = now;
             const rate = doneNow / Math.max(0.001, (now - t0) / 1000), left = (todo.length - doneNow) / rate;
             OPT.rate = rate;
             stratStatus(`${OPT.rows.length.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} · ${n} at a time · about ${optDur(left)} left`, OPT.rows.length / total);
             optResultsShow();
+            uiGap = Math.max(400, (performance.now() - now) * 20);
           }
-          if (now - OPT.saveT > 10000) optSave();
+          if (now - OPT.saveT > saveGap) { const s0 = performance.now(); optSave(); saveGap = Math.max(10000, (performance.now() - s0) * 50); }
           give();
         }
       };
