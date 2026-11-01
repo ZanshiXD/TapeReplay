@@ -32,7 +32,6 @@ def check(cond, msg):
 
 for d in (app.DATASETS, app.SESSIONS, app.OPTIMS):
     os.makedirs(d, exist_ok=True)
-sys.frozen = True  # the installed app: it offers updates
 app.VERSION = "1.4.2"
 MANIFEST = {"version": "1.4.3", "url": "https://github.com/ZanshiXD/TapeReplay-releases/releases/download/v1.4.3/TapeReplay.exe",
             "size": 1, "sha256": "0" * 64, "notes": "Faster imports. | Fixed the update prompt."}
@@ -55,6 +54,9 @@ URL = f"http://127.0.0.1:{srv.server_address[1]}/index.html?t={app.TOKEN}"
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
+        # the installed app offers updates (set after the browser starts: Playwright itself looks for its browsers
+        # beside the program when sys.frozen is set)
+        sys.frozen = True
         pg = await b.new_page(viewport={"width": 1400, "height": 900})
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))
