@@ -3193,6 +3193,45 @@ function processTick() {
   }
   if (!E.silent) { propTick(); simTick(); }
 }
+// A whole base bar in one step, for strategy runs while nothing can happen inside it: no orders, no open trades and
+// no prop-rule day change. It leaves exactly the state processTick would after each of the bar's ticks (the same tick
+// prices for the candle, the same volume sums), without the per-tick work. A strategy that is flat most of the day
+// on seconds data spends most of its run here.
+function flatBar() {
+  const i = E.i, n = E.nt || buildTicks(i, E.tkF, E.tkP), f = E.tkF, P = E.tkP, v = D.v[i];
+  const p0 = P[0];
+  E.barTime = D.t[i];
+  const b = E.F ? Math.max(bucket(D.t[i]), E.F.time) : bucket(D.t[i]);
+  if (!E.F || E.F.time !== b) { if (E.F) completeForming(); E.F = { time: b, o: p0, h: p0, l: p0, c: p0, v: 0 }; }
+  else { if (p0 > E.F.h) E.F.h = p0; if (p0 < E.F.l) E.F.l = p0; E.F.c = p0; }
+  const F = E.F;
+  F.v += v * f[0];
+  for (let k = 1; k < n; k++) {
+    const p = P[k];
+    if (p > F.h) F.h = p; if (p < F.l) F.l = p; F.c = p;
+    F.v += v * (f[k] - f[k - 1]);
+  }
+  const p = P[n - 1];
+  E.time = D.t[i] + f[n - 1] * D.base;
+  E.price = p; E.prevClose = p; E.i++; E.k = 0; E.nt = 0; E.P = null;
+  const eq = equity(); trackDD(eq);
+  if ((i - E.start) % E.eqStride === 0) pushEq(D.t[i], eq);
+}
+// true when the prop rules' and prop simulation's per-tick checks would change nothing until time t1 while flat:
+// the same trading day as their last check, and that check already saw the current balance and trades
+function rulesIdle(t1) {
+  if (propOn()) {
+    const st = T.prop, K = PROP_CHK;
+    if (st.day !== dayKey(t1)) return false;
+    if (!st.failed && !st.passedAt && !(K.st === st && K.m === T.marks.length && K.b === T.balance && K.p === cfg.prop)) return false;
+  }
+  if (simOn()) {
+    const s = T.sim;
+    if (s.day !== simDay(t1)) return false;
+    if (!s.over && s.checked !== T.balance) return false;
+  }
+  return true;
+}
 function pushEq(t, eq) {
   const last = E.eq[E.eq.length - 1];
   if (!last || t > last.time) E.eq.push({ time: t, value: Math.round(eq * 100) / 100 });
@@ -7056,14 +7095,17 @@ async function stratCore(o) {
     if (r.error) fail = r.error;
     else {
       if (o.onStart) o.onStart();
-      const bucketOf = makeBucket(tf);
+      const bucketOf = makeBucket(tf), tickMode = mode === 'tick' && !!r.on_tick;
       let C = null;
       while (E.i < end && !RUN.stop && !fail && !evalEnd) {
         const until = performance.now() + 30;
         let n = 0;
         while (E.i < end && !fail && !evalEnd) {
           const i = E.i, queued = RUN.pending.length > 0;
-          processTick(); E.stop = false; // prop rules may ask the replay to pause; a run carries on
+          // nothing to fill and nothing for the prop rules to do inside this bar: step over its ticks (the same end state)
+          const flat = E.k === 0 && !queued && !T.orders.length && !T.trades.length && !RUN.fills.length && !tickMode && rulesIdle(D.t[i] + D.base);
+          if (flat) flatBar(); else processTick();
+          E.stop = false; // prop rules may ask the replay to pause; a run carries on
           if (T.sim && T.sim.over && !evalEnd) { // the account failed (its positions are already closed)
             if (rebuy && T.sim.attempt < maxEvals) {
               simRestart();
@@ -7371,6 +7413,7 @@ function optCount() {
 const optDur = s => s < 90 ? `${Math.max(1, Math.round(s))} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`;
 async function optOpen() {
   clearTimeout(OPT.detectT);
+  optWarm(); // start the workers' Python now, while the settings are being chosen
   await optDetect();
   optResultsShow();
 }
@@ -7405,6 +7448,50 @@ function optData(start, end) {
   return { d, shared, bytes };
 }
 function pageScript() { let best = ''; for (const s of document.querySelectorAll('script:not([src]):not([type])')) if (s.textContent.length > best.length) best = s.textContent; return best; }
+
+// ---- the workers, kept ready between runs
+// Starting a worker means starting Python in it (Pyodide, numpy, the strategy runtime): a few seconds of CPU each,
+// and all of them at once on every run made each optimization slow to get going. They start when the Optimize
+// tab opens and stay ready for the next run (zoom in, resume, a new range); idle ones close after a while.
+const OPTP = { list: [], url: '', script: '', idleT: 0 };
+const OPT_IDLE_MS = 10 * 60 * 1000;
+const optLibs = p => (p === 'pandas' ? ['numpy', 'pandas'] : ['numpy']);
+function optSpawn(libs) {
+  if (!OPTP.url) OPTP.url = URL.createObjectURL(new Blob([OPT_WORKER], { type: 'text/javascript' }));
+  if (!OPTP.script) OPTP.script = pageScript();
+  const w = new Worker(OPTP.url), e = { w, state: 'starting', err: '', handler: null };
+  e.ready = new Promise(res => { e.resolve = res; });
+  const dead = msg => { if (e.state === 'dead') return; e.state = 'dead'; e.err = msg; try { w.terminate(); } catch (x) {} e.resolve(false); if (e.handler) e.handler({ type: 'crash', error: msg }); };
+  w.onmessage = ev => {
+    const m = ev.data;
+    if (m.type === 'booted') return w.postMessage({ type: 'py', runtime: $('#trRuntime').textContent, pyBase: new URL('pyodide/', location.href).href, libs });
+    if (m.type === 'pyready') { e.state = 'ready'; return e.resolve(true); }
+    if (m.type === 'error' && m.idx == null && e.state === 'starting') return dead(m.error);
+    if (e.handler) e.handler(m);
+  };
+  w.onerror = ev => { ev.preventDefault(); dead(ev.message || 'A worker stopped.'); };
+  w.postMessage({ type: 'boot', script: OPTP.script });
+  return e;
+}
+// at least n workers, ready or starting; the idle timer is paused while they are wanted
+function optPool(n, libs) {
+  clearTimeout(OPTP.idleT);
+  OPTP.list = OPTP.list.filter(e => e.state !== 'dead');
+  while (OPTP.list.length < n) OPTP.list.push(optSpawn(libs));
+  return OPTP.list.slice(0, n);
+}
+function optPoolClose() {
+  clearTimeout(OPTP.idleT);
+  for (const e of OPTP.list) { e.state = 'dead'; try { e.w.terminate(); } catch (x) {} }
+  OPTP.list = [];
+}
+const optPoolIdle = () => { clearTimeout(OPTP.idleT); OPTP.idleT = setTimeout(optPoolClose, OPT_IDLE_MS); };
+function optWarm() {
+  if (!optAvailable() || OPT.on) return;
+  const shared = self.crossOriginIsolated === true && typeof SharedArrayBuffer === 'function';
+  optPool(optWorkerCount(0, shared), optLibs(stratPrefs().libs));
+  optPoolIdle();
+}
 
 async function optRun(resume) {
   if (OPT.on || RUN.on || !E || !D) return;
@@ -7447,10 +7534,10 @@ async function optRun(resume) {
   const runCfg = doc.cfg || JSON.parse(JSON.stringify(cfg));
   OPT.on = true; OPT.stop = false; OPT.paused = false; optRunning(true); optResultsShow();
   if (window.TAPE_IOS) STORE.awake(true);
-  stratStatus(`Starting ${n} parallel run${n > 1 ? 's' : ''}…`, 0);
+  const pool = optPool(n, job.libs), warm = pool.filter(e => e.state === 'ready').length;
+  stratStatus(warm === n ? `${n} parallel run${n > 1 ? 's' : ''} ready…` : `Starting ${n} parallel run${n > 1 ? 's' : ''}…`, 0);
   optMsg(`Running ${todo.length.toLocaleString('en-US')} combinations, ${n} at a time.`);
-  const url = URL.createObjectURL(new Blob([OPT_WORKER], { type: 'text/javascript' }));
-  const script = pageScript(), runtime = $('#trRuntime').textContent, pyBase = new URL('pyodide/', location.href).href;
+  const init = { type: 'init', data: data.d, cfg: runCfg, zone: { id: ZONE.id, tz: ZONE.tz, fixed: ZONE.fixed }, job };
   // the results table is re-sorted and redrawn, and the optimization saved, as results come in; with thousands of
   // results each takes a while, and the workers wait on this thread for their next combination, so the gaps grow
   // with the time those take
@@ -7459,20 +7546,20 @@ async function optRun(resume) {
   await new Promise(resolve => {
     let alive = n;
     OPT.resolve = resolve;
-    const finish = w => { try { w.terminate(); } catch (e) {} if (--alive === 0) resolve(); };
-    for (let k = 0; k < n; k++) {
-      const w = new Worker(url);
-      OPT.workers.push(w);
+    OPT.workers = pool.map(e => e.w);
+    for (const e of pool) {
+      const w = e.w;
+      let done = false;
+      const finish = () => { if (done) return; done = true; e.handler = null; if (--alive === 0) resolve(); };
       const give = () => {
-        if (OPT.stop || next >= todo.length) return finish(w);
+        if (OPT.stop || next >= todo.length) return finish();
         const i = todo[next++];
         w.postMessage({ type: 'run', idx: i, overrides: doc.combos[i] });
       };
-      w.onmessage = ev => {
-        const m = ev.data;
-        if (m.type === 'booted') return w.postMessage({ type: 'init', data: data.d, cfg: runCfg, zone: { id: ZONE.id, tz: ZONE.tz, fixed: ZONE.fixed }, job, runtime, pyBase });
+      e.handler = m => {
+        if (m.type === 'crash') { firstErr = firstErr || m.error; return finish(); }
         if (m.type === 'ready') { if (!t0) t0 = performance.now(); return give(); }
-        if (m.type === 'error' && m.idx == null) { firstErr = firstErr || m.error; return finish(w); }
+        if (m.type === 'error' && m.idx == null) { firstErr = firstErr || m.error; return finish(); }
         if (m.type === 'result' || m.type === 'error') {
           const res = m.type === 'error' ? { fail: m.error } : m.res;
           if (res.fail) firstErr = firstErr || res.fail;
@@ -7490,12 +7577,20 @@ async function optRun(resume) {
           give();
         }
       };
-      w.onerror = e => { e.preventDefault(); firstErr = firstErr || (e.message || 'A worker stopped.'); finish(w); };
-      w.postMessage({ type: 'boot', script });
+      e.ready.then(ok => {
+        if (done) return;
+        if (!ok) { firstErr = firstErr || e.err; return finish(); }
+        if (OPT.stop) return finish();
+        w.postMessage(init);
+      });
     }
   });
-  for (const w of OPT.workers) { try { w.terminate(); } catch (e) {} }
-  OPT.workers = []; OPT.resolve = null; URL.revokeObjectURL(url);
+  // stopped: those workers were cut off mid-run; the rest stay ready for the next run
+  if (OPT.stop) for (const e of pool) { e.state = 'dead'; e.handler = null; }
+  OPTP.list = OPTP.list.filter(e => e.state !== 'dead');
+  for (const e of OPTP.list) e.handler = null;
+  optPoolIdle();
+  OPT.workers = []; OPT.resolve = null;
   OPT.on = false; optRunning(false);
   if (window.TAPE_IOS) STORE.awake(false);
   if (t0 && doneNow) OPT.rate = doneNow / Math.max(0.001, (performance.now() - t0) / 1000);
@@ -7710,7 +7805,11 @@ function wireOpt() {
   // the settings list follows the code
   $('#stSrc').addEventListener('input', () => { clearTimeout(OPT.detectT); if (!$('#stOpt').hidden) OPT.detectT = setTimeout(optDetect, 700); });
   // iOS stops the app's work in the background: stop cleanly (results saved) and offer Resume on return
-  document.addEventListener('visibilitychange', () => { if (document.hidden && OPT.on && OPT_SMALL()) { OPT.paused = true; optStop(); } });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden || !OPT_SMALL()) return;
+    if (OPT.on) { OPT.paused = true; optStop(); }
+    optPoolClose(); // iOS would stop them anyway; they start again with the next run
+  });
 }
 // a combination as a normal backtest on the chart, saved to the Library
 function optToChart(i) {
@@ -7728,6 +7827,7 @@ function optToChart(i) {
 /* ---------------- worker mode: this script in an optimization worker, with no screen ---------------- */
 function workerMain() {
   let job = null;
+  const libs = new Set(); // Python packages loaded in this worker
   const totals = splitT => {
     const seg = (lo, hi) => {
       let trades = 0, net = 0, w = 0, gw = 0, gl = 0, cum = 0, peak = 0, dd = 0;
@@ -7747,7 +7847,17 @@ function workerMain() {
   self.onmessage = async ev => {
     const m = ev.data;
     try {
-      if (m.type === 'init') {
+      if (m.type === 'py') {
+        importScripts(m.pyBase + 'pyodide.js');
+        const py = await self.loadPyodide({ indexURL: m.pyBase });
+        py.setStdout({ batched: () => {} }); py.setStderr({ batched: () => {} });
+        for (const l of m.libs) { await py.loadPackage(l, { messageCallback: () => {}, errorCallback: () => {} }); libs.add(l); }
+        py.runPython(m.runtime);
+        const g = n => py.globals.get(n);
+        PY.fn = { check: g('_tr_check'), start: g('_tr_start'), bar: g('_tr_bar'), tick: g('_tr_tick'), fill: g('_tr_fill'), end: g('_tr_end') };
+        PY.py = py;
+        postMessage({ type: 'pyready' });
+      } else if (m.type === 'init') {
         const d = m.data;
         D = { name: d.name, n: d.n, t: d.t, o: d.o, h: d.h, l: d.l, c: d.c, v: d.v, base: d.base, prec: d.prec, hasVol: d.hasVol, mintick: d.mintick };
         setPrec(D.prec);
@@ -7756,14 +7866,7 @@ function workerMain() {
         Object.assign(ZONE, m.zone); zoneCache.clear();
         TF = { kind: 's', sec: D.base }; bucket = makeBucket(TF);
         job = m.job;
-        importScripts(m.pyBase + 'pyodide.js');
-        const py = await self.loadPyodide({ indexURL: m.pyBase });
-        py.setStdout({ batched: () => {} }); py.setStderr({ batched: () => {} });
-        for (const l of job.libs) await py.loadPackage(l, { messageCallback: () => {}, errorCallback: () => {} });
-        py.runPython(m.runtime);
-        const g = n => py.globals.get(n);
-        PY.fn = { check: g('_tr_check'), start: g('_tr_start'), bar: g('_tr_bar'), tick: g('_tr_tick'), fill: g('_tr_fill'), end: g('_tr_end') };
-        PY.py = py;
+        for (const l of job.libs) if (!libs.has(l)) { await PY.py.loadPackage(l, { messageCallback: () => {}, errorCallback: () => {} }); libs.add(l); }
         postMessage({ type: 'ready' });
       } else if (m.type === 'run') {
         E = newEngine(job.start); T = newTrading(); pushEq(D.t[E.start - 1], T.balance);
