@@ -51,6 +51,9 @@ jobs:
       - name: Optimization through the desktop app's server (workers, parity with the chart)
         run: python tests/test_optimize.py "$RUNNER_TEMP/shots"
 
+      - name: The Windows app's update prompt
+        run: python tests/test_update.py "$RUNNER_TEMP/shots"
+
       - name: Keep the screenshots
         if: always()
         uses: actions/upload-artifact@v4

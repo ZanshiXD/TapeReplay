@@ -163,6 +163,18 @@ html.m .mmore .credit{padding:4px 4px 12px}
 #app.noside .side{display:none}
 /* popover menus (Skip ahead) and the date picker */
 .pop{position:fixed;z-index:40;background:var(--raise);border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:6px;font-size:12.5px}
+/* update waiting: top-bar button, Home line, release notes */
+.bar .tgroup button.upd,.bar .tgroup button.upd:hover{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.hupd{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--accent);border-radius:10px;font-size:12.5px}
+.hupd div{display:flex;flex-direction:column;gap:2px}
+.hupd span{color:var(--muted)}
+.hupd button{white-space:nowrap;background:var(--accent);border:1px solid var(--accent);color:var(--accent-ink);border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:12.5px}
+.updpop{width:min(360px,calc(100vw - 16px));display:flex;flex-direction:column;gap:8px;padding:12px}
+.updpop h5{margin:0;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.updpop .unotes{white-space:pre-line;font-size:12.5px;line-height:1.5;max-height:40vh;overflow:auto}
+.updpop .note{margin:0;font-size:11.5px}
+.updpop .uact{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.updpop #updMsg{font-size:12px;color:var(--muted)}
 .menu{display:flex;flex-direction:column;min-width:240px}
 .menu button{display:flex;justify-content:space-between;gap:18px;background:none;border:none;border-radius:5px;padding:6px 10px;text-align:left;cursor:pointer;color:var(--fg)}
 .menu button:hover,.menu button:focus-visible{background:var(--panel)}
@@ -5878,6 +5890,58 @@ function wireLayout() {
   });
 }
 
+/* ---------------- updates (desktop app) ---------------- */
+// The app looks for a new release once, at launch. When one is waiting, a button in the top bar and a line on Home
+// offer it; installing saves the session, then the app downloads the release, checks it and restarts.
+const UPD = { info: null };
+const updGet = () => fetch('/api/update', { headers: { 'X-Token': TOKEN } }).then(r => r.ok ? r.json() : null).catch(() => null);
+// asks the app until its launch check has finished (a slow connection can take a while), then shows what it found
+function watchUpdate() {
+  let tries = 0;
+  const poll = async () => {
+    const u = await updGet();
+    if (u && u.state === 'available') return showUpdate(u);
+    if ((!u || u.state === 'checking') && ++tries < 120) setTimeout(poll, 2000);
+  };
+  poll();
+}
+function showUpdate(u) {
+  UPD.info = u;
+  let b = $('#bUpdate');
+  if (!b) { b = document.createElement('button'); b.id = 'bUpdate'; b.className = 'upd'; b.onclick = () => openUpdate(b); $('#bLib').before(b); }
+  b.textContent = `Update to ${u.version}`;
+  let h = $('#hUpdate');
+  if (!h) {
+    h = document.createElement('div'); h.id = 'hUpdate'; h.className = 'hupd'; $('#hResume').before(h);
+    h.addEventListener('click', e => { const t = e.target.closest('button'); if (t) openUpdate(t); });
+  }
+  h.innerHTML = `<div><b>Version ${esc(u.version)} is ready</b><span>You have ${esc(u.current)}. Your sessions and data are kept.</span></div><button>See what's new</button>`;
+}
+function openUpdate(anchor) {
+  closePop();
+  const u = UPD.info, el = document.createElement('div');
+  el.className = 'pop updpop'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Update');
+  el.innerHTML = `<h5>What's new in ${esc(u.version)}</h5><div class="unotes">${esc(u.notes || 'Fixes and improvements.')}</div>
+    <p class="note">The app saves your session, downloads the update and restarts. It takes a few seconds.</p>
+    <div class="uact"><span id="updMsg" aria-live="polite"></span><button id="updGo" class="primary">Restart and update</button></div>`;
+  el.querySelector('#updGo').onclick = startUpdate;
+  placePop(el, anchor);
+}
+async function startUpdate() {
+  const go = $('#updGo'), msg = $('#updMsg');
+  go.disabled = true; msg.textContent = 'Saving…';
+  if (E) { setPlaying(false); await saveSession(true); }
+  const r = await fetch('/api/update', { method: 'POST', headers: { 'X-Token': TOKEN } }).catch(() => null);
+  if (!r || !r.ok) { msg.textContent = r ? await r.text() : 'The app did not answer.'; go.disabled = false; return; }
+  const tick = async () => {
+    const u = await updGet();
+    if (u && u.state === 'failed') { msg.innerHTML = `${esc(u.error)} <a href="${esc(u.page)}" target="_blank" rel="noopener">Download it instead</a>`; go.disabled = false; return; }
+    if (u) msg.textContent = u.state === 'downloading' ? `Downloading ${Math.round(u.progress * 100)}%` : 'Restarting…';
+    setTimeout(tick, 400);
+  };
+  tick();
+}
+
 /* ---------------- home ---------------- */
 // the data a new session opens on: the one chosen to open at launch, else the built-in series, else the newest file
 async function defaultDataset() {
@@ -7732,7 +7796,7 @@ loadPrefs().then(() => {
   if ((PREFS.ui || {}).oneTap) { $('#otp').hidden = false; $('#oneTap').checked = true; }
   if (!STORE) return bootSample();
   $('#bLib').hidden = false; wireLib();
-  fetch('/api/caps', { headers: { 'X-Token': TOKEN } }).then(r => r.json()).then(c => { CAN_PICK = !!c.pick; CAN_IMPORT_DBN = !!c.importDbn; CAN_OPT = !!c.optimize; $('#libOpTab').hidden = !optAvailable(); }).catch(() => {});
+  fetch('/api/caps', { headers: { 'X-Token': TOKEN } }).then(r => r.json()).then(c => { CAN_PICK = !!c.pick; CAN_IMPORT_DBN = !!c.importDbn; CAN_OPT = !!c.optimize; $('#libOpTab').hidden = !optAvailable(); if (c.update) watchUpdate(); }).catch(() => {});
   setInterval(() => saveSession(false), 10000);
   // the app opens on Home: start a new session or continue a saved one
   wireHome(); showHome();

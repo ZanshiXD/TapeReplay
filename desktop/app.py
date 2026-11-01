@@ -454,6 +454,7 @@ def check_update():
     """Runs once at launch, in the background. Only the installed app updates itself, not a copy run from source."""
     if not getattr(sys, "frozen", False):
         return
+    UPDATE["state"] = "checking"  # the page waits for the answer, however long the network takes
     try:
         with http_get(UPDATE_MANIFEST) as r:
             m = verify_manifest(json.loads(r.read(1 << 20)))
@@ -462,6 +463,9 @@ def check_update():
             log(f"update available: {m['version']} (running {VERSION})")
     except Exception as e:  # offline, no release yet, or a bad manifest: the app runs as it is
         log(f"update check skipped: {e}")
+    finally:
+        if UPDATE["state"] == "checking":
+            UPDATE["state"] = "idle"
 
 
 def install_update():
@@ -957,6 +961,7 @@ def main():
     if getattr(sys, "frozen", False):
         after_update()
         note_installed_version()
+        UPDATE["state"] = "checking"  # set before the page can ask
         threading.Thread(target=check_update, daemon=True).start()
     shutil.rmtree(os.path.join(DATA_DIR, "tmp"), ignore_errors=True)  # leftovers from decompressed .zst files
     install_builtin()
