@@ -351,6 +351,9 @@ html.m #chart,html.m #draw{top:var(--otH,0px)}
 .f{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);min-width:0}
 .f input,.f select{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:5px 7px;color:var(--fg);font-family:var(--f-num);font-size:13px;width:100%;min-width:0}
 .f input:disabled{opacity:.45}
+/* iOS gives date fields a native width of their own, wider than a narrow card; drawn plainly they fit the column */
+.f input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-height:31px;text-align:left}
+.f input[type=date]::-webkit-date-and-time-value{text-align:left}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .inl{display:flex;gap:4px}
 .inl select{width:auto;flex:none;font-family:var(--f-ui);font-size:12px}
@@ -956,7 +959,6 @@ html.m .stsim dl{columns:1}
 .sthelp code{font-family:var(--f-num);font-size:12px;color:var(--fg);background:var(--raise);border-radius:3px;padding:0 3px}
 html.m #strat .sheet{overflow:auto;position:fixed;inset:0;width:auto;max-width:none;max-height:none;border:0;border-radius:0;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px calc(env(safe-area-inset-bottom,0px) + 18px)}
 html.m .stbody,html.m .stres,html.m .stfoot,html.m .stpick,html.m .sthelp,html.m #stCode,html.m #stRes,html.m #stHelp,html.m #stOpt{flex:none;overflow:visible}
-html.m .sthead{position:sticky;top:0;z-index:3;background:var(--panel);margin:calc(-14px - env(safe-area-inset-top,0px)) -14px 0;padding:calc(14px + env(safe-area-inset-top,0px)) 14px 10px;border-bottom:1px solid var(--line)}
 html.m .sthead h2{font-size:18px}
 html.m .sthead button{min-height:36px}
 html.m .stbody{grid-template-columns:1fr}
