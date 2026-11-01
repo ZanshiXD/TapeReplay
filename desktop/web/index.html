@@ -3194,6 +3194,45 @@ function processTick() {
   }
   if (!E.silent) { propTick(); simTick(); }
 }
+// A whole base bar in one step, for strategy runs while nothing can happen inside it: no orders, no open trades and
+// no prop-rule day change. It leaves exactly the state processTick would after each of the bar's ticks (the same tick
+// prices for the candle, the same volume sums), without the per-tick work. A strategy that is flat most of the day
+// on seconds data spends most of its run here.
+function flatBar() {
+  const i = E.i, n = E.nt || buildTicks(i, E.tkF, E.tkP), f = E.tkF, P = E.tkP, v = D.v[i];
+  const p0 = P[0];
+  E.barTime = D.t[i];
+  const b = E.F ? Math.max(bucket(D.t[i]), E.F.time) : bucket(D.t[i]);
+  if (!E.F || E.F.time !== b) { if (E.F) completeForming(); E.F = { time: b, o: p0, h: p0, l: p0, c: p0, v: 0 }; }
+  else { if (p0 > E.F.h) E.F.h = p0; if (p0 < E.F.l) E.F.l = p0; E.F.c = p0; }
+  const F = E.F;
+  F.v += v * f[0];
+  for (let k = 1; k < n; k++) {
+    const p = P[k];
+    if (p > F.h) F.h = p; if (p < F.l) F.l = p; F.c = p;
+    F.v += v * (f[k] - f[k - 1]);
+  }
+  const p = P[n - 1];
+  E.time = D.t[i] + f[n - 1] * D.base;
+  E.price = p; E.prevClose = p; E.i++; E.k = 0; E.nt = 0; E.P = null;
+  const eq = equity(); trackDD(eq);
+  if ((i - E.start) % E.eqStride === 0) pushEq(D.t[i], eq);
+}
+// true when the prop rules' and prop simulation's per-tick checks would change nothing until time t1 while flat:
+// the same trading day as their last check, and that check already saw the current balance and trades
+function rulesIdle(t1) {
+  if (propOn()) {
+    const st = T.prop, K = PROP_CHK;
+    if (st.day !== dayKey(t1)) return false;
+    if (!st.failed && !st.passedAt && !(K.st === st && K.m === T.marks.length && K.b === T.balance && K.p === cfg.prop)) return false;
+  }
+  if (simOn()) {
+    const s = T.sim;
+    if (s.day !== simDay(t1)) return false;
+    if (!s.over && s.checked !== T.balance) return false;
+  }
+  return true;
+}
 function pushEq(t, eq) {
   const last = E.eq[E.eq.length - 1];
   if (!last || t > last.time) E.eq.push({ time: t, value: Math.round(eq * 100) / 100 });
@@ -7057,14 +7096,17 @@ async function stratCore(o) {
     if (r.error) fail = r.error;
     else {
       if (o.onStart) o.onStart();
-      const bucketOf = makeBucket(tf);
+      const bucketOf = makeBucket(tf), tickMode = mode === 'tick' && !!r.on_tick;
       let C = null;
       while (E.i < end && !RUN.stop && !fail && !evalEnd) {
         const until = performance.now() + 30;
         let n = 0;
         while (E.i < end && !fail && !evalEnd) {
           const i = E.i, queued = RUN.pending.length > 0;
-          processTick(); E.stop = false; // prop rules may ask the replay to pause; a run carries on
+          // nothing to fill and nothing for the prop rules to do inside this bar: step over its ticks (the same end state)
+          const flat = E.k === 0 && !queued && !T.orders.length && !T.trades.length && !RUN.fills.length && !tickMode && rulesIdle(D.t[i] + D.base);
+          if (flat) flatBar(); else processTick();
+          E.stop = false; // prop rules may ask the replay to pause; a run carries on
           if (T.sim && T.sim.over && !evalEnd) { // the account failed (its positions are already closed)
             if (rebuy && T.sim.attempt < maxEvals) {
               simRestart();
