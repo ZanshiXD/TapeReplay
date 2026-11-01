@@ -37,7 +37,7 @@ try {
 }
 [hidden]{display:none!important}
 html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:14px;overflow:hidden}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:14px;overflow:hidden}
 *{box-sizing:border-box}
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
@@ -395,6 +395,8 @@ td button{font-size:11px!important;padding:2px 7px!important}
 .chk input{width:auto}
 .note{margin:0;font-size:12px;color:var(--muted);line-height:1.5}
 .actions{display:flex;justify-content:flex-end;gap:8px}
+/* long forms (Session settings, Chart): the buttons stay in view while the form scrolls */
+.sheet>.actions{position:sticky;bottom:-18px;margin:0 -20px -18px;padding:10px 20px 12px;background:var(--panel);border-top:1px solid var(--line);z-index:1}
 .dsplit{position:absolute;left:0;right:0;top:-8px;height:8px;cursor:row-resize;z-index:2}
 .dsplit::after{content:"";position:absolute;left:50%;top:2px;width:44px;height:3px;margin-left:-22px;border-radius:2px;background:var(--line);opacity:0;transition:opacity .15s}
 .dsplit:hover::after,.dsplit.on::after{opacity:1;background:var(--accent)}
@@ -446,29 +448,76 @@ td button{font-size:11px!important;padding:2px 7px!important}
 .seg.lt{grid-template-columns:none;grid-auto-flow:column}
 .seg.lt button{padding:5px 14px!important}
 .libbody{overflow:auto;max-height:62vh;border:1px solid var(--line);border-radius:4px}
-.libbody td input.nm{width:240px;font-family:var(--f-ui);font-size:13px}
+/* Library tables: the name (with its tick box) and the buttons stay in view when the figures scroll sideways */
+.libbody td{vertical-align:middle}
+.libbody th.nm,.libbody td.nm{position:sticky;left:0;z-index:1;background:var(--panel);box-shadow:8px 0 8px -6px rgba(0,0,0,.3)}
+.libbody th.nm{z-index:3}
+.libbody th.act,.libbody td.act{position:sticky;right:0;z-index:1;background:var(--panel);box-shadow:-8px 0 8px -6px rgba(0,0,0,.3);text-align:right}
+.libbody th.act{z-index:3}
+.libbody tr.sel td{background:color-mix(in srgb,var(--accent) 10%,var(--panel))}
+.libbody th input,.libbody td input[type=checkbox]{width:15px;height:15px;margin:0 6px 0 0;vertical-align:middle;accent-color:var(--accent);cursor:pointer}
+.lnm{display:flex;align-items:center;gap:2px;font-family:var(--f-ui);font-size:13px}
+.lnm .lsel{flex:none}
+.lnm span.lsel{display:inline-block;width:21px}
+.lname{white-space:normal;min-width:180px;max-width:300px;line-height:1.35}
+.libbody td input.nm{width:min(230px,22vw);min-width:160px;font-family:var(--f-ui);font-size:13px}
+.libbody td.wrap{white-space:normal;font-family:var(--f-ui);color:var(--muted);min-width:140px;max-width:190px;line-height:1.35;overflow-wrap:anywhere}
+.lspan{display:inline-block;font-size:11.5px;line-height:1.35;white-space:nowrap}
+.libbody .mlbl{display:none}
+.libbody td.act button{font-family:var(--f-ui);font-size:12px!important;padding:4px 10px!important;color:var(--fg)}
+.libbody td.act button+button{margin-left:6px}
+.ldel{display:inline-flex;align-items:center;gap:5px}
+.ldel svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.ldel:hover,.libbulk .danger{color:var(--down)!important;border-color:color-mix(in srgb,var(--down) 55%,var(--line))!important}
+.ldel.armed,.libbulk .danger.armed{background:var(--down)!important;border-color:var(--down)!important;color:#fff!important}
+.libbulk{display:flex;align-items:center;gap:8px;min-height:30px;font-size:13px}
+.libbulk[hidden]{display:none}
+.libbulk button{min-width:72px}
 /* phone: full-screen Library, clear of the Dynamic Island, actions at the bottom above the home bar, rows as cards */
 html.m #lib .sheet{position:fixed;inset:0;width:auto;max-width:none;max-height:none;margin:0;border:0;border-radius:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto 1fr auto;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 16px) 14px calc(env(safe-area-inset-bottom,0px) + 22px)}
 html.m #lib .libhead{display:contents}
 html.m #lib .libhead .spacer{display:none}
 html.m #libTitle{grid-column:1/-1;grid-row:1;margin:0}
-html.m #libTabs{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:1fr 1fr}
-html.m #libNote{grid-column:1/-1;grid-row:3;margin:0;font-size:12px}
-html.m #libBody{grid-column:1/-1;grid-row:4;max-height:none;min-height:0;border:0}
+html.m #libTabs{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:repeat(3,1fr)}
+html.m #libTabs button{padding:8px 4px!important}
+html.m #libNote,html.m #libBulk{grid-column:1/-1;grid-row:3;margin:0;font-size:12px}
+html.m #libBulk button{min-height:38px;padding:0 14px}
+html.m #libBody{grid-column:1/-1;grid-row:4;max-height:none;min-height:0;border:0;overflow-x:hidden}
 html.m #lib .libhead label.btn,html.m #libClose{grid-row:5;display:flex;align-items:center;justify-content:center;min-height:44px;margin:0}
 html.m #lib .libhead label.btn{grid-column:1;background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 html.m #libClose{grid-column:2}
 html.m #libBody table,html.m #libBody tbody{display:block}
-html.m #libBody thead{display:none}
-html.m #libBody tr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:12px;margin-bottom:8px;border:1px solid var(--line);border-radius:6px;background:var(--raise)}
-html.m #libBody{overflow-x:hidden}
-html.m #libBody td{display:block;padding:0;border:0;font-size:12px;color:var(--muted);white-space:normal;min-width:0}
-html.m #libBody td:first-child{flex:1 0 100%;color:var(--fg);font-size:14px}
-html.m #libBody td input.nm{width:100%}
-html.m #libBody td:last-child{flex:1 0 100%;display:flex;gap:8px;margin-top:6px}
-html.m #libBody td:last-child button{flex:1;min-height:38px}
-html.m #libBody td:nth-child(n+3):nth-last-child(n+2){display:none}
-html.m #libBody td:nth-child(n+3):nth-last-child(n+2):is(:nth-child(5),:nth-child(8)){display:block}
+html.m #libBody thead{display:block;margin-bottom:6px}
+html.m #libBody thead tr{display:block}
+html.m #libBody thead th{display:none}
+html.m #libBody thead th.nm{display:block;position:static;box-shadow:none;border:0;padding:2px 12px;font-size:12px}
+html.m #libBody thead th.nm::after{content:"Select all"}
+html.m #libBody thead th.nm{font-size:0}html.m #libBody thead th.nm::after{font-size:12px;color:var(--muted)}
+html.m #libBody tbody tr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:12px;margin-bottom:8px;border:1px solid var(--line);border-radius:6px;background:var(--raise)}
+html.m #libBody tbody tr.sel{border-color:var(--accent)}
+html.m #libBody td{display:none;padding:0;border:0;font-size:12px;color:var(--muted);white-space:normal;min-width:0;max-width:none;background:none!important;position:static;box-shadow:none}
+html.m #libBody td.nm,html.m #libBody td.key{display:block}
+html.m #libBody td.nm{flex:1 0 100%;color:var(--fg);font-size:14px}
+html.m #libBody .lname{min-width:0;max-width:none}
+html.m #libBody td input.nm{width:100%;min-width:0;font-size:15px;padding:6px 8px}
+html.m #libBody td input[type=checkbox],html.m #libBody th input[type=checkbox]{width:22px;height:22px;margin-right:10px}
+/* landscape phones: title, tabs and buttons on one row, so the list keeps the height; cards two across */
+@media (max-height:500px){
+  html.m #lib .sheet{grid-template-columns:auto minmax(0,1fr) auto auto;grid-template-rows:auto auto 1fr;gap:8px 10px;
+    padding:calc(env(safe-area-inset-top,0px) + 8px) max(14px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 8px) max(14px,env(safe-area-inset-left,0px))}
+  html.m #libTitle{grid-column:1;grid-row:1;font-size:18px;align-self:center}
+  html.m #libTabs{grid-column:2;grid-row:1}
+  html.m #lib .libhead label.btn{grid-column:3;grid-row:1;min-height:36px;padding:0 14px}
+  html.m #libClose{grid-column:4;grid-row:1;min-height:36px;padding:0 14px}
+  html.m #libNote,html.m #libBulk{grid-row:2}
+  html.m #libBody{grid-row:3}
+  html.m #libBody tbody{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:start}
+  html.m #libBody tbody tr{margin:0}
+}
+html.m #libBody .lnm span.lsel{width:32px}
+html.m #libBody .mlbl{display:inline}
+html.m #libBody td.act{flex:1 0 100%;display:flex;gap:8px;margin-top:6px;text-align:left}
+html.m #libBody td.act button{flex:1;min-height:40px;margin:0;justify-content:center;font-size:13px!important;padding:0 8px!important;white-space:normal;line-height:1.2}
 .tag{display:inline-block;font-family:var(--f-ui);font-size:11px;padding:1px 6px;border-radius:3px;border:1px solid var(--line);color:var(--muted)}
 .tag.live,.tag.warn{border-color:var(--accent);color:var(--accent)}
 .tag.pos{border-color:var(--up);color:var(--up)}.tag.neg{border-color:var(--down);color:var(--down)}
@@ -517,6 +566,7 @@ section.msec{border-top:1px solid var(--line);padding-top:12px}
 fieldset.msim #sFields{display:flex;flex-direction:column;gap:10px}
 fieldset.msim #sFields[hidden]{display:none}
 html.m .mchks{grid-column:1/-1}
+html.m #modal .msheet{width:100%}
 #modal .hint:empty{display:none}
 .primary{background:var(--accent)!important;color:var(--accent-ink);border-color:var(--accent)!important;font-weight:600}
 
@@ -842,7 +892,10 @@ html.m .toast{max-width:none}
 html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
 
 /* ---- Python strategies ---- */
-#strat .sheet{gap:10px}
+#strat .sheet{gap:10px;overflow:hidden}
+/* each tab scrolls inside the panel; the header (tabs, Run, Close) and the status line stay in view */
+#stCode,#stRes,#stHelp,#stOpt{flex:1 1 auto;min-height:0;overflow:auto}
+.sthead,.stfoot{flex:none}
 .sthead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .sthead h2{display:flex;align-items:center;gap:8px}
 .sthead h2 .pytag{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:3px;padding:1px 5px}
@@ -857,8 +910,8 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
 .stpick input{flex:1;max-width:280px}
 .stbody{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;min-height:0}
 .sted{display:grid;grid-template-columns:auto minmax(0,1fr);border:1px solid var(--line);border-radius:5px;background:var(--bg);overflow:auto;height:min(52vh,470px)}
-.sted .ln{font-variant-ligatures:none;padding:10px 8px 10px 10px;color:var(--muted);opacity:.55;text-align:right;font:12.5px/1.6 var(--f-num);user-select:none;white-space:pre;border-right:1px solid var(--grid)}
-.sted textarea{border:0;outline:0;resize:none;font-variant-ligatures:none;font-feature-settings:'liga' 0,'calt' 0;background:transparent;padding:10px 12px;font:12.5px/1.6 var(--f-num);color:var(--fg);white-space:pre;overflow:hidden;tab-size:4;min-height:100%}
+.sted .ln{position:sticky;left:0;z-index:1;background:var(--bg);font-variant-ligatures:none;padding:10px 8px 10px 10px;color:var(--muted);opacity:.55;text-align:right;font:12.5px/1.6 var(--f-num);user-select:none;white-space:pre;border-right:1px solid var(--grid)}
+.sted textarea{border:0;outline:0;resize:none;font-variant-ligatures:none;font-feature-settings:'liga' 0,'calt' 0;background:transparent;padding:10px 12px;font:12.5px/1.6 var(--f-num);color:var(--fg);white-space:pre;overflow:hidden;tab-size:4;min-height:100%;min-width:100%}
 .stside{display:flex;flex-direction:column;gap:10px;min-width:0}
 .stcard{border:1px solid var(--line);border-radius:5px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--raise)}
 .stcard h3{margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -882,12 +935,15 @@ html.m #toasts .toast:not(:nth-last-child(-n+2)){display:none}
 .sttr{border:1px solid var(--line);border-radius:5px;overflow:auto;max-height:30vh}
 .stact{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
 .stact .note{margin-right:auto}
-.sthelp{font-size:13px;line-height:1.55;overflow:auto;max-height:62vh;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 24px}
+.sthelp{font-size:13px;line-height:1.55;display:grid;align-content:start;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 24px}
 .sthelp h4{margin:10px 0 2px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .sthelp p{margin:0 0 6px}
 .sthelp code{font-family:var(--f-num);font-size:12px;color:var(--fg);background:var(--raise);border-radius:3px;padding:0 3px}
-html.m #strat .sheet{position:fixed;inset:0;width:auto;max-width:none;max-height:none;border:0;border-radius:0;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px calc(env(safe-area-inset-bottom,0px) + 18px)}
-html.m .stbody,html.m .stres,html.m .stfoot,html.m .stpick,html.m .sthelp{flex:none}
+html.m #strat .sheet{overflow:auto;position:fixed;inset:0;width:auto;max-width:none;max-height:none;border:0;border-radius:0;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px calc(env(safe-area-inset-bottom,0px) + 18px)}
+html.m .stbody,html.m .stres,html.m .stfoot,html.m .stpick,html.m .sthelp,html.m #stCode,html.m #stRes,html.m #stHelp,html.m #stOpt{flex:none;overflow:visible}
+html.m .sthead{position:sticky;top:0;z-index:3;background:var(--panel);margin:calc(-14px - env(safe-area-inset-top,0px)) -14px 0;padding:calc(14px + env(safe-area-inset-top,0px)) 14px 10px;border-bottom:1px solid var(--line)}
+html.m .sthead h2{font-size:18px}
+html.m .sthead button{min-height:36px}
 html.m .stbody{grid-template-columns:1fr}
 html.m .sted{height:42vh}
 html.m .sted .ln,html.m .sted textarea{font-size:11.5px}
@@ -914,6 +970,9 @@ html.m .stpick input{max-width:none}
 .optlist tr.off td:not(:first-child){opacity:.5}
 .optlist .hint{display:block;font:11px var(--f-ui);color:var(--muted);max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .optlist .tag{margin-left:6px}
+.optlist .hint:empty{display:none}
+.optlist th:nth-child(2){width:40%}.optlist th:nth-child(4){width:60%}
+.optlist td:nth-child(2){min-width:120px}
 .optlist input.optv{width:100%;min-width:170px;font-family:var(--f-num)}
 .optlist input.bad{border-color:var(--down)}
 .optlist .empty{white-space:normal}
@@ -964,8 +1023,9 @@ html.m #optHeat,html.m #optCsv,html.m .optres{display:none!important}
 .robbox{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
 .robbox .opthead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .robbox .opthead h3{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.robgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.robgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
 .robgrid .stcard .seg{grid-template-columns:1fr 1fr}
+.robgrid .fgrid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
 .robtick{display:inline-flex;gap:6px;align-items:center;cursor:pointer;color:inherit}
 .robtick input{margin:0}
 .robbox .optbtns{display:flex;gap:8px}
@@ -991,7 +1051,15 @@ html.m .optcards{display:flex;flex-direction:column;gap:8px}
 .optcard .oc2 b{color:var(--fg);font-weight:500}
 .optcard .oc2 b.pos{color:var(--up)}.optcard .oc2 b.neg{color:var(--down)}
 .optcard .err{color:var(--down);font-size:12px}
-.optcard button{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:7px 12px;font-size:13px;color:var(--fg)}
+.optcard .ocb{display:flex;gap:8px;flex-wrap:wrap}
+.optcard button{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:7px 12px;font-size:13px;color:var(--fg)}
+html.m .optcard button{flex:1;min-height:40px}
+/* the row's buttons stay in view when a wide results table scrolls sideways */
+.optres td.act,.robres td.act{position:sticky;right:0;background:var(--panel);box-shadow:-8px 0 8px -6px rgba(0,0,0,.35)}
+.optres td.act button+button,.robres td.act button+button{margin-left:6px}
+.optres td.act button,.robres td.act button,.optcard button{font-family:var(--f-ui)}
+.optres tr.sel td.act{background:color-mix(in srgb,var(--accent) 12%,var(--panel))}
+.optres th:last-child,.robres th:last-child{right:0;z-index:2}
 </style>
 
 <div id="app">
@@ -1436,6 +1504,7 @@ html.m .optcards{display:flex;flex-direction:column;gap:8px}
       <button id="libClose">Close</button>
     </div>
     <p class="note" id="libNote"></p>
+    <div id="libBulk" class="libbulk" role="toolbar" aria-label="Selected rows" hidden><b id="libSelN"></b><span class="spacer"></span><button id="libSelClr">Clear</button><button id="libSelDel" class="danger"></button></div>
     <div id="libBody" class="libbody"></div>
   </div>
 </div>
@@ -2068,6 +2137,50 @@ def _apply(code, overrides):
         else:
             st.value.elts[k] = new
     return compile(ast.fix_missing_locations(tree), "<strategy>", "exec")
+
+
+def _tr_setvals(code, values_json):
+    """The code's text with the given settings' values written in place (as in _apply), keeping its comments and
+    layout: JSON {"code": ...} or {"error": ...}. For param(...) only the first argument (the value) changes."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return json.dumps({"error": _err_syntax()})
+    values = json.loads(values_json)
+    sites = _sites(tree)
+    lines = code.splitlines(keepends=True)
+    edits = []
+    for name, value in values.items():
+        if name not in sites:
+            return json.dumps({"error": f"The setting {name} is not in the code any more."})
+        st, k = sites[name]
+        node = _value_node(st, k)
+        if _is_param(node):
+            node = node.args[0]
+        ok, old = _const(node)
+        if isinstance(old, float) and isinstance(value, int) and not isinstance(value, bool):
+            value = float(value)  # keep a float setting a float (5.0, not 5)
+        if isinstance(value, float) and value.is_integer() and isinstance(old, int) and not isinstance(old, bool):
+            value = int(value)
+        text = repr(value)
+        if isinstance(value, str) and ok and isinstance(old, str):
+            seg = ast.get_source_segment(code, node) or ""
+            if seg[:1] in ("'", '"') and seg[:1] * 3 != seg[:3]:
+                q = seg[:1]
+                text = q + value.replace("\\", "\\\\").replace(q, "\\" + q) + q  # keep the code's quotes
+        edits.append((node.lineno, node.col_offset, node.end_lineno, node.end_col_offset, text))
+    # offsets are in UTF-8 bytes; edit from the end so earlier offsets stay right
+    for l0, c0, l1, c1, text in sorted(edits, reverse=True):
+        a = lines[l0 - 1].encode("utf-8")
+        b = lines[l1 - 1].encode("utf-8")
+        new = a[:c0].decode("utf-8") + text + b[c1:].decode("utf-8")
+        lines[l0 - 1:l1] = [new]
+    out = "".join(lines)
+    try:
+        ast.parse(out)
+    except SyntaxError:
+        return json.dumps({"error": _err_syntax()})
+    return json.dumps({"code": out})
 
 
 def _tr_combos(spec_json):
@@ -5714,43 +5827,52 @@ async function synthSection(V, t0, t1) {
            base: 1, prec: 2, bad: 0, hasVol: true, name: V.name, dsId: SYNTH_ID, pick: '', chunked: true, V, window: { from: t0, to: t1 } };
 }
 let libTab = 'bt';
+// ticked rows, for deleting several at once; shift-click ticks a run of rows
+const LIBSEL = { ids: new Set(), last: null };
 function openLib(tab) {
   if (!STORE) return;
   setPlaying(false); saveSession(true);
   $('#lib').hidden = false; renderLib(tab || libTab);
 }
 const pfTxt = pf => pf == null ? '—' : pf === 'inf' ? '∞' : (+pf).toFixed(2);
+const LIB_TRASH = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4.5h4V6M6 6l.8 10h6.4L14 6"/></svg>';
+// the tick box and name cell that starts each row (kept in view when the table scrolls sideways)
+const libSel = (id, label) => `<input type="checkbox" class="lsel" data-sel="${esc(id)}" aria-label="Select ${esc(label)}">`;
+const libWhen = ms => `<span title="${esc(new Date(ms).toLocaleString())}">${ago(ms)}</span>`;
+const libSpan = (a, b) => a ? `<span class="lspan">${fmtDay(a)}<br>→ ${fmtDay(b)}</span>` : '—';
 async function renderLib(tab) {
   libTab = tab;
+  LIBSEL.ids.clear(); LIBSEL.last = null; libSelSync();
   for (const b of document.querySelectorAll('#libTabs button')) b.setAttribute('aria-pressed', String(b.dataset.lt === tab));
   const body = $('#libBody');
   body.innerHTML = '<div class="empty">Loading…</div>';
+  const head = cols => `<table><thead><tr><th class="nm"><input type="checkbox" class="lall" aria-label="Select all"> ${cols}</tr></thead><tbody>`;
   try {
     if (tab === 'bt') {
-      $('#libNote').textContent = 'Every session is saved automatically while you trade. Open one to keep replaying it or to review its trades and performance.';
+      $('#libNote').textContent = 'Every session is saved automatically while you trade. Open one to keep replaying it or to review its trades and performance. Tick several to delete them together.';
       const list = (await STORE.listSessions()).sort((a, b) => b.updated - a.updated);
       if (!list.length) { body.innerHTML = '<div class="empty">No saved backtests yet. A session is saved once it has a trade or has run for 50 bars.</div>'; return; }
-      body.innerHTML = `<table><thead><tr><th>Name</th><th>Data</th><th>TF</th><th>Replayed</th><th class="r">Trades</th><th class="r">Win rate</th><th class="r">Profit factor</th><th class="r">Net P&amp;L</th><th class="r">Return</th><th class="r">Max DD</th><th>Status</th><th>Saved</th><th></th></tr></thead><tbody>` +
-        list.map(s => { const m = s.summary || {}; return `<tr>
-          <td><input class="nm" data-rn="${esc(s.id)}" value="${esc(s.name || '')}" aria-label="Backtest name"></td>
-          <td>${esc(s.datasetId === 'sample' ? 'Sample' : s.datasetName || '')}</td><td>${esc(m.tf || s.tf || '')}</td>
-          <td>${m.from ? fmtDay(m.from) + ' → ' + fmtDay(m.to) : '—'}</td>
-          <td class="r">${m.trades ?? 0}${m.open ? ` <span class="tag">+${m.open} open</span>` : ''}</td>
+      body.innerHTML = head('Name</th><th>Data</th><th>TF</th><th>Replayed</th><th class="r">Trades</th><th class="r">Win rate</th><th class="r">PF</th><th class="r">Net P&amp;L</th><th class="r">Return</th><th class="r">Max DD</th><th>Status</th><th>Saved</th><th class="act"></th>') +
+        list.map(s => { const m = s.summary || {}; return `<tr data-id="${esc(s.id)}">
+          <td class="nm"><div class="lnm">${libSel(s.id, s.name || 'backtest')}<input class="nm" data-rn="${esc(s.id)}" value="${esc(s.name || '')}" title="${esc(s.name || '')}" aria-label="Backtest name"></div></td>
+          <td class="wrap key">${esc(s.datasetId === 'sample' ? 'Sample' : s.datasetName || '')}</td><td>${esc(m.tf || s.tf || '')}</td>
+          <td>${libSpan(m.from, m.to)}</td>
+          <td class="r key">${m.trades ?? 0} <span class="mlbl">trades</span>${m.open ? ` <span class="tag">+${m.open} open</span>` : ''}</td>
           <td class="r">${m.winRate == null ? '—' : m.winRate.toFixed(1) + '%'}</td><td class="r">${pfTxt(m.pf)}</td>
-          <td class="r ${cls(m.net || 0)}">${smoney(m.net || 0)}</td>
+          <td class="r key ${cls(m.net || 0)}">${smoney(m.net || 0)}</td>
           <td class="r ${cls(m.ret || 0)}">${m.ret == null ? '—' : (m.ret >= 0 ? '+' : '') + m.ret.toFixed(2) + '%'}</td>
           <td class="r">${m.maxDDpct ? m.maxDDpct.toFixed(1) + '%' : '0.0%'}</td>
-          <td>${s.id === S.sid ? '<span class="tag live">open now</span>' : `<span class="tag">${esc(s.status || '')}</span>`}${m.prop ? ` <span class="tag ${m.prop === 'Failed' ? 'neg' : m.prop === 'Passed' ? 'pos' : ''}">Prop: ${esc(m.prop)}</span>` : ''}</td>
-          <td>${new Date(s.updated).toLocaleString()}</td>
-          <td><button data-open="${esc(s.id)}">Open</button> <button data-del="${esc(s.id)}">Delete</button></td></tr>`; }).join('') + '</tbody></table>';
+          <td class="key">${s.id === S.sid ? '<span class="tag live">open now</span>' : `<span class="tag">${esc(s.status || '')}</span>`}${m.prop ? ` <span class="tag ${m.prop === 'Failed' ? 'neg' : m.prop === 'Passed' ? 'pos' : ''}">Prop: ${esc(m.prop)}</span>` : ''}</td>
+          <td>${libWhen(s.updated)}</td>
+          <td class="act"><button data-open="${esc(s.id)}">Open</button><button class="ldel" data-del="${esc(s.id)}" title="Delete">${LIB_TRASH}<span>Delete</span></button></td></tr>`; }).join('') + '</tbody></table>';
     } else if (tab === 'op') {
       $('#libNote').textContent = 'Strategy optimizations are saved here as they run. Open one to see its results, resume it, or open a combination on the chart.';
       const list = (await STORE.listOptims()).sort((a, b) => b.updated - a.updated);
-      if (!list.length) { body.innerHTML = '<div class="empty">No optimizations yet. Run one from the Strategy panel\u2019s Optimize tab.</div>'; return; }
-      body.innerHTML = `<table><thead><tr><th>Name</th><th>Data</th><th>TF</th><th>Dates</th><th class="r">Done</th><th>Goal</th><th>Best</th><th>Saved</th><th></th></tr></thead><tbody>` +
-        list.map(o => `<tr><td>${esc(o.name || '')}</td><td>${esc(o.datasetName || '')}</td><td>${esc(o.tf || '')}</td><td>${o.from ? fmtDay(o.from).slice(0, 10) + ' → ' + fmtDay(o.to).slice(0, 10) : '—'}</td>
-          <td class="r">${(o.done || 0).toLocaleString('en-US')} / ${(o.total || 0).toLocaleString('en-US')}</td><td>${esc(OPT_GOALS[o.goal] || '')}</td><td>${esc(o.best || '—')}</td>
-          <td>${new Date(o.updated).toLocaleString()}</td><td><button data-opopen="${esc(o.id)}">Open</button> <button data-opdel="${esc(o.id)}">Delete</button></td></tr>`).join('') + '</tbody></table>';
+      if (!list.length) { body.innerHTML = '<div class="empty">No optimizations yet. Run one from the Strategy panel’s Optimize tab.</div>'; return; }
+      body.innerHTML = head('Name</th><th>Data</th><th>TF</th><th>Dates</th><th class="r">Done</th><th>Goal</th><th>Best</th><th>Saved</th><th class="act"></th>') +
+        list.map(o => `<tr data-id="${esc(o.id)}"><td class="nm"><div class="lnm">${libSel(o.id, o.name || 'optimization')}<span class="lname">${esc(o.name || '')}</span></div></td><td class="wrap key">${esc(o.datasetName || '')}</td><td>${esc(o.tf || '')}</td><td>${o.from ? `<span class="lspan">${fmtDay(o.from).slice(0, 10)}<br>→ ${fmtDay(o.to).slice(0, 10)}</span>` : '—'}</td>
+          <td class="r key">${(o.done || 0).toLocaleString('en-US')} / ${(o.total || 0).toLocaleString('en-US')} <span class="mlbl">done</span></td><td>${esc(OPT_GOALS[o.goal] || '')}</td><td class="wrap">${esc(o.best || '—')}</td>
+          <td class="key">${libWhen(o.updated)}</td><td class="act"><button data-opopen="${esc(o.id)}">Open</button><button class="ldel" data-opdel="${esc(o.id)}" title="Delete">${LIB_TRASH}<span>Delete</span></button></td></tr>`).join('') + '</tbody></table>';
     } else {
       $('#libNote').innerHTML = 'Data files you load are kept here, so you can start new backtests on them without finding the file again. ' +
         'For real futures data, Tape Replay reads <a href="https://databento.com/" target="_blank" rel="noopener">Databento</a> ' +
@@ -5758,30 +5880,89 @@ async function renderLib(tab) {
       const list = (await STORE.listDatasets()).sort((a, b) => b.added - a.added);
       if (!list.length) { body.innerHTML = '<div class="empty">No data files yet. Import a CSV or DBN file and it is added here when you start the session.</div>'; return; }
       const def = PREFS.defaultDs && PREFS.defaultDs.id;
-      body.innerHTML = `<table><thead><tr><th>File</th><th class="r">Bars</th><th class="r">Contracts</th><th>Base TF</th><th>Covers</th><th class="r">Size</th><th>Added</th><th></th></tr></thead><tbody>` +
-        list.map(d => `<tr><td>${esc(d.name)}${d.builtin ? ' <span class="tag" title="Shipped inside the app">built in</span>' : ''}${d.linked ? ' <span class="tag" title="' + esc(d.linked) + '">linked</span>' : ''}${d.id === def ? ' <span class="tag live">New session data</span>' : ''}</td>
-          <td class="r">${(d.bars || 0).toLocaleString('en-US')}</td><td class="r">${d.contracts || 1}</td><td>${d.base ? tfLabel({ kind: 's', sec: d.base }) : '—'}</td>
-          <td>${d.from ? fmtDay(d.from) + ' → ' + fmtDay(d.to) : '—'}</td><td class="r">${d.synthetic ? 'generated' : (d.size / 1048576).toFixed(1) + ' MB'}</td><td>${d.added ? new Date(d.added).toLocaleString() : '—'}</td>
-          <td><button data-newbt="${esc(d.id)}">New backtest</button> <button data-def="${esc(d.id)}">${d.id === def ? 'Stop using for New session' : 'Use for New session'}</button> <button data-dsdel="${esc(d.id)}">Delete</button></td></tr>`).join('') + '</tbody></table>';
+      body.innerHTML = head('File</th><th class="r">Bars</th><th class="r">Contracts</th><th>Base TF</th><th>Covers</th><th class="r">Size</th><th>Added</th><th class="act"></th>') +
+        list.map(d => `<tr data-id="${esc(d.id)}"><td class="nm"><div class="lnm">${d.id === SYNTH_ID ? '<span class="lsel"></span>' : libSel(d.id, d.name)}<span class="lname">${esc(d.name)}${d.builtin ? ' <span class="tag" title="Shipped inside the app">built in</span>' : ''}${d.linked ? ' <span class="tag" title="' + esc(d.linked) + '">linked</span>' : ''}${d.id === def ? ' <span class="tag live">New session data</span>' : ''}</span></div></td>
+          <td class="r key">${(d.bars || 0).toLocaleString('en-US')} <span class="mlbl">bars</span></td><td class="r">${d.contracts || 1}</td><td>${d.base ? tfLabel({ kind: 's', sec: d.base }) : '—'}</td>
+          <td class="key">${libSpan(d.from, d.to)}</td><td class="r">${d.synthetic ? 'generated' : (d.size / 1048576).toFixed(1) + ' MB'}</td><td>${d.added ? libWhen(d.added) : '—'}</td>
+          <td class="act"><button data-newbt="${esc(d.id)}">New backtest</button><button data-def="${esc(d.id)}">${d.id === def ? 'Stop using for New session' : 'Use for New session'}</button>${d.id === SYNTH_ID ? '' : `<button class="ldel" data-dsdel="${esc(d.id)}" title="Delete">${LIB_TRASH}<span>Delete</span></button>`}</td></tr>`).join('') + '</tbody></table>';
     }
   } catch (e) { body.innerHTML = `<div class="empty">Could not read the Library: ${esc(e.message)}</div>`; }
+  libSelSync();
 }
-function armDelete(btn) {
+// a delete button asks once more before it deletes: the first click arms it for 3 seconds
+function armDelete(btn, armed = 'Confirm delete') {
   if (btn.dataset.armed) return true;
-  btn.dataset.armed = '1'; btn.textContent = 'Confirm delete';
-  setTimeout(() => { if (btn.isConnected) { delete btn.dataset.armed; btn.textContent = 'Delete'; } }, 3000);
+  const was = btn.innerHTML;
+  btn.dataset.armed = '1'; btn.classList.add('armed'); btn.textContent = armed;
+  setTimeout(() => { if (btn.isConnected && btn.dataset.armed) { delete btn.dataset.armed; btn.classList.remove('armed'); btn.innerHTML = was; } }, 3000);
   return false;
+}
+const LIB_KIND = { bt: ['backtest', 'backtests'], op: ['optimization', 'optimizations'], ds: ['data file', 'data files'] };
+// the bar that replaces the note while rows are ticked, and the Select all box
+function libSelSync() {
+  const n = LIBSEL.ids.size, [one, many] = LIB_KIND[libTab];
+  $('#libBulk').hidden = !n; $('#libNote').hidden = !!n;
+  $('#libSelN').textContent = `${n} ${n === 1 ? one : many} selected`;
+  const del = $('#libSelDel');
+  if (del.dataset.armed) { delete del.dataset.armed; del.classList.remove('armed'); }
+  del.disabled = false; del.textContent = `Delete ${n === 1 ? one : n + ' ' + many}`;
+  const boxes = [...document.querySelectorAll('#libBody input.lsel')], all = $('#libBody input.lall');
+  for (const b of boxes) { b.checked = LIBSEL.ids.has(b.dataset.sel); b.closest('tr')?.classList.toggle('sel', b.checked); }
+  if (all) { all.checked = !!boxes.length && boxes.every(b => b.checked); all.indeterminate = n > 0 && !all.checked; all.disabled = !boxes.length; }
+}
+async function libDeleteOne(kind, id) {
+  if (kind === 'bt') {
+    await STORE.deleteSession(id);
+    if (id === S.sid) { S.sid = newId(); S.created = Date.now(); S.name = null; }
+  } else if (kind === 'op') {
+    await STORE.deleteOptim(id);
+    if (OPT.doc && OPT.doc.id === id) OPT.doc = null;
+  } else await STORE.deleteDataset(id);
+}
+async function libDeleteSelected() {
+  const btn = $('#libSelDel'), ids = [...LIBSEL.ids], kind = libTab, [one, many] = LIB_KIND[kind];
+  if (!ids.length) return;
+  if (!armDelete(btn, `Delete ${ids.length === 1 ? 'this ' + one : 'all ' + ids.length}? Click again`)) return;
+  btn.disabled = true;
+  let done = 0, err = '';
+  for (const id of ids) {
+    btn.textContent = `Deleting ${done + 1} of ${ids.length}…`;
+    try { await libDeleteOne(kind, id); done++; } catch (e) { err = err || e.message; }
+  }
+  await renderLib(kind);
+  if (err) toast(`Deleted ${done} of ${ids.length}: ${err}`, 'err');
+  else toast(`Deleted ${done} ${done === 1 ? one : many}.${kind === 'ds' ? ' Backtests made with them can no longer be reopened.' : ''}`);
 }
 function wireLib() {
   $('#bLib').onclick = () => openLib();
   $('#libClose').onclick = () => { $('#lib').hidden = true; };
   for (const b of document.querySelectorAll('#libTabs button')) b.onclick = () => renderLib(b.dataset.lt);
+  $('#libSelDel').onclick = libDeleteSelected;
+  $('#libSelClr').onclick = () => { LIBSEL.ids.clear(); LIBSEL.last = null; libSelSync(); };
+  // Delete (or Backspace) with rows ticked deletes them, after the same second press
+  $('#lib').addEventListener('keydown', e => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && LIBSEL.ids.size && !e.target.matches('input:not([type=checkbox]),textarea')) { e.preventDefault(); libDeleteSelected(); }
+    else if (e.key === 'Escape' && LIBSEL.ids.size) { e.stopPropagation(); LIBSEL.ids.clear(); libSelSync(); }
+  });
   $('#libBody').addEventListener('change', async e => {
     const id = e.target.dataset.rn; if (!id) return;
     const name = e.target.value.trim(); if (!name) return;
     try { await STORE.renameSession(id, name); if (id === S.sid) S.name = name; toast('Renamed.'); } catch (err) { toast('Could not rename: ' + err.message, 'err'); }
   });
   $('#libBody').addEventListener('click', async e => {
+    // ticking rows
+    const box = e.target.closest('input.lsel, input.lall');
+    if (box) {
+      const boxes = [...document.querySelectorAll('#libBody input.lsel')];
+      if (box.classList.contains('lall')) { for (const b of boxes) if (box.checked) LIBSEL.ids.add(b.dataset.sel); else LIBSEL.ids.delete(b.dataset.sel); }
+      else {
+        const k = boxes.indexOf(box), j = boxes.findIndex(b => b.dataset.sel === LIBSEL.last);
+        const run = e.shiftKey && j >= 0 ? boxes.slice(Math.min(j, k), Math.max(j, k) + 1) : [box];
+        for (const b of run) if (box.checked) LIBSEL.ids.add(b.dataset.sel); else LIBSEL.ids.delete(b.dataset.sel);
+        LIBSEL.last = box.dataset.sel;
+      }
+      return libSelSync();
+    }
     const b = e.target.closest('button'); if (!b) return;
     try {
       if (b.dataset.open) {
@@ -5790,8 +5971,7 @@ function wireLib() {
         await resumeSession(b.dataset.open); $('#lib').hidden = true; toast('Backtest reopened where it was saved.');
       } else if (b.dataset.del) {
         if (!armDelete(b)) return;
-        await STORE.deleteSession(b.dataset.del);
-        if (b.dataset.del === S.sid) { S.sid = newId(); S.created = Date.now(); S.name = null; }
+        await libDeleteOne('bt', b.dataset.del);
         renderLib('bt');
       } else if (b.dataset.newbt) {
         b.disabled = true; b.textContent = 'Loading…';
@@ -5806,13 +5986,12 @@ function wireLib() {
         $('#lib').hidden = true; await optOpenSaved(b.dataset.opopen);
       } else if (b.dataset.opdel) {
         if (!armDelete(b)) return;
-        await STORE.deleteOptim(b.dataset.opdel);
-        if (OPT.doc && OPT.doc.id === b.dataset.opdel) OPT.doc = null;
+        await libDeleteOne('op', b.dataset.opdel);
         renderLib('op');
       } else if (b.dataset.dsdel) {
         if (b.dataset.dsdel === SYNTH_ID) return toast('The practice data is built in and generated as needed, so there is nothing to delete.');
         if (!armDelete(b)) return;
-        await STORE.deleteDataset(b.dataset.dsdel); renderLib('ds');
+        await libDeleteOne('ds', b.dataset.dsdel); renderLib('ds');
         toast('Data file deleted. Backtests made with it can no longer be reopened.');
       }
     } catch (err) { toast(err.message, 'err'); b.disabled = false; }
@@ -7001,8 +7180,18 @@ function stratTab(t) {
 }
 function stratLines() {
   const src = $('#stSrc');
-  $('#stLn').textContent = Array.from({ length: src.value.split('\n').length }, (_, i) => i + 1).join('\n');
+  const lines = src.value.split('\n');
+  $('#stLn').textContent = Array.from({ length: lines.length }, (_, i) => i + 1).join('\n');
   src.style.height = 'auto'; src.style.height = src.scrollHeight + 'px';
+  // as wide as the longest line, so long lines scroll sideways instead of being cut off
+  const m = stratLines.m || (stratLines.m = document.createElement('canvas').getContext('2d'));
+  if (m) {
+    const cs = getComputedStyle(src);
+    m.font = `${cs.fontSize} ${cs.fontFamily}`;
+    let w = 0;
+    for (const l of lines) w = Math.max(w, m.measureText(l.replace(/\t/g, '    ')).width);
+    src.style.width = Math.ceil(w + (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) + 4) + 'px';
+  }
 }
 function segPick(sel, v) { for (const b of document.querySelectorAll(sel + ' button')) b.setAttribute('aria-pressed', String(b.dataset.v === v)); }
 function fillStratList(sel) {
@@ -7049,6 +7238,7 @@ function openStrat() {
   for (const el of document.querySelectorAll('.opthelp')) el.hidden = !optAvailable();
   if (!$('#stCons').childElementCount) stratLog('Python loads the first time you run a strategy, in a few seconds.');
   $('#strat').hidden = false;
+  if (document.fonts) document.fonts.ready.then(() => { if (!$('#strat').hidden) stratLines(); });
   if (S.strategy) { stratResults(); stratTab('res'); } else stratTab('code');
 }
 function closeStrat() { if (!RUN.on && !OPT.on) $('#strat').hidden = true; }
@@ -7078,7 +7268,7 @@ async function loadPython(libs) {
       await py.loadPackage('numpy', { messageCallback: () => {}, errorCallback: m => stratLog(m, 'er') });
       py.runPython($('#trRuntime').textContent);
       const g = n => py.globals.get(n);
-      PY.fn = { check: g('_tr_check'), start: g('_tr_start'), bar: g('_tr_bar'), tick: g('_tr_tick'), fill: g('_tr_fill'), end: g('_tr_end'), params: g('_tr_params'), combos: g('_tr_combos') };
+      PY.fn = { check: g('_tr_check'), start: g('_tr_start'), bar: g('_tr_bar'), tick: g('_tr_tick'), fill: g('_tr_fill'), end: g('_tr_end'), params: g('_tr_params'), combos: g('_tr_combos'), setvals: g('_tr_setvals') };
       PY.libs.add('numpy'); PY.py = py;
     })();
     try { await PY.loading; } finally { PY.loading = null; }
@@ -7748,7 +7938,7 @@ function optResultsShow() {
       `<td class="r">${optPf(a.pf)}</td><td class="r">${money(a.dd)}</td>` +
       (split ? `<td class="r ${cls(b.net || 0)}">${b.trades ? smoney(b.net) : '—'}</td><td class="r">${b.trades ? optPf(b.pf) : '—'}</td><td class="r">${b.trades || 0}</td>` : '') +
       (sim ? `<td class="r">${res.sim ? res.sim.attempts : '—'}</td><td class="r ${cls(res.sim ? res.sim.take : 0)}">${res.sim ? smoney(res.sim.take) : '—'}</td>` : '') +
-      `<td><button data-chart="${r.i}">Open on chart</button></td></tr>`;
+      `<td class="act"><button data-chart="${r.i}" title="Run it as a backtest on the chart">Open on chart</button><button data-use="${r.i}" title="Write these values into the settings at the top of the code">Use in code</button></td></tr>`;
   }).join('') + (rows.length > 300 ? `<tr><td colspan="${cols.length}" class="empty">The best 300 of ${rows.length.toLocaleString('en-US')} are shown. Copy as CSV for all of them.</td></tr>` : '');
   optHeat(rows, names, goal);
   // phones: the best 20 as cards
@@ -7758,7 +7948,7 @@ function optResultsShow() {
       (res.fail ? `<div class="err">${esc(String(res.fail).split('\n')[0])}</div>` :
       `<div class="oc2"><span>${esc(OPT_GOALS[goal])} <b>${optScoreTxt(r.score, goal)}</b></span><span>Net <b class="${cls(a.net)}">${smoney(a.net)}</b></span><span>${a.trades} trades</span>` +
       `<span>PF <b>${optPf(a.pf)}</b></span><span>DD <b>${money(a.dd)}</b></span>${split ? `<span>Check net <b class="${cls(bb.net || 0)}">${bb.trades ? smoney(bb.net) : '—'}</b></span>` : ''}` +
-      `${res.sim ? `<span>Payouts − fees <b class="${cls(res.sim.take)}">${smoney(res.sim.take)}</b></span>` : ''}</div><button data-chart="${r.i}">Open on chart</button>`) + '</div>';
+      `${res.sim ? `<span>Payouts − fees <b class="${cls(res.sim.take)}">${smoney(res.sim.take)}</b></span>` : ''}</div><div class="ocb"><button data-chart="${r.i}" title="Run it as a backtest on the chart">Open on chart</button><button data-use="${r.i}" title="Write these values into the settings at the top of the code">Use in code</button></div>`) + '</div>';
   }).join('') + (rows.length > 20 ? `<p class="note">The best 20 of ${rows.length.toLocaleString('en-US')}. The Windows app shows them all.</p>` : '');
   $('#optZoom').disabled = OPT.on || !best;
   robShow(rows);
@@ -7881,9 +8071,11 @@ function wireOpt() {
   $('#optBody').addEventListener('click', e => {
     const b = e.target.closest('button[data-chart]');
     if (b) return optToChart(+b.dataset.chart);
+    const u = e.target.closest('button[data-use]');
+    if (u) return optApply(+u.dataset.use);
     const tr = e.target.closest('tr[data-i]'); if (tr) pickRow(+tr.dataset.i);
   });
-  $('#optCards').addEventListener('click', e => { const b = e.target.closest('button[data-chart]'); if (b) optToChart(+b.dataset.chart); });
+  $('#optCards').addEventListener('click', e => { const b = e.target.closest('button[data-chart]'); if (b) optToChart(+b.dataset.chart); const u = e.target.closest('button[data-use]'); if (u) optApply(+u.dataset.use); });
   $('#optHeat').addEventListener('click', e => { const td = e.target.closest('td[data-i]'); if (td) { pickRow(+td.dataset.i); $(`#optBody tr[data-i="${td.dataset.i}"]`)?.scrollIntoView({ block: 'nearest' }); } });
   // the settings list follows the code
   $('#stSrc').addEventListener('input', () => { clearTimeout(OPT.detectT); if (!$('#stOpt').hidden) OPT.detectT = setTimeout(optDetect, 700); });
@@ -7893,6 +8085,24 @@ function wireOpt() {
     if (OPT.on) { OPT.paused = true; optStop(); }
     optPoolClose(); // iOS would stop them anyway; they start again with the next run
   });
+}
+// a combination's values written into the strategy's code (the NAME = value settings at the top), so Run backtest
+// and later optimizations start from them. The code open in the editor is changed when it is this strategy, else the
+// strategy's saved code (or the optimization's own copy); comments and layout are kept.
+async function optApply(i) {
+  const doc = OPT.doc; if (!doc || OPT.on || RUN.on) return;
+  const vals = doc.combos[i]; if (!vals) return;
+  const open = $('#stName').value.trim() === doc.strategy;
+  const code = open ? $('#stSrc').value : stratCodes()[doc.strategy] ?? doc.code;
+  try { await loadPython(['numpy']); } catch (e) { return toast(e.message, 'err'); }
+  const r = JSON.parse(PY.fn.setvals(code, JSON.stringify(vals)));
+  if (r.error) return toast('Could not write the values into the code: ' + r.error, 'err');
+  if (open) { $('#stSrc').value = r.code; stratLines(); } else loadStrat(doc.strategy, r.code);
+  saveStratCode(); fillStratList('u:' + doc.strategy);
+  // the settings list keeps the ranges typed for each setting; only "Now" changes
+  for (const p of OPT.params) if (p.name in vals) p.value = vals[p.name];
+  if (!$('#stOpt').hidden) optDetect();
+  toast(`${optLabel(vals)} written into “${doc.strategy}”.`, 'up');
 }
 // a combination as a normal backtest on the chart, saved to the Library
 function optToChart(i) {
@@ -8177,7 +8387,7 @@ function robRender() {
       (sp.mc ? (m ? `<td class="r ${okc(m.profit >= 0.7, m.profit < 0.5)}">${robPct(m.profit)}</td><td class="r ${cls(m.p5)}">${smoney(m.p5)}</td><td class="r">${money(m.dd95)}</td>` +
         (sp.ruin ? `<td class="r ${okc(m.ruin <= 0.05, m.ruin > 0.05)}">${robPct(m.ruin)}</td>` : '') : `<td class="r" colspan="${sp.ruin ? 4 : 3}">no trades</td>`) : '') +
       `<td class="r ${okc(r.tests && r.pass === r.tests, r.tests && r.pass < r.tests)}">${r.tests ? `${r.pass} of ${r.tests}` : '—'}</td>` +
-      `<td><button data-chart="${r.i}">Open on chart</button></td></tr>`;
+      `<td class="act"><button data-chart="${r.i}" title="Run it as a backtest on the chart">Open on chart</button><button data-use="${r.i}" title="Write these values into the settings at the top of the code">Use in code</button></td></tr>`;
   }).join('') + Object.entries(V.fails).map(([i, f]) => `<tr><td></td><td colspan="${cols.length - 1}" class="err">${esc(optLabel(doc.combos[i]))}: ${esc(f)}</td></tr>`).join('');
   // walk-forward: the stitched result and each window
   const W = $('#robWfOut');
@@ -8213,7 +8423,7 @@ function wireRob() {
     if (ROB.sortKey === th.dataset.k) ROB.sortDir *= -1; else { ROB.sortKey = th.dataset.k; ROB.sortDir = th.dataset.k.startsWith('p:') || th.dataset.k.endsWith('.dd') || th.dataset.k.endsWith('dd95') || th.dataset.k.endsWith('ruin') ? 1 : -1; }
     robRender();
   });
-  $('#robBody').addEventListener('click', e => { const b = e.target.closest('button[data-chart]'); if (b) optToChart(+b.dataset.chart); });
+  $('#robBody').addEventListener('click', e => { const b = e.target.closest('button[data-chart]'); if (b) optToChart(+b.dataset.chart); const u = e.target.closest('button[data-use]'); if (u) optApply(+u.dataset.use); });
 }
 
 /* ---------------- worker mode: this script in an optimization worker, with no screen ---------------- */

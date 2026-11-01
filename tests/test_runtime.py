@@ -235,4 +235,20 @@ with redirect_stdout(buf):
         rt._tr_bar(i * 60.0, 1, 2, 0.5, 1.5, 3, 0, 0, None, 1, 1)
 check(re.findall(r"hist (\d+) (\S+)", buf.getvalue()) == [("0", "None"), ("1", "1.0"), ("1", "1.0"), ("2", "3.0"), ("2", "3.0")], buf.getvalue())
 check([c[1] for c in api.calls if c[0] == "history"] == [0, 0, 1, 1, 2], api.calls)
+
+# "Use in code": an optimization's values written into the code's text, keeping comments, layout and quotes
+SRC = """# settings
+FAST, SLOW = 9, 21   # periods
+STOP = param(40, 20, 60, step=20)  # ticks
+RATIO = 1.5
+MODE = 'fast'   # "fast" or "slow"
+LONG_ONLY = False
+NOTE = "é→"
+"""
+r = json.loads(rt._tr_setvals(SRC, json.dumps({"FAST": 13, "SLOW": 30, "STOP": 60, "RATIO": 2, "MODE": "slow", "LONG_ONLY": True})))
+check(r.get("code") == SRC.replace("9, 21", "13, 30").replace("param(40,", "param(60,").replace("1.5", "2.0").replace("'fast'", "'slow'").replace("False", "True"), r)
+r = json.loads(rt._tr_setvals(SRC, json.dumps({"NOTE": "ü", "SLOW": 5})))
+check(r.get("code") == SRC.replace('"é→"', '"ü"').replace("9, 21", "9, 5"), r)
+check("not in the code" in json.loads(rt._tr_setvals(SRC, json.dumps({"GONE": 1})))["error"], "missing setting reported")
+check("error" in json.loads(rt._tr_setvals("def f(:\n", "{}")), "syntax error reported")
 print(f"runtime: {ok} checks passed")
