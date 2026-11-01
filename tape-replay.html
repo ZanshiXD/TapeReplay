@@ -898,7 +898,9 @@ html.m .stpick input{max-width:none}
 
 /* ---- strategy optimization (Windows app) ---- */
 .seg.st{grid-template-columns:none;grid-auto-flow:column}
-#stOpt{gap:12px}
+#stOpt{gap:12px;overflow:auto}
+/* the Optimize tab scrolls as one (settings, results, robustness); its parts keep their height */
+#stOpt>*,#optResults>*{flex:none}
 .optgrid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;min-height:0}
 .optleft{display:flex;flex-direction:column;gap:10px;min-width:0}
 .opthead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -958,6 +960,28 @@ html.m .optlist .hint{max-width:none;white-space:normal}
 html.m .optq{margin-left:0;flex-wrap:wrap}
 html.m #optRules{font-size:16px}
 html.m #optHeat,html.m #optCsv,html.m .optres{display:none!important}
+/* robustness tests, below the optimization results */
+.robbox{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.robbox .opthead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.robbox .opthead h3{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.robgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.robgrid .stcard .seg{grid-template-columns:1fr 1fr}
+.robtick{display:inline-flex;gap:6px;align-items:center;cursor:pointer;color:inherit}
+.robtick input{margin:0}
+.robbox .optbtns{display:flex;gap:8px}
+.robres{max-height:40vh}
+.robres th[data-k]{cursor:pointer;user-select:none}
+.robres th[data-k].on{color:var(--accent)}
+.robres td.ok{color:var(--up)}
+.robres td.bad{color:var(--down)}
+.robres td button{background:var(--raise);border:1px solid var(--line);border-radius:5px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--fg)}
+.robwf{display:flex;flex-direction:column;gap:6px}
+.robwf .sttr{max-height:30vh}
+.robwf tr.none td{opacity:.5}
+html.m .robgrid{grid-template-columns:1fr}
+html.m .robbox .opttop{flex-direction:column;align-items:stretch}
+html.m .robbox .optbtns button{flex:1;padding:9px 12px;font-size:14px}
+html.m #robCsv{display:none!important}
 .optcards{display:none}
 html.m .optcards{display:flex;flex-direction:column;gap:8px}
 .optcard{border:1px solid var(--line);border-radius:6px;background:var(--raise);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
@@ -1509,6 +1533,49 @@ html.m .optcards{display:flex;flex-direction:column;gap:8px}
         <div id="optHeat" class="optheat" hidden></div>
         <div class="sttr optres"><table><thead id="optHead"></thead><tbody id="optBody"></tbody></table></div>
         <div class="optcards" id="optCards"></div>
+        <section id="robBox" class="robbox" aria-labelledby="robTitle">
+          <div class="opthead"><h3 id="robTitle">Robustness tests</h3>
+            <span class="note">Out of sample, walk-forward and Monte Carlo on the best combinations</span></div>
+          <div class="robgrid">
+            <div class="stcard">
+              <h3>Candidates</h3>
+              <label class="f">Test the best (% of ranked combinations)<input id="robPct" type="number" min="1" max="100" step="1" value="10"></label>
+              <p class="note" id="robCand"></p>
+            </div>
+            <div class="stcard">
+              <h3><label class="robtick"><input type="checkbox" id="robOos" checked> Out of sample</label></h3>
+              <div class="fgrid">
+                <label class="f">From<input id="robFrom" type="date"></label>
+                <label class="f">To<input id="robTo" type="date"></label>
+              </div>
+              <p class="note" id="robOosNote"></p>
+            </div>
+            <div class="stcard">
+              <h3><label class="robtick"><input type="checkbox" id="robWf" checked> Walk-forward</label></h3>
+              <div class="fgrid">
+                <label class="f">Windows<input id="robWfN" type="number" min="2" max="24" step="1" value="6"></label>
+                <label class="f">In-sample share<select id="robWfIs"><option value="60">60%</option><option value="70" selected>70%</option><option value="75">75%</option><option value="80">80%</option></select></label>
+              </div>
+              <div class="seg" id="robWfMode"><button data-v="rolling" aria-pressed="true">Rolling</button><button data-v="anchored" aria-pressed="false">Anchored</button></div>
+            </div>
+            <div class="stcard">
+              <h3><label class="robtick"><input type="checkbox" id="robMc" checked> Monte Carlo</label></h3>
+              <div class="fgrid">
+                <label class="f">Simulations<input id="robMcN" type="number" min="100" max="20000" step="100" value="1000"></label>
+                <label class="f">Method<select id="robMcMode"><option value="resample">Resample trades</option><option value="shuffle">Reshuffle order</option></select></label>
+                <label class="f">Skip trades at random<select id="robMcSkip"><option value="0">None</option><option value="5">5%</option><option value="10">10%</option><option value="20">20%</option></select></label>
+                <label class="f">Ruin at a drawdown of ($)<input id="robRuin" type="number" min="0" step="any" placeholder="off"></label>
+              </div>
+            </div>
+          </div>
+          <div class="opttop"><p class="note" id="robMsg"></p>
+            <span class="optbtns"><button id="robRun" class="primary">Run robustness tests</button><button id="robStop" disabled>Stop</button><button id="robCsv" hidden>Copy as CSV</button></span></div>
+          <div id="robOut" hidden>
+            <p class="note" id="robSummary"></p>
+            <div class="sttr robres"><table><thead id="robHead"></thead><tbody id="robBody"></tbody></table></div>
+            <div id="robWfOut" class="robwf"></div>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -7493,6 +7560,57 @@ function optWarm() {
   optPoolIdle();
 }
 
+// Runs tasks ({ idx, msg }) in the ready workers, n at a time, each worker taking the next task as it finishes one.
+// onResult(idx, res, st) for every result (res.fail when the run failed); onStart(warm) once the workers are picked,
+// warm when all of them were already ready. Stops early when OPT.stop is set. Returns the first error and the time
+// the first worker became ready.
+async function optExec(data, job, runCfg, tasks, n, onResult, onStart) {
+  const pool = optPool(n, job.libs);
+  if (onStart) onStart(pool.every(e => e.state === 'ready'));
+  const init = { type: 'init', data: data.d, cfg: runCfg, zone: { id: ZONE.id, tz: ZONE.tz, fixed: ZONE.fixed }, job };
+  const st = { t0: 0 };
+  let next = 0, firstErr = '';
+  await new Promise(resolve => {
+    let alive = n;
+    OPT.resolve = resolve;
+    OPT.workers = pool.map(e => e.w);
+    for (const e of pool) {
+      const w = e.w;
+      let done = false;
+      const finish = () => { if (done) return; done = true; e.handler = null; if (--alive === 0) resolve(); };
+      const give = () => {
+        if (OPT.stop || next >= tasks.length) return finish();
+        const t = tasks[next++];
+        w.postMessage({ type: 'run', idx: t.idx, ...t.msg });
+      };
+      e.handler = m => {
+        if (m.type === 'crash') { firstErr = firstErr || m.error; return finish(); }
+        if (m.type === 'ready') { if (!st.t0) st.t0 = performance.now(); return give(); }
+        if (m.type === 'error' && m.idx == null) { firstErr = firstErr || m.error; return finish(); }
+        if (m.type === 'result' || m.type === 'error') {
+          const res = m.type === 'error' ? { fail: m.error } : m.res;
+          if (res.fail) firstErr = firstErr || res.fail;
+          onResult(m.idx, res, st);
+          give();
+        }
+      };
+      e.ready.then(ok => {
+        if (done) return;
+        if (!ok) { firstErr = firstErr || e.err; return finish(); }
+        if (OPT.stop) return finish();
+        w.postMessage(init);
+      });
+    }
+  });
+  // stopped: those workers were cut off mid-run; the rest stay ready for the next run
+  if (OPT.stop) for (const e of pool) { e.state = 'dead'; e.handler = null; }
+  OPTP.list = OPTP.list.filter(e => e.state !== 'dead');
+  for (const e of OPTP.list) e.handler = null;
+  optPoolIdle();
+  OPT.workers = []; OPT.resolve = null;
+  return { firstErr, t0: st.t0 };
+}
+
 async function optRun(resume) {
   if (OPT.on || RUN.on || !E || !D) return;
   let doc = OPT.doc;
@@ -7534,63 +7652,25 @@ async function optRun(resume) {
   const runCfg = doc.cfg || JSON.parse(JSON.stringify(cfg));
   OPT.on = true; OPT.stop = false; OPT.paused = false; optRunning(true); optResultsShow();
   if (window.TAPE_IOS) STORE.awake(true);
-  const pool = optPool(n, job.libs), warm = pool.filter(e => e.state === 'ready').length;
-  stratStatus(warm === n ? `${n} parallel run${n > 1 ? 's' : ''} ready…` : `Starting ${n} parallel run${n > 1 ? 's' : ''}…`, 0);
   optMsg(`Running ${todo.length.toLocaleString('en-US')} combinations, ${n} at a time.`);
-  const init = { type: 'init', data: data.d, cfg: runCfg, zone: { id: ZONE.id, tz: ZONE.tz, fixed: ZONE.fixed }, job };
   // the results table is re-sorted and redrawn, and the optimization saved, as results come in; with thousands of
   // results each takes a while, and the workers wait on this thread for their next combination, so the gaps grow
   // with the time those take
-  let next = 0, firstErr = '', t0 = 0, doneNow = 0, lastUi = 0, uiGap = 400, saveGap = 10000;
+  let doneNow = 0, lastUi = 0, uiGap = 400, saveGap = 10000;
   const total = doc.total;
-  await new Promise(resolve => {
-    let alive = n;
-    OPT.resolve = resolve;
-    OPT.workers = pool.map(e => e.w);
-    for (const e of pool) {
-      const w = e.w;
-      let done = false;
-      const finish = () => { if (done) return; done = true; e.handler = null; if (--alive === 0) resolve(); };
-      const give = () => {
-        if (OPT.stop || next >= todo.length) return finish();
-        const i = todo[next++];
-        w.postMessage({ type: 'run', idx: i, overrides: doc.combos[i] });
-      };
-      e.handler = m => {
-        if (m.type === 'crash') { firstErr = firstErr || m.error; return finish(); }
-        if (m.type === 'ready') { if (!t0) t0 = performance.now(); return give(); }
-        if (m.type === 'error' && m.idx == null) { firstErr = firstErr || m.error; return finish(); }
-        if (m.type === 'result' || m.type === 'error') {
-          const res = m.type === 'error' ? { fail: m.error } : m.res;
-          if (res.fail) firstErr = firstErr || res.fail;
-          OPT.rows.push({ i: m.idx, res }); doneNow++;
-          const now = performance.now();
-          if (now - lastUi > uiGap) {
-            lastUi = now;
-            const rate = doneNow / Math.max(0.001, (now - t0) / 1000), left = (todo.length - doneNow) / rate;
-            OPT.rate = rate;
-            stratStatus(`${OPT.rows.length.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} · ${n} at a time · about ${optDur(left)} left`, OPT.rows.length / total);
-            optResultsShow();
-            uiGap = Math.max(400, (performance.now() - now) * 20);
-          }
-          if (now - OPT.saveT > saveGap) { const s0 = performance.now(); optSave(); saveGap = Math.max(10000, (performance.now() - s0) * 50); }
-          give();
-        }
-      };
-      e.ready.then(ok => {
-        if (done) return;
-        if (!ok) { firstErr = firstErr || e.err; return finish(); }
-        if (OPT.stop) return finish();
-        w.postMessage(init);
-      });
+  const { firstErr, t0 } = await optExec(data, job, runCfg, todo.map(i => ({ idx: i, msg: { overrides: doc.combos[i] } })), n, (idx, res, st) => {
+    OPT.rows.push({ i: idx, res }); doneNow++;
+    const now = performance.now();
+    if (now - lastUi > uiGap) {
+      lastUi = now;
+      const rate = doneNow / Math.max(0.001, (now - st.t0) / 1000), left = (todo.length - doneNow) / rate;
+      OPT.rate = rate;
+      stratStatus(`${OPT.rows.length.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} · ${n} at a time · about ${optDur(left)} left`, OPT.rows.length / total);
+      optResultsShow();
+      uiGap = Math.max(400, (performance.now() - now) * 20);
     }
-  });
-  // stopped: those workers were cut off mid-run; the rest stay ready for the next run
-  if (OPT.stop) for (const e of pool) { e.state = 'dead'; e.handler = null; }
-  OPTP.list = OPTP.list.filter(e => e.state !== 'dead');
-  for (const e of OPTP.list) e.handler = null;
-  optPoolIdle();
-  OPT.workers = []; OPT.resolve = null;
+    if (now - OPT.saveT > saveGap) { const s0 = performance.now(); optSave(); saveGap = Math.max(10000, (performance.now() - s0) * 50); }
+  }, warm => stratStatus(warm ? `${n} parallel run${n > 1 ? 's' : ''} ready…` : `Starting ${n} parallel run${n > 1 ? 's' : ''}…`, 0));
   OPT.on = false; optRunning(false);
   if (window.TAPE_IOS) STORE.awake(false);
   if (t0 && doneNow) OPT.rate = doneNow / Math.max(0.001, (performance.now() - t0) / 1000);
@@ -7609,7 +7689,8 @@ function optStop() {
   if (OPT.resolve) OPT.resolve();
 }
 function optRunning(on) {
-  $('#optRun').disabled = on; $('#optStop').disabled = !on; $('#stRun').disabled = on; $('#stClose').disabled = on;
+  $('#optRun').disabled = on; $('#optStop').disabled = !on; $('#robRun').disabled = on; $('#robStop').disabled = !on;
+  for (const el of document.querySelectorAll('#robBox .robgrid input, #robBox .robgrid select, #robBox .robgrid button, #robCsv')) el.disabled = on; $('#stRun').disabled = on; $('#stClose').disabled = on;
   for (const el of document.querySelectorAll('#stOpt .optleft input, #stOpt .optleft textarea, #stOpt .optleft button, #stOpt .optside select, #stOpt .optside input, #optMode button, #optZoom, #optResume, #stCode input, #stCode select, #stCode textarea')) el.disabled = on;
 }
 
@@ -7680,6 +7761,7 @@ function optResultsShow() {
       `${res.sim ? `<span>Payouts − fees <b class="${cls(res.sim.take)}">${smoney(res.sim.take)}</b></span>` : ''}</div><button data-chart="${r.i}">Open on chart</button>`) + '</div>';
   }).join('') + (rows.length > 20 ? `<p class="note">The best 20 of ${rows.length.toLocaleString('en-US')}. The Windows app shows them all.</p>` : '');
   $('#optZoom').disabled = OPT.on || !best;
+  robShow(rows);
 }
 // two numeric settings varied: a grid of the best score for each pair
 function optHeat(rows, names, goal) {
@@ -7764,6 +7846,7 @@ async function optOpenSaved(id) {
   stratTab('opt');
 }
 function wireOpt() {
+  wireRob();
   $('#optRows').addEventListener('input', e => {
     const tr = e.target.closest('tr[data-n]'); if (!tr) return;
     const p = OPT.params.find(x => x.name === tr.dataset.n); if (!p) return;
@@ -7824,6 +7907,315 @@ function optToChart(i) {
   runStrategy({ overrides: doc.combos[i] });
 }
 
+/* ---------------- robustness tests: out of sample, walk-forward, Monte Carlo ---------------- */
+// The best combinations of an optimization (a share of those ranked) run again, each once, from the optimization's
+// start through the holdout after it, keeping every closed trade (exit time and net). The tests are worked out from
+// those trades, so changing the walk-forward windows or the Monte Carlo settings needs no new runs:
+//   out of sample  each candidate on the holdout: dates the optimization did not rank on
+//   walk-forward   the ranked dates cut into windows; in each, the candidate best on its in-sample part is the one
+//                  traded on the next out-of-sample part, and those parts joined are the walk-forward result
+//   Monte Carlo    each candidate's ranked-date trades resampled (or reshuffled, or with some skipped) many times:
+//                  the spread of net P&L and drawdown, and how often a drawdown reaches the ruin level
+// A candidate's ranked-date trades are the ones its optimization run made (the same start, so the same trades).
+const ROB_CAP = () => OPT_SMALL() ? 30 : 200;
+const ROB = { view: null, sortKey: 'pass', sortDir: -1, docId: null, busy: false };
+const robMsg = (text, er) => { const el = $('#robMsg'); el.textContent = text; el.classList.toggle('er', !!er); };
+// a candidate's trades between lo and hi (by exit time): the same figures as an optimization run's
+function robSeg(tr, lo, hi) {
+  let trades = 0, net = 0, w = 0, gw = 0, gl = 0, cum = 0, peak = 0, dd = 0;
+  for (let k = 0; k < tr.length; k += 2) {
+    const t = tr[k]; if (t < lo || t >= hi) continue;
+    const x = tr[k + 1]; trades++; net += x; cum += x;
+    if (x > 0) { w++; gw += x; } else gl -= x;
+    if (cum > peak) peak = cum;
+    if (peak - cum > dd) dd = peak - cum;
+  }
+  return { trades, net, win: trades ? w / trades * 100 : null, pf: gl > 0 ? gw / gl : gw > 0 ? 1e9 : null, dd };
+}
+// windows score as the optimization ranked (payouts need the whole run, so that goal scores as net ÷ max drawdown)
+const robScore = (seg, goal, minT) => optScore({ a: seg }, goal === 'take' ? 'ndd' : goal, minT);
+// the dates the optimization ranked on: up to the Check period when there is one, else its whole range
+function robRanked(doc) {
+  if (doc.splitT != null) return { from: doc.from, to: doc.splitT };
+  const i = D ? Math.min(D.n - 1, lowerBound(D.t, doc.to) + 1) : -1;
+  return { from: doc.from, to: i >= 0 && D.t[i] > doc.to ? D.t[i] : doc.to + (D ? D.base : 60) };
+}
+function robWindows(from, to, n, isPct, mode) {
+  const r = isPct / 100, lo = (to - from) / (n + r / (1 - r)), li = lo * r / (1 - r), out = [];
+  for (let k = 0; k < n; k++) {
+    const os = from + li + k * lo;
+    out.push({ isFrom: mode === 'anchored' ? from : os - li, isTo: os, oosFrom: os, oosTo: k === n - 1 ? to : os + lo });
+  }
+  return out;
+}
+function robMC(nets, sims, mode, skip, ruin, seed) {
+  const rnd = mulberry(seed), m = nets.length, buf = Float64Array.from(nets);
+  const finals = new Float64Array(sims), dds = new Float64Array(sims);
+  let ruined = 0;
+  for (let s = 0; s < sims; s++) {
+    if (mode === 'shuffle') for (let k = m - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)), t = buf[k]; buf[k] = buf[j]; buf[j] = t; }
+    let cum = 0, peak = 0, dd = 0;
+    for (let k = 0; k < m; k++) {
+      if (skip && rnd() < skip) continue;
+      cum += mode === 'shuffle' ? buf[k] : nets[Math.floor(rnd() * m)];
+      if (cum > peak) peak = cum; else if (peak - cum > dd) dd = peak - cum;
+    }
+    finals[s] = cum; dds[s] = dd;
+    if (ruin > 0 && dd >= ruin) ruined++;
+  }
+  finals.sort(); dds.sort();
+  const at = (a, p) => a[Math.min(a.length - 1, Math.floor(p * a.length))];
+  let up = 0; for (const x of finals) if (x > 0) up++;
+  return { p5: at(finals, 0.05), p50: at(finals, 0.5), dd50: at(dds, 0.5), dd95: at(dds, 0.95), profit: up / sims, ruin: ruin > 0 ? ruined / sims : null };
+}
+const robDays = (a, b) => Math.max(1 / 24, (b - a) / 86400);
+const robHash = s => { let h = 2166136261; for (let k = 0; k < s.length; k++) h = Math.imul(h ^ s.charCodeAt(k), 16777619); return h >>> 0; };
+
+// the settings on the panel
+function robSpec(sorted) {
+  const doc = OPT.doc;
+  const pct = clamp(Math.round(+$('#robPct').value || 10), 1, 100);
+  const ranked = (sorted || optSorted()).filter(r => isFinite(r.score) && !r.res.fail);
+  const n = Math.min(ranked.length, ROB_CAP(), Math.max(1, Math.ceil(ranked.length * pct / 100)));
+  return {
+    pct, cands: ranked.slice(0, n).map(r => r.i), ranked: ranked.length, capped: Math.ceil(ranked.length * pct / 100) > ROB_CAP(),
+    goal: $('#optGoal').value, minT: Math.max(0, Math.round(+$('#optMin').value || 0)),
+    oos: $('#robOos').checked, oFrom: ymdUtc($('#robFrom').value, 0), oTo: ymdUtc($('#robTo').value, 1), from: $('#robFrom').value, to: $('#robTo').value,
+    wf: $('#robWf').checked, wfN: clamp(Math.round(+$('#robWfN').value || 6), 2, 24), wfIs: +$('#robWfIs').value || 70,
+    wfMode: ($('#robWfMode [aria-pressed="true"]') || {}).dataset?.v || 'rolling',
+    mc: $('#robMc').checked, mcN: clamp(Math.round(+$('#robMcN').value || 1000), 100, 20000), mcMode: $('#robMcMode').value,
+    mcSkip: +$('#robMcSkip').value || 0, ruin: Math.max(0, +$('#robRuin').value || 0), docId: doc && doc.id,
+  };
+}
+// the holdout offered: the Check period when the optimization has one (it ranked on the dates before it), else the
+// loaded data after the optimization's last day
+function robDefaults(doc) {
+  if (ROB.docId === doc.id) return;
+  ROB.docId = doc.id; ROB.view = null;
+  const sp = doc.robust && doc.robust.spec;
+  if (sp) {
+    $('#robPct').value = sp.pct; $('#robOos').checked = sp.oos; $('#robFrom').value = sp.from || ''; $('#robTo').value = sp.to || '';
+    $('#robWf').checked = sp.wf; $('#robWfN').value = sp.wfN; $('#robWfIs').value = String(sp.wfIs); segPick('#robWfMode', sp.wfMode);
+    $('#robMc').checked = sp.mc; $('#robMcN').value = sp.mcN; $('#robMcMode').value = sp.mcMode; $('#robMcSkip').value = String(sp.mcSkip);
+    $('#robRuin').value = sp.ruin || '';
+    return;
+  }
+  const lastDay = D ? ymd(D.t[D.n - 1]) : '';
+  if (doc.splitT != null) { $('#robFrom').value = ymd(doc.splitT); $('#robTo').value = ymd(doc.to); }
+  else {
+    const next = ymd(doc.to + 86400);
+    const more = D && D.t[D.n - 1] > doc.to + 86400;
+    $('#robFrom').value = more ? next : ''; $('#robTo').value = more ? lastDay : '';
+  }
+  $('#robOos').checked = !!$('#robFrom').value;
+  const sim = doc.cfg && doc.cfg.sim;
+  $('#robRuin').value = sim && sim.on && sim.eMll ? sim.eMll : '';
+}
+// the panel: candidates and the holdout explained; the last results, if any
+function robShow(sorted) {
+  const doc = OPT.doc; if (!doc) return;
+  robDefaults(doc);
+  const sp = robSpec(sorted);
+  $('#robCand').textContent = sp.ranked ? `${sp.cands.length.toLocaleString('en-US')} of ${sp.ranked.toLocaleString('en-US')} ranked combinations${sp.capped ? ` (at most ${ROB_CAP()}${OPT_SMALL() ? ' on iPhone and iPad' : ''})` : ''}, best by ${OPT_GOALS[sp.goal]}.` : 'No ranked combinations yet.';
+  $('#robOosNote').textContent = doc.splitT != null ? `The optimization ranked on ${ymd(doc.from)} to ${ymd(doc.splitT - 1)}; its Check period is offered as the holdout.`
+    : `The optimization ranked on ${ymd(doc.from)} to ${ymd(doc.to)}. The holdout must come after that, in the loaded data.`;
+  if (!OPT.on) $('#robRun').disabled = !sp.ranked;
+  if (!ROB.view && !ROB.busy && D && doc.robust && doc.robust.trades) robCompute();
+  else if (!OPT.on) robRender();
+}
+
+// runs the candidates that are not run yet (or not far enough), then works out the tests
+async function robRun() {
+  if (OPT.on || RUN.on || !E || !D || !OPT.doc) return;
+  const doc = OPT.doc, sp = robSpec();
+  if (!sp.cands.length) return robMsg('No ranked combinations to test yet.', true);
+  if (!sp.oos && !sp.wf && !sp.mc) return robMsg('Tick at least one test.', true);
+  if (D.name !== doc.datasetName || D.t[0] > doc.from || D.t[D.n - 1] < doc.to) return robMsg(`Open a session on "${doc.datasetName}" covering ${ymd(doc.from)} to ${ymd(doc.to)} first.`, true);
+  const rk = robRanked(doc);
+  let runTo = rk.to;
+  if (sp.oos) {
+    if (!isFinite(sp.oFrom) || !isFinite(sp.oTo) || sp.oTo <= sp.oFrom) return robMsg('Pick the holdout’s From and To dates.', true);
+    // the holdout starts no earlier than the end of the ranked dates (a Check period can begin partway through a day)
+    if (sp.oFrom < rk.to && ymd(sp.oFrom) === ymd(rk.to)) sp.oFrom = rk.to;
+    if (sp.oFrom < rk.to) return robMsg(`The holdout must start on or after ${ymd(rk.to)}: the optimization ranked on the dates before that.`, true);
+    if (sp.oFrom > D.t[D.n - 1]) return robMsg(`The loaded data ends on ${ymd(D.t[D.n - 1])}. Load more data to test out of sample, or untick it.`, true);
+    runTo = Math.max(runTo, Math.min(sp.oTo, D.t[D.n - 1] + D.base));
+  }
+  // trades already run for this code reach far enough: only new candidates run
+  const R = doc.robust && doc.robust.code === doc.code && doc.robust.trades ? doc.robust : null;
+  const trades = R && R.runTo >= runTo ? { ...R.trades } : {};
+  const todo = sp.cands.filter(i => !trades[i]);
+  doc.robust = { code: doc.code, runTo: R && R.runTo >= runTo ? R.runTo : runTo, trades, spec: sp, fails: {} };
+  if (todo.length) {
+    const start = lowerBound(D.t, doc.from), end = Math.min(D.n, lowerBound(D.t, runTo));
+    const data = optData(start, Math.max(start + 1, end)), job = { code: doc.code, mode: doc.mode, tf: doc.tf, start: 1, end: data.d.n, splitT: null, rebuy: doc.rebuy, maxEvals: doc.maxEvals, libs: optLibs(doc.libs) };
+    const n = Math.min(optWorkerCount(data.bytes, data.shared), todo.length);
+    const runCfg = doc.cfg || JSON.parse(JSON.stringify(cfg));
+    OPT.on = true; OPT.stop = false; OPT.paused = false; optRunning(true);
+    if (window.TAPE_IOS) STORE.awake(true);
+    robMsg(`Running ${todo.length} candidate${todo.length > 1 ? 's' : ''} from ${ymd(doc.from)} to ${ymd(runTo - 1)}, ${n} at a time.`);
+    let done = 0;
+    const { firstErr } = await optExec(data, job, runCfg, todo.map(i => ({ idx: i, msg: { overrides: doc.combos[i], trades: true } })), n, (idx, res) => {
+      if (res.fail) doc.robust.fails[idx] = String(res.fail).split('\n')[0]; else trades[idx] = res.tr;
+      done++;
+      stratStatus(`Robustness: ${done} of ${todo.length} candidates run`, done / todo.length);
+    }, warm => stratStatus(warm ? `${n} parallel run${n > 1 ? 's' : ''} ready…` : `Starting ${n} parallel run${n > 1 ? 's' : ''}…`, 0));
+    OPT.on = false; optRunning(false);
+    if (window.TAPE_IOS) STORE.awake(false);
+    stratStatus(OPT.stop ? `Robustness stopped: ${done} of ${todo.length} run` : 'Robustness tests done', done / todo.length);
+    if (firstErr && !Object.keys(trades).length) return robMsg(`The runs failed: ${firstErr}`, true);
+  }
+  await robCompute();
+  await optSave();
+}
+
+// the tests, from the candidates' trades
+async function robCompute() {
+  const doc = OPT.doc, R = doc.robust; if (!R || !R.trades || !R.spec) return;
+  ROB.busy = true;
+  try { await robWork(doc, R); } finally { ROB.busy = false; }
+}
+async function robWork(doc, R) {
+  const sp = R.spec;
+  const rk = robRanked(doc), cands = sp.cands.filter(i => R.trades[i]);
+  const oosOk = sp.oos && isFinite(sp.oFrom) && R.runTo > sp.oFrom;
+  const oTo = oosOk ? Math.min(sp.oTo, R.runTo) : 0;
+  const rows = cands.map(i => {
+    const tr = R.trades[i], is = robSeg(tr, rk.from, rk.to);
+    const row = { i, is, isScore: robScore(is, sp.goal, sp.minT) };
+    if (oosOk) {
+      row.oos = robSeg(tr, sp.oFrom, oTo);
+      const isRate = is.net / robDays(rk.from, rk.to), oosRate = row.oos.net / robDays(sp.oFrom, oTo);
+      row.eff = isRate > 0 ? oosRate / isRate * 100 : null;
+    }
+    return row;
+  });
+  let wf = null;
+  if (sp.wf && rows.length) {
+    const wins = robWindows(rk.from, rk.to, sp.wfN, sp.wfIs, sp.wfMode), span = rk.to - rk.from;
+    const flat = [];
+    let isNet = 0, isDays = 0, oosDays = 0;
+    for (const w of wins) {
+      const minT = sp.minT ? Math.max(1, Math.round(sp.minT * (w.isTo - w.isFrom) / span)) : 0;
+      let best = null;
+      for (const r of rows) {
+        const s = robSeg(R.trades[r.i], w.isFrom, w.isTo), sc = robScore(s, sp.goal, minT);
+        if (isFinite(sc) && (!best || sc > best.sc)) best = { i: r.i, s, sc };
+      }
+      w.pick = best ? best.i : null; w.isSeg = best ? best.s : null;
+      w.oos = best ? robSeg(R.trades[best.i], w.oosFrom, w.oosTo) : null;
+      if (best) {
+        const tr = R.trades[best.i];
+        for (let k = 0; k < tr.length; k += 2) if (tr[k] >= w.oosFrom && tr[k] < w.oosTo) flat.push(tr[k], tr[k + 1]);
+        isNet += best.s.net / robDays(w.isFrom, w.isTo); isDays++;
+      }
+      oosDays += robDays(w.oosFrom, w.oosTo);
+    }
+    const all = robSeg(flat, -Infinity, Infinity), picked = wins.filter(w => w.pick != null);
+    wf = { wins, all, up: picked.filter(w => w.oos.net > 0).length, picked: picked.length,
+           eff: isDays && isNet > 0 ? (all.net / oosDays) / (isNet / isDays) * 100 : null };
+    for (const r of rows) r.wfUp = wins.filter(w => robSeg(R.trades[r.i], w.oosFrom, w.oosTo).net > 0).length;
+  }
+  if (sp.mc) {
+    for (const [k, r] of rows.entries()) {
+      const tr = R.trades[r.i], nets = [];
+      for (let j = 0; j < tr.length; j += 2) if (tr[j] >= rk.from && tr[j] < rk.to) nets.push(tr[j + 1]);
+      r.mc = nets.length ? robMC(nets, sp.mcN, sp.mcMode, sp.mcSkip / 100, sp.ruin, robHash(doc.id + ':' + r.i)) : null;
+      if (k % 8 === 7) { robMsg(`Monte Carlo: ${k + 1} of ${rows.length}…`); await yieldTask(); }
+    }
+  }
+  // what passes: holdout in profit with a profit factor of at least 1; profitable in at least half the walk-forward
+  // windows; Monte Carlo in profit in 70% of simulations (when the method can change the total) and ruined in 5% at most
+  for (const r of rows) {
+    const t = [];
+    if (r.oos) t.push(r.oos.trades > 0 && r.oos.net > 0 && (r.oos.pf == null || r.oos.pf >= 1));
+    if (wf) t.push(r.wfUp >= Math.ceil(sp.wfN / 2));
+    if (r.mc) {
+      const totalMoves = sp.mcMode === 'resample' || sp.mcSkip > 0;
+      if (totalMoves || r.mc.ruin != null) t.push((!totalMoves || r.mc.profit >= 0.7) && (r.mc.ruin == null || r.mc.ruin <= 0.05));
+    }
+    r.tests = t.length; r.pass = t.filter(Boolean).length;
+  }
+  ROB.view = { sp, rk, rows, wf, oosOk, oFrom: sp.oFrom, oTo, fails: R.fails || {} };
+  robMsg(`${rows.length} candidate${rows.length === 1 ? '' : 's'} tested.${Object.keys(R.fails || {}).length ? ` ${Object.keys(R.fails).length} failed to run.` : ''}`);
+  robRender();
+}
+
+const robPct = x => x == null ? '—' : `${Math.round(x * 100)}%`;
+function robRender() {
+  const V = ROB.view, doc = OPT.doc;
+  $('#robOut').hidden = !V; $('#robCsv').hidden = !V;
+  if (!V || !doc) return;
+  const { sp, rk, rows, wf, oosOk } = V, names = doc.spec.params.map(p => p.name);
+  const passAll = rows.filter(r => r.tests && r.pass === r.tests).length;
+  $('#robSummary').innerHTML = `<b>${passAll} of ${rows.length}</b> candidates passed every test they took. Ranked dates ${ymd(rk.from)} to ${ymd(rk.to - 1)}` +
+    (oosOk ? `; holdout ${ymd(V.oFrom)} to ${ymd(V.oTo - 1)}` : '') + '. Passing: holdout in profit with a profit factor of 1 or more; profitable in at least half the walk-forward windows; ' +
+    'Monte Carlo in profit in 70% of simulations and ruined in 5% at most.' +
+    (wf ? ' Walk-forward picks from these candidates, which were chosen on the whole ranked range, so its windows are not unseen: the holdout is.' : '');
+  const val = (r, k) => {
+    if (k === 'pass') return r.tests ? r.pass / r.tests + r.pass * 1e-3 : -1;
+    if (k.startsWith('p:')) { const v = doc.combos[r.i][k.slice(2)]; return typeof v === 'number' ? v : String(v); }
+    const [a, b] = k.split('.'); const o = a === 'eff' || a === 'wfUp' || a === 'isScore' ? r[a] : r[a] && r[a][b];
+    return o == null || (typeof o === 'number' && !isFinite(o)) ? -Infinity : o;
+  };
+  const key = ROB.sortKey, dir = ROB.sortDir;
+  const sorted = rows.slice().sort((x, y) => { const a = val(x, key), b = val(y, key); return (a < b ? -1 : a > b ? 1 : x.i - y.i) * dir; });
+  const cols = [['#', null], ...names.map(n => [n, 'p:' + n]), ['Ranked net', 'is.net'], ['Ranked PF', 'is.pf'], ['Ranked max DD', 'is.dd'],
+    ...(oosOk ? [['Holdout trades', 'oos.trades'], ['Holdout net', 'oos.net'], ['Holdout PF', 'oos.pf'], ['Holdout max DD', 'oos.dd'], ['Holdout vs ranked', 'eff']] : []),
+    ...(wf ? [['WF windows in profit', 'wfUp']] : []),
+    ...(sp.mc ? [['MC in profit', 'mc.profit'], ['MC net, worst 5%', 'mc.p5'], ['MC max DD, worst 5%', 'mc.dd95'], ...(sp.ruin ? [['MC ruin', 'mc.ruin']] : [])] : []),
+    ['Passed', 'pass'], ['', null]];
+  $('#robHead').innerHTML = '<tr>' + cols.map(([l, k], j) => `<th${k ? ` data-k="${k}"` : ''} class="${j > names.length ? 'r' : ''}${k === key ? ' on' : ''}">${esc(l)}${k === key ? (dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('') + '</tr>';
+  const okc = (good, bad) => good ? 'ok' : bad ? 'bad' : '';
+  $('#robBody').innerHTML = sorted.map((r, k) => {
+    const c = doc.combos[r.i], o = r.oos, m = r.mc;
+    return `<tr data-i="${r.i}"><td>${k + 1}</td>${names.map(n => `<td>${esc(optFmt(c[n]))}</td>`).join('')}` +
+      `<td class="r ${cls(r.is.net)}">${smoney(r.is.net)}</td><td class="r">${optPf(r.is.pf)}</td><td class="r">${money(r.is.dd)}</td>` +
+      (oosOk ? `<td class="r">${o.trades}</td><td class="r ${cls(o.net)}">${o.trades ? smoney(o.net) : '—'}</td><td class="r">${o.trades ? optPf(o.pf) : '—'}</td><td class="r">${o.trades ? money(o.dd) : '—'}</td>` +
+        `<td class="r">${r.eff == null ? '—' : Math.round(r.eff) + '%'}</td>` : '') +
+      (wf ? `<td class="r ${okc(r.wfUp >= Math.ceil(sp.wfN / 2), r.wfUp < Math.ceil(sp.wfN / 2))}">${r.wfUp} of ${sp.wfN}</td>` : '') +
+      (sp.mc ? (m ? `<td class="r ${okc(m.profit >= 0.7, m.profit < 0.5)}">${robPct(m.profit)}</td><td class="r ${cls(m.p5)}">${smoney(m.p5)}</td><td class="r">${money(m.dd95)}</td>` +
+        (sp.ruin ? `<td class="r ${okc(m.ruin <= 0.05, m.ruin > 0.05)}">${robPct(m.ruin)}</td>` : '') : `<td class="r" colspan="${sp.ruin ? 4 : 3}">no trades</td>`) : '') +
+      `<td class="r ${okc(r.tests && r.pass === r.tests, r.tests && r.pass < r.tests)}">${r.tests ? `${r.pass} of ${r.tests}` : '—'}</td>` +
+      `<td><button data-chart="${r.i}">Open on chart</button></td></tr>`;
+  }).join('') + Object.entries(V.fails).map(([i, f]) => `<tr><td></td><td colspan="${cols.length - 1}" class="err">${esc(optLabel(doc.combos[i]))}: ${esc(f)}</td></tr>`).join('');
+  // walk-forward: the stitched result and each window
+  const W = $('#robWfOut');
+  if (!wf) { W.innerHTML = ''; return; }
+  const a = wf.all;
+  W.innerHTML = `<p class="note"><b>Walk-forward</b>, ${sp.wfN} ${sp.wfMode} windows, ${sp.wfIs}% in sample: out-of-sample net <b class="${cls(a.net)}">${smoney(a.net)}</b> over ${a.trades} trades, ` +
+    `profit factor ${optPf(a.pf)}, max drawdown ${money(a.dd)}; in profit in ${wf.up} of ${wf.picked} windows; efficiency ${wf.eff == null ? '—' : Math.round(wf.eff) + '%'} ` +
+    `(out-of-sample profit per day as a share of in-sample).</p>` +
+    `<div class="sttr"><table><thead><tr><th>Window</th><th>In sample</th><th>Out of sample</th><th>Picked</th><th class="r">In-sample net</th><th class="r">Out-of-sample trades</th><th class="r">Net</th></tr></thead><tbody>` +
+    wf.wins.map((w, k) => `<tr class="${w.pick == null ? 'none' : ''}"><td>${k + 1}</td><td>${ymd(w.isFrom)} → ${ymd(w.isTo - 1)}</td><td>${ymd(w.oosFrom)} → ${ymd(w.oosTo - 1)}</td>` +
+      (w.pick == null ? '<td colspan="4">no candidate met the minimum trades</td>' :
+      `<td>${esc(optLabel(doc.combos[w.pick]))}</td><td class="r ${cls(w.isSeg.net)}">${smoney(w.isSeg.net)}</td><td class="r">${w.oos.trades}</td><td class="r ${cls(w.oos.net)}">${smoney(w.oos.net)}</td>`) + '</tr>').join('') +
+    '</tbody></table></div>';
+}
+function robCsv() {
+  const V = ROB.view, doc = OPT.doc; if (!V || !doc) return;
+  const names = doc.spec.params.map(p => p.name), f = x => x == null || !isFinite(x) ? '' : x >= 1e8 ? 'inf' : +x.toFixed(4);
+  const head = [...names, 'ranked_net', 'ranked_pf', 'ranked_dd', 'holdout_trades', 'holdout_net', 'holdout_pf', 'holdout_dd', 'holdout_vs_ranked_pct', 'wf_windows_in_profit', 'mc_in_profit', 'mc_net_p5', 'mc_net_p50', 'mc_dd_p50', 'mc_dd_p95', 'mc_ruin', 'passed', 'tests'];
+  const rows = V.rows.map(r => { const c = doc.combos[r.i], o = r.oos || {}, m = r.mc || {};
+    return [...names.map(n => optFmt(c[n])), f(r.is.net), f(r.is.pf), f(r.is.dd), o.trades ?? '', f(o.net), f(o.pf), f(o.dd), f(r.eff), r.wfUp ?? '', f(m.profit), f(m.p5), f(m.p50), f(m.dd50), f(m.dd95), f(m.ruin), r.pass, r.tests]; });
+  const text = [head, ...rows].map(r => r.join(',')).join('\n');
+  const done = ok => toast(ok ? `Copied ${rows.length} robustness results as CSV.` : 'Copy was blocked.', ok ? '' : 'err');
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => done(true), () => done(false)); else done(false);
+}
+function wireRob() {
+  $('#robRun').onclick = robRun;
+  $('#robStop').onclick = optStop;
+  $('#robCsv').onclick = robCsv;
+  $('#robWfMode').onclick = e => { const b = e.target.closest('button'); if (!b || b.disabled) return; segPick('#robWfMode', b.dataset.v); };
+  $('#robPct').addEventListener('input', () => { if (OPT.doc) robShow(); });
+  $('#robHead').addEventListener('click', e => {
+    const th = e.target.closest('th[data-k]'); if (!th) return;
+    if (ROB.sortKey === th.dataset.k) ROB.sortDir *= -1; else { ROB.sortKey = th.dataset.k; ROB.sortDir = th.dataset.k.startsWith('p:') || th.dataset.k.endsWith('.dd') || th.dataset.k.endsWith('dd95') || th.dataset.k.endsWith('ruin') ? 1 : -1; }
+    robRender();
+  });
+  $('#robBody').addEventListener('click', e => { const b = e.target.closest('button[data-chart]'); if (b) optToChart(+b.dataset.chart); });
+}
+
 /* ---------------- worker mode: this script in an optimization worker, with no screen ---------------- */
 function workerMain() {
   let job = null;
@@ -7871,7 +8263,10 @@ function workerMain() {
       } else if (m.type === 'run') {
         E = newEngine(job.start); T = newTrading(); pushEq(D.t[E.start - 1], T.balance);
         const res = await stratCore({ code: job.code, mode: job.mode, tf: parseTF(job.tf), end: job.end, rebuy: job.rebuy, maxEvals: job.maxEvals, overrides: m.overrides, quiet: true });
-        postMessage({ type: 'result', idx: m.idx, res: res.fail ? { fail: res.fail } : totals(job.splitT) });
+        const out = res.fail ? { fail: res.fail } : totals(job.splitT);
+        // robustness tests: every closed trade as exit time and net, flat ([t, net, t, net, ...])
+        if (m.trades && !res.fail) { const tr = []; for (const x of T.hist) tr.push(x.exitTime, Math.round(x.net * 100) / 100); out.tr = tr; }
+        postMessage({ type: 'result', idx: m.idx, res: out });
       }
     } catch (e) {
       postMessage({ type: 'error', idx: m.type === 'run' ? m.idx : null, error: String((e && e.message) || e) });

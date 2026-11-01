@@ -51,6 +51,9 @@ jobs:
       - name: Optimization through the desktop app's server (workers, parity with the chart)
         run: python tests/test_optimize.py "$RUNNER_TEMP/shots"
 
+      - name: Robustness tests after an optimization (out of sample, walk-forward, Monte Carlo)
+        run: python tests/test_robust.py "$RUNNER_TEMP/shots"
+
       - name: The Windows app's update prompt
         run: |
           python tests/test_update.py "$RUNNER_TEMP/shots" > "$RUNNER_TEMP/update.log" 2>&1 || {
