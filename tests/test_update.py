@@ -97,7 +97,10 @@ async def main():
         await pg.wait_for_selector("#modal:not([hidden])", timeout=30000)
         await pg.click("#mStart")
         await pg.wait_for_function("() => document.querySelector('#modal').hidden && document.querySelector('#clock').textContent !== '—'", timeout=120000)
+        # the first session's tour opens shortly after the start: skip it
+        await pg.wait_for_selector(".tour [data-t=skip]", timeout=10000)
         await pg.evaluate("document.querySelector('.tour [data-t=skip]')?.click()")
+        await pg.wait_for_selector(".tour", state="detached", timeout=10000)
         check(await pg.is_visible("#bUpdate"), "top-bar button in a session")
         await pg.click("#bUpdate")
         await pg.wait_for_selector(".updpop", timeout=5000)
