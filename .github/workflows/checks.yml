@@ -1,6 +1,6 @@
 # Checks for pull requests. Nothing here is published or signed.
-#   strategies  the Python strategy runtime, then the page in Chromium with real Python, and optimization in
-#               workers (tests/), and that the
+#   strategies  the Python strategy and indicator runtimes, then the page in Chromium with real Python (strategies
+#               and indicators), and optimization in workers (tests/), and that the
 #               pages copied into the apps are up to date with tape-replay.html
 #   windows     imports DBN and CSV data through the app's server (tests/test_import.py), then
 #               builds TapeReplay.exe like the release does, kept for a week as a download on the run's page
@@ -34,6 +34,9 @@ jobs:
       - name: Strategy runtime
         run: python tests/test_runtime.py
 
+      - name: Indicator runtime and ta helpers
+        run: python tests/test_indicators.py
+
       - name: Build the page and bundle Python
         run: python -c "import sys; sys.path.insert(0, 'desktop'); import build; build.vendor(); build.page()"
 
@@ -44,6 +47,9 @@ jobs:
 
       - name: Strategies in the browser
         run: python tests/test_browser.py "$RUNNER_TEMP/shots"
+
+      - name: Python indicators in the browser
+        run: python tests/test_indicator_browser.py "$RUNNER_TEMP/shots"
 
       - name: Strategies through the desktop app's server (Library)
         run: python tests/test_store.py "$RUNNER_TEMP/shots"
