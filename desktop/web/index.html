@@ -5688,7 +5688,7 @@ function setSaveState(txt) { const s = $('#saveState'); s.hidden = !txt; s.textC
 const sessName = () => S.name || `${D.sample ? 'Sample' : assetName(D)} ${tfLabel(TF)} from ${fmtDT(startT()).slice(0, 16)}`;
 function worthSaving() { return T.hist.length || T.trades.length || T.orders.length || (E.i - E.start) >= 50; }
 function snapshot() {
-  return { v: 1, id: S.sid, name: sessName(), datasetId: S.dsId, datasetName: D.name, datasetPick: D.pick || '', datasetWindow: D.window || null, datasetCont: D.cont ? { hist: D.cont.hist } : null, startT: E.startT ?? null, created: S.created, updated: Date.now(),
+  return { v: 1, id: S.sid, name: sessName(), datasetId: S.dsId, datasetName: D.name, datasetPick: D.pick || '', datasetWindow: D.window || null, datasetCont: D.cont ? { hist: D.cont.hist, until: D.cont.until ?? null, run: !!D.cont.run } : null, startT: E.startT ?? null, created: S.created, updated: Date.now(),
     status: E.i >= D.n && !contMore() ? 'finished' : 'in progress', cfg: { ...cfg }, tf: tfLabel(TF), start: E.start, pos: E.i, k: E.k, time: E.time,
     T, eq: E.eq, drawings: DR.list, strategy: S.strategy || null,
     summary: { ...computeStats(), from: startT(), to: E.time, bars: E.i - E.start, tf: tfLabel(TF), base: D.base, prop: simLabel() || propLabel() } };
@@ -5719,7 +5719,7 @@ async function resumeSession(id) {
     // the same section of the long series the backtest was run on
     if (!s.datasetWindow) throw new Error('This backtest has no saved date range, so it cannot be reopened.');
     data = await loadSection(data, s.datasetWindow.from, s.datasetWindow.to);
-    if (s.datasetCont && CONT_OK()) data.cont = { hist: s.datasetCont.hist };
+    if (s.datasetCont && CONT_OK()) data.cont = { hist: s.datasetCont.hist, until: s.datasetCont.until ?? undefined, run: !!s.datasetCont.run };
   }
   Object.assign(cfg, s.cfg);
   if (s.cfg.commMode == null) cfg.commMode = 'pct'; // saved before there was a choice: it was % of notional
@@ -5749,7 +5749,8 @@ const SPANS = [[30, '1 month'], [91, '3 months'], [182, '6 months'], [365, '1 ye
 const CONT_OK = () => !!(STORE && !window.TAPE_IOS);
 const CONT_END = -1, CONT_STEP = 31 * 86400, CONT_KEEP = () => MAX_BARS * 0.6;
 const spanList = () => CONT_OK() ? [...SPANS, [CONT_END, 'To the end of the data']] : SPANS;
-const contMore = () => !!(D && D.cont && !RUN.on && D.V && D.window && D.window.to < D.V.to); // a strategy run keeps to what is loaded
+// more of the series to load: up to its end, or for a strategy run over dates not loaded (cont.run) up to cont.until
+const contMore = () => !!(D && D.cont && (!RUN.on || D.cont.run) && D.V && D.window && D.window.to < Math.min(D.V.to, D.cont.until ?? Infinity));
 const startT = () => E.startT ?? D.t[E.start];
 // The practice data is generated a trading day at a time, and a section that starts or ends inside a day draws that
 // day differently, so it would not come back the same when the session is reopened. For it, the months loaded and
@@ -5811,7 +5812,7 @@ function contLoad() {
       }
       $('#dsSub').textContent = `${fmtDT(d.t[0]).slice(0, 10)} → ${fmtDT(d.t[d.n - 1]).slice(0, 10)} · ${mil(d.n)} bars loaded · to ${fmtDT(d.V.to).slice(0, 10)}`;
       S.dirty = true;
-    } catch (e) { toast('Could not load the next month: ' + e.message, 'err'); setPlaying(false); }
+    } catch (e) { d.cont.err = e.message; toast('Could not load the next month: ' + e.message, 'err'); setPlaying(false); }
     finally { d.cont.loading = null; }
   })();
   return d.cont.loading;
@@ -7386,11 +7387,14 @@ function fillStrat() {
   const want = [p.tf, tfLabel(TF)].find(l => tfs.some(tf => tfLabel(tf) === l)) || tfLabel(tfs[0]);
   $('#stTf').innerHTML = tfs.map(tf => `<option${tfLabel(tf) === want ? ' selected' : ''}>${tfLabel(tf)}</option>`).join('');
   const first = ymd(D.t[1]), last = ymd(D.t[D.n - 1]);
-  for (const id of ['#stFrom', '#stTo']) { $(id).min = first; $(id).max = last; }
+  const V = CONT_OK() && D.V ? D.V : null, lo = V ? ymd(V.from + 86400) : first, hi = V ? ymd(V.to) : last;
+  for (const id of ['#stFrom', '#stTo']) { $(id).min = lo; $(id).max = hi; }
   $('#stFrom').value = auto && auto.from ? ymd(auto.from) : ymd(D.t[E.start]);
   $('#stTo').value = auto && auto.to ? ymd(auto.to) : last;
   stratEvalRow();
-  $('#stRange').textContent = `The loaded data covers ${first} to ${last}. For other dates, load them with Session settings first.`;
+  $('#stRange').textContent = V
+    ? `The data covers ${lo} to ${hi}; ${first} to ${last} is loaded now. Dates outside that are loaded a month at a time as the run goes.`
+    : `The loaded data covers ${first} to ${last}. For other dates, load them with Session settings first.`;
 }
 function openStrat() {
   if (typeof closeSheet === 'function') closeSheet();
@@ -7506,6 +7510,11 @@ async function stratCore(o) {
   const { code, mode, tf, end } = o, rebuy = !!o.rebuy, maxEvals = o.maxEvals || Infinity;
   RUN.on = true; RUN.stop = false; RUN.ended = ''; RUN.pending = []; RUN.fills = []; RUN.rejects = new Map(); RUN.shown = 0; RUN.quiet = !!o.quiet;
   const start = E.i, total = Math.max(1, end - start), tr0 = performance.now();
+  // o.endT: run to that time, loading the series a month at a time (Windows app, dates beyond the loaded section)
+  const t0 = D.t[start], stream = o.endT != null;
+  const endOf = () => !stream ? end : contMore() ? D.n : Math.min(D.n, lowerBound(D.t, o.endT));
+  const done = () => stream ? clamp((E.time - t0) / Math.max(1, o.endT - t0), 0, 1) : (E.i - start) / total;
+  let END = endOf();
   let fail = null, started = false, evalEnd = '';
   try {
     const info = { name: D.name, tf: tfLabel(tf), tick: mintick(), pv: cfg.pv, spread: cfg.spread, qty: cfg.qty, prec: PREC, mode, balance: T.start,
@@ -7517,10 +7526,18 @@ async function stratCore(o) {
       if (o.onStart) o.onStart();
       const bucketOf = makeBucket(tf), tickMode = mode === 'tick' && !!r.on_tick;
       let C = null;
-      while (E.i < end && !RUN.stop && !fail && !evalEnd) {
+      while (!RUN.stop && !fail && !evalEnd) {
+        if (E.i >= END) {
+          if (!stream || !contMore()) break;
+          if (o.slice) await o.slice(done(), 'Loading the next month…');
+          await contLoad();
+          if (D.cont.err) { fail = `Could not load the next month: ${D.cont.err}`; break; }
+          END = endOf();
+          continue;
+        }
         const until = performance.now() + 30;
         let n = 0;
-        while (E.i < end && !fail && !evalEnd) {
+        while (E.i < END && !fail && !evalEnd) {
           const i = E.i, queued = RUN.pending.length > 0;
           // nothing to fill and nothing for the prop rules to do inside this bar: step over its ticks (the same end state)
           const flat = E.k === 0 && !queued && !T.orders.length && !T.trades.length && !RUN.fills.length && !tickMode && rulesIdle(D.t[i] + D.base);
@@ -7540,14 +7557,14 @@ async function stratCore(o) {
           if (!fail && E.i !== i) { // base bar i is done: add it to the strategy's candle
             if (!C) C = { time: bucketOf(D.t[i]), o: D.o[i], h: D.h[i], l: D.l[i], c: D.c[i], v: D.v[i] || 0 };
             else { if (D.h[i] > C.h) C.h = D.h[i]; if (D.l[i] < C.l) C.l = D.l[i]; C.c = D.c[i]; C.v += D.v[i] || 0; }
-            if (E.i >= end || bucketOf(D.t[E.i]) !== C.time) {
+            if (E.i >= END ? !(stream && contMore()) : bucketOf(D.t[E.i]) !== C.time) { // at the last bar loaded, the candle waits for the next month
               fail = PY.fn.bar(C.time, C.o, C.h, C.l, C.c, C.v, zoneOff(C.time), ...stratState()) || null;
               C = null;
             }
           }
           if (o.slice && (++n & 63) === 0 && performance.now() > until) break;
         }
-        if (o.slice) await o.slice((E.i - start) / total);
+        if (o.slice) await o.slice(done());
       }
     }
   } catch (e) {
@@ -7556,7 +7573,7 @@ async function stratCore(o) {
     if (started) { const endErr = PY.fn.end(...stratState()); fail = fail || endErr || null; }
     RUN.on = false; RUN.fills = null; RUN.pending = [];
   }
-  return { fail, stopped: RUN.stop, ended: RUN.ended, secs: (performance.now() - tr0) / 1000, start, end };
+  return { fail, stopped: RUN.stop, ended: RUN.ended, secs: (performance.now() - tr0) / 1000, start, end: stream ? E.i : end, done: done() };
 }
 // the Code tab's choices: the strategy, its dates on the loaded data, and how it runs
 function stratForm() {
@@ -7567,7 +7584,11 @@ function stratForm() {
   if (p.libs !== 'pandas' && /^\s*(import\s+pandas|from\s+pandas\b)/m.test(code)) return { error: 'This strategy uses pandas: choose "numpy + pandas" under Libraries.' };
   const start = clamp(lowerBound(D.t, t0), 1, D.n - 1), end = clamp(lowerBound(D.t, t1), start + 1, D.n);
   const rebuy = !!(p.rebuy && cfg.sim && cfg.sim.on);
-  return { p, code, name, mode, libs, tf, start, end, rebuy, maxEvals: p.maxEvals || 0 };
+  // Windows app, a long series: dates outside the loaded section are loaded as the run goes
+  const V = D.V, loadedTo = D.window ? Math.max(D.window.to, D.t[D.n - 1]) : D.t[D.n - 1];
+  const stream = !!(CONT_OK() && V && (t0 < D.t[1] || t1 > loadedTo + 1));
+  return { p, code, name, mode, libs, tf, start, end, rebuy, maxEvals: p.maxEvals || 0, t0, t1,
+           stream: stream ? { V, t0: Math.max(t0, V.from + 86400), t1: Math.min(t1, V.to + 1) } : null };
 }
 async function runStrategy(opts = {}) {
   if (RUN.on || OPT.on || !E || !D) return;
@@ -7589,13 +7610,23 @@ async function runStrategy(opts = {}) {
     // a new session from the chosen start: the one that was open is saved and stays in the Library
     RUN.on = true; // no tour or pop-ups while the session starts
     setPlaying(false);
-    startSession(D, start, TF);
+    const sm = f.stream;
+    if (sm) {
+      // dates beyond what is loaded: a new section from the From date (and a day before it), then a month at a time
+      stratStatus('Loading the data…');
+      const d = await loadSection(sm.V, contDayStart(sm.V, sm.t0 - 86400), Math.min(sm.V.to, contDayEnd(sm.V, Math.min(sm.t1, sm.t0 + CONT_STEP))));
+      d.cont = { hist: 1, until: sm.t1, run: true };
+      startSession(d, lowerBound(d.t, sm.t0), TF);
+    } else startSession(D, start, TF);
+    const runFrom = D.t[E.start], runTo = sm ? sm.t1 : D.t[end - 1];
     S.name = `${name}${overrides ? ` (${optLabel(overrides)})` : ''} · Automated`;
-    S.strategy = { name, code, mode, libs: p.libs, tf: tfLabel(tf), from: D.t[start], to: D.t[end - 1], rebuy, maxEvals, overrides };
+    S.strategy = { name, code, mode, libs: p.libs, tf: tfLabel(tf), from: runFrom, to: sm ? sm.t1 - 1 : runTo, rebuy, maxEvals, overrides };
     ran = true;
-    res = await stratCore({ code, mode, tf, end, rebuy, maxEvals, overrides,
-      onStart: () => stratLog(`Running ${(end - start).toLocaleString('en-US')} bars of ${tfLabel({ kind: 's', sec: D.base })} data on ${tfLabel(tf)} candles, ${fmtDT(D.t[start]).slice(0, 16)} to ${fmtDT(D.t[end - 1]).slice(0, 16)}${mode === 'tick' ? ', every tick' : ''}${overrides ? `, with ${optLabel(overrides)}` : ''}.`),
-      slice: async done => { stratStatus(`${fmtDT(E.time).slice(0, 10)} · ${T.hist.length} trades`, done); await yieldTask(); } });
+    res = await stratCore({ code, mode, tf, end: sm ? D.n : end, endT: sm ? sm.t1 : undefined, rebuy, maxEvals, overrides,
+      onStart: () => stratLog(sm
+        ? `Running ${fmtDT(runFrom).slice(0, 16)} to ${fmtDT(sm.t1 - 1).slice(0, 16)} on ${tfLabel(tf)} candles: about ${(sectionBars(sm.V, sm.t0, sm.t1) / 1e6).toFixed(1)} million bars of ${tfLabel({ kind: 's', sec: D.base })} data, loaded a month at a time${mode === 'tick' ? ', every tick' : ''}${overrides ? `, with ${optLabel(overrides)}` : ''}.`
+        : `Running ${(end - start).toLocaleString('en-US')} bars of ${tfLabel({ kind: 's', sec: D.base })} data on ${tfLabel(tf)} candles, ${fmtDT(D.t[start]).slice(0, 16)} to ${fmtDT(D.t[end - 1]).slice(0, 16)}${mode === 'tick' ? ', every tick' : ''}${overrides ? `, with ${optLabel(overrides)}` : ''}.`),
+      slice: async (done, what) => { stratStatus(`${fmtDT(E.time).slice(0, 10)} · ${T.hist.length} trades${what ? ' · ' + what : ''}`, done); await yieldTask(); } });
     fail = res.fail;
     if (res.stopped) stratLog(`Stopped at ${fmtDT(E.time).slice(0, 16)}.`, 'er');
     else if (!fail) stratLog(`Finished in ${res.secs.toFixed(1)} s.`, 'ok');
@@ -7612,7 +7643,7 @@ async function runStrategy(opts = {}) {
       refreshLines(); render(); ui(true);
       chart.timeScale().scrollToRealTime();
       S.dirty = true; saveSession(true);
-      if (!fail) stratStatus(res && res.stopped ? 'Stopped' : (res && res.ended) || 'Done', (E.i - start) / Math.max(1, end - start));
+      if (!fail) stratStatus(res && res.stopped ? 'Stopped' : (res && res.ended) || 'Done', res ? res.done : 1);
       const s = computeStats();
       stratLog(`${s.trades} trades, net ${smoney(s.net)}${T.trades.length ? `, ${T.trades.length} still open` : ''}.`, s.net >= 0 ? 'ok' : 'er');
       if (T.sim) { const take = (T.sim.income || 0) - (T.sim.fees || 0); const st = simStats(T.sim);
@@ -8004,6 +8035,7 @@ async function optRun(resume) {
   if (!resume) {
     const f = stratForm();
     if (f.error) return optMsg(f.error, true);
+    if (f.stream) return optMsg(`An optimization runs on the loaded data, ${ymd(D.t[1])} to ${ymd(D.t[D.n - 1])}: pick dates inside it on the Code tab, or load a longer section in Session settings.`, true);
     const sp = optSpec();
     if (sp.error) return optMsg(sp.error, true);
     if (!sp.params.length) return optMsg('Tick at least one setting to try.', true);
