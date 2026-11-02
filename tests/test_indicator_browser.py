@@ -155,6 +155,8 @@ async def main():
         await pg.click("#bStrat")
         await pg.click("#stTabs [data-st=help]")
         check("How a run works" in await pg.inner_text("#stHelp"), "strategy Help tab")
+        w = await pg.evaluate("() => { const b = document.querySelector('#stHelp .gbody'); return [b.scrollWidth, b.clientWidth]; }")
+        check(w[0] <= w[1] + 1, f"the guide's text wraps inside it {w}")
         await pg.click("#stClose")
 
         # 8. they stay on the chart after the page is opened again
@@ -183,9 +185,21 @@ async def main():
         await settle(mp)
         check((await mp.inner_text("#piStat")).startswith("On the chart"), "phone: added")
         await mp.screenshot(path=f"{OUT}/i6-phone-panel.png")
+        await mp.click("#piTabs [data-pt=help]")
+        w = await mp.evaluate("() => [document.querySelector('#pind .sheet').scrollWidth, innerWidth]")
+        check(w[0] <= w[1], f"phone: the guide fits the screen {w}")
+        await mp.click("#piTabs [data-pt=code]")
         await mp.click("#piClose")
         await mp.wait_for_timeout(500)
         await mp.screenshot(path=f"{OUT}/i7-phone-chart.png")
+        await mp.click('#mnav [data-mv="more"]')
+        await mp.click('#mmore [data-go="guide"]')
+        for g in ("ind", "strat"):
+            await mp.click(f"#docBody [data-g={g}]")
+            w = await mp.evaluate("() => [document.querySelector('#docs .sheet').scrollWidth, innerWidth]")
+            check(w[0] <= w[1], f"phone: the {g} guide window fits the screen {w}")
+        await mp.screenshot(path=f"{OUT}/i8-phone-guide.png")
+        await mp.click("#docClose")
 
         check(not errors, f"page errors: {errors}")
         await b.close()

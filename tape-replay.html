@@ -990,14 +990,22 @@ html.m .stsim dl{columns:1}
 .gbody code{font-family:var(--f-num);font-size:12px;color:var(--fg);background:var(--raise);border-radius:3px;padding:0 3px}
 .gbody pre{margin:0 0 10px;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:10px 12px;overflow:auto;font:12px/1.55 var(--f-num);color:var(--fg)}
 .gtab{border-collapse:collapse;margin:0 0 10px;width:100%}
-.gtab td{border-top:1px solid var(--grid);padding:5px 8px 5px 0;vertical-align:top}
+.gtab td{border-top:1px solid var(--grid);border-bottom:0;padding:5px 8px 5px 0;vertical-align:top;white-space:normal;font-family:inherit;font-variant-numeric:normal}
 .gtab td:first-child{white-space:nowrap;width:1%;padding-right:14px}
 html.m #strat .sheet,html.m #pind .sheet,html.m #docs .sheet{overflow:auto;position:fixed;inset:0;width:auto;max-width:none;max-height:none;border:0;border-radius:0;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px calc(env(safe-area-inset-bottom,0px) + 18px)}
 html.m .stbody,html.m .stres,html.m .stfoot,html.m .stpick,html.m #stCode,html.m #stRes,html.m #stHelp,html.m #stOpt,html.m #piCode,html.m .guide{flex:none;overflow:visible}
-html.m .guide{grid-template-columns:1fr;height:auto}
+html.m .guide{grid-template-columns:minmax(0,1fr);height:auto;min-width:0}
+html.m .gnav,html.m .gbody{min-width:0;max-width:100%}
+html.m .gbody code{overflow-wrap:anywhere}
+html.m .gbody pre{max-width:100%;font-size:11.5px}
+html.m .gtab,html.m .gtab tbody,html.m .gtab tr,html.m .gtab td{display:block;width:auto!important}
+html.m .gtab tr{border-top:1px solid var(--grid);padding:6px 0}
+html.m .gtab td{border:0;padding:0!important}
+html.m .gtab td:first-child{margin-bottom:2px}
 html.m .gtoc{display:none}
 html.m .gbody{overflow:visible;padding-right:0}
-html.m .gtab td:first-child{white-space:normal;width:45%}
+html.m .gtab td:first-child{white-space:normal}
+html.m .gtab td{overflow-wrap:anywhere}
 html.m .pisetrow input,html.m .pisetrow select{height:36px;font-size:15px}
 html.m .pix{width:36px;height:36px}
 html.m .sthead h2{font-size:18px}
@@ -1782,16 +1790,20 @@ html.m .optcard button{flex:1;min-height:40px}
   <p>Changing the timeframe, the time zone or the session starts every indicator again from the beginning. What it draws is kept: a line drawn on an earlier candle stays where it was drawn, as on TradingView.</p>
 
   <h3 id="gi-first">A first indicator</h3>
-<pre>LENGTH = 20                          # a setting: change it on the Settings card
+<pre># a setting: change it on the Settings card
+LENGTH = 20
 
+# runs once, before the first candle
 def init(ctx):
-    ctx.avg = ta.EMA(LENGTH)         # runs once, before the first candle
+    ctx.avg = ta.EMA(LENGTH)
 
-def on_bar(ctx, bar):                # runs on every closed candle
-    value = ctx.avg.update(bar.close)
-    ctx.plot(value, "EMA", "orange")
-    if value is not None and bar.close > value and bar.open < value:
-        ctx.marker("Cross", shape="arrow_up", position="below", color="up")</pre>
+# runs on every closed candle
+def on_bar(ctx, bar):
+    v = ctx.avg.update(bar.close)
+    ctx.plot(v, "EMA", "orange")
+    if v is not None and bar.open < v < bar.close:
+        ctx.marker("Cross", shape="arrow_up",
+                   position="below", color="up")</pre>
   <p><code>ctx</code> is how the indicator reads candles and draws. Keep your own values on it (<code>ctx.avg</code> above), not in global variables. <code>np</code> (numpy) and <code>ta</code> are ready to use without importing.</p>
 
   <h3 id="gi-hooks">Functions you write</h3>
@@ -9105,15 +9117,19 @@ function piDrawObj(g, d, pw, ph) {
     const xa = X(d.left), xb = d.extend ? pw + 2 : X(d.right), ya = Y(d.top), yb = Y(d.bottom);
     if (xa == null || xb == null || ya == null || yb == null) return;
     const l = Math.min(xa, xb), t = Math.min(ya, yb), w = Math.abs(xb - xa), h = Math.abs(yb - ya);
+    if (l + w < -2 || l > pw + 2) return; // scrolled out of view: neither the box nor its text shows
     if (d.fill) { g.fillStyle = piColor(d.fill); g.fillRect(l, t, w, h); }
     g.strokeRect(l, t, w, h);
-    if (d.text) {
+    // the text sits in the middle of the part of the box in view, and goes with it when the box leaves the view
+    const vl = Math.max(l, 0), vr = Math.min(l + w, pw);
+    if (d.text && vr > vl) {
       g.setLineDash([]); g.textAlign = 'center'; g.fillStyle = piColor(d.text_color, col);
-      g.fillText(d.text, Math.max(l, 0) + Math.min(w, pw) / 2, t + h / 2); g.textAlign = 'left';
+      g.fillText(d.text, (vl + vr) / 2, t + h / 2); g.textAlign = 'left';
     }
   } else if (d.kind === 'line') {
     let x1 = X(d.x1), y1 = Y(d.y1), x2 = X(d.x2), y2 = Y(d.y2);
     if (x1 == null || y1 == null || x2 == null || y2 == null) return;
+    if (d.extend === 'none' && (Math.max(x1, x2) < -2 || Math.min(x1, x2) > pw + 2)) return;
     const far = (xa, ya, xb, yb) => { // past (xb, yb), away from (xa, ya), to the edge
       if (Math.abs(xb - xa) < 1e-6) return [xb, yb > ya ? ph + 2 : -2];
       const x = xb > xa ? pw + 2 : -2; return [x, ya + (yb - ya) * (x - xa) / (xb - xa)];
@@ -9126,6 +9142,7 @@ function piDrawObj(g, d, pw, ph) {
     if (x == null || y == null || !d.text) return;
     g.setLineDash([]);
     const w = g.measureText(d.text).width + 10, h = 18, tc = piColor(d.text_color);
+    if (x + w / 2 < 0 || x - w / 2 > pw) return;
     if (d.style === 'text') { g.textAlign = 'center'; g.fillStyle = tc || col; g.fillText(d.text, x, y); g.textAlign = 'left'; return; }
     const y0 = d.style === 'up' ? y + 7 : d.style === 'down' ? y - 7 - h : y - h / 2;
     g.fillStyle = col; g.beginPath();
