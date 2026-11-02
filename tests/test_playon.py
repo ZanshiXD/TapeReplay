@@ -29,6 +29,18 @@ def serve():
 
 
 URL = serve()
+MA = """
+FAST, SLOW = 9, 21
+def on_bar(ctx, bar):
+    c = ctx.closes(SLOW)
+    if len(c) < SLOW:
+        return
+    f, s = c[-FAST:].mean(), c.mean()
+    if f > s and ctx.position <= 0:
+        ctx.close(); ctx.buy(1)
+    elif f < s and ctx.position >= 0:
+        ctx.close(); ctx.sell(1)
+"""
 # the page's inner functions, reached by a line added to the page as it is served (the page itself is unchanged)
 n = 0
 def check(c, m):
@@ -92,6 +104,51 @@ async def main():
         check(st4["cont"] and st4["startT"] == st2["startT"], st4)
         check(st4["n"] == before["n"] and st4["first"] == before["first"], (st4, before))
         await pg.screenshot(path=f"{OUT}/playon-end.png")
+
+        # a strategy over dates outside the loaded section: the months load as the run goes (and old bars are let go),
+        # with the same trades as a run on a section that holds all of those dates
+        async def new_session(start_ms, span):
+            await pg.evaluate("__dbg('endTour()')")
+            await pg.evaluate("__dbg('openSetup(D.V || D)')")
+            await pg.wait_for_selector("#modal:not([hidden])")
+            await pg.select_option("#fSpan", str(span)); await pg.select_option("#fHist", "7")
+            await pg.evaluate(f"__dbg('setStart({start_ms} / 1000)')")
+            await pg.click("#mStart")
+            await pg.wait_for_function("() => document.querySelector('#modal').hidden", timeout=120000)
+            await pg.wait_for_timeout(800)
+            await pg.evaluate("__dbg('endTour()')")
+        async def run(frm, to):
+            await pg.evaluate("__dbg('openStrat()')")
+            await pg.click("#stTabs [data-st=code]")
+            await pg.fill("#stName", "MA test")
+            await pg.evaluate("c => { const t = document.querySelector('#stSrc'); t.value = c; t.dispatchEvent(new Event('input')); }", MA)
+            await pg.select_option("#stTf", "5m")
+            await pg.fill("#stFrom", frm); await pg.fill("#stTo", to)
+            await pg.click("#stRun")
+            await pg.wait_for_function("() => !document.querySelector('#stRun').disabled && !/Loading|Starting/.test(document.querySelector('#stStat').textContent)", timeout=600000)
+            await pg.wait_for_timeout(300)
+            cons = await pg.evaluate("() => [...document.querySelector('#stCons').children].map(d => d.textContent).join('\\n')")
+            got = await pg.evaluate("__dbg('({n: T.hist.length, net: computeStats().net, first: T.hist[0] && T.hist[0].time, last: T.hist.length && T.hist[T.hist.length - 1].exitTime, startT: E.startT ?? D.t[E.start], dn: D.n})')")
+            await pg.evaluate("__dbg('closeStrat()')")
+            return cons, got
+        await new_session("Date.UTC(2026, 3, 25)", 182)          # Apr 25 to Sep 30 loaded: holds all the dates
+        cons1, r1 = await run("2026-05-04", "2026-07-24")
+        check("loaded a month at a time" not in cons1, cons1[-400:])
+        await new_session("Date.UTC(2026, 7, 20)", 30)           # only Aug 13 to Sep 19 loaded
+        rng = await pg.evaluate("__dbg('fillStrat(), document.querySelector(\"#stRange\").textContent')")
+        check("loaded a month at a time as the run goes" in rng, rng)
+        cons2, r2 = await run("2026-05-04", "2026-07-24")
+        print(r1, r2)
+        check("loaded a month at a time" in cons2, cons2[-600:])
+        check(r1["n"] > 20 and r1["n"] == r2["n"] and abs(r1["net"] - r2["net"]) < 0.01 and r1["first"] == r2["first"] and r1["last"] == r2["last"], (r1, r2))
+        check(r2["dn"] < 0.9e6 + 0.8e6, "old bars let go during the run")
+        # the optimizer keeps to the loaded data
+        await pg.evaluate("__dbg('openStrat()')"); await pg.click("#stTabs [data-st=opt]")
+        await pg.wait_for_selector("#optRows tr[data-n=FAST]", timeout=120000)
+        await pg.locator("#optRows tr[data-n=FAST] [data-on]").check()
+        await pg.evaluate("__dbg('(document.querySelector(\"#stFrom\").value = \"2026-05-04\", document.querySelector(\"#stTo\").value = \"2026-05-20\")')")
+        await pg.click("#optRun")
+        check("runs on the loaded data" in await pg.inner_text("#optCount"), await pg.inner_text("#optCount"))
         check(not errs, errs)
         await b.close()
     print(f"playon: {n} checks passed")
