@@ -3455,7 +3455,13 @@ function nextTickTime() {
   return D.t[E.i] + E.tkF[E.k] * D.base;
 }
 function atEnd() {
+  if (D.cont) contAhead();
   if (E.i < D.n) return false;
+  if (contMore()) { // playing on: wait for the next month, then carry on from here
+    E.simTime = E.time;
+    if (D.cont.loading) setT($('#clockSub'), 'Loading the next month…');
+    return true;
+  }
   if (E.playing) {
     setPlaying(false); saveSession(true);
     toast(D.chunked ? 'Reached the end of the loaded section. To keep going, start a new session from Session settings with a later start.' : 'Reached the end of the data.');
@@ -3494,7 +3500,9 @@ async function skipTo(target) {
   setPlaying(false);
   const btn = $('#bSkip'), html = btn.innerHTML, from = E.time; btn.disabled = true;
   E.stop = false;
-  while (E.i < D.n && D.t[E.i] < target && !E.stop) {
+  while ((E.i < D.n || contMore()) && !E.stop) {
+    if (E.i >= D.n) { await contLoad(); if (E.i >= D.n) break; continue; }
+    if (D.t[E.i] >= target) break;
     let budget = 60000;
     while (budget-- > 0 && E.i < D.n && D.t[E.i] < target && !E.stop) processTick();
     btn.textContent = `Skipping ${Math.round(clamp((E.time - from) / (target - from), 0, 1) * 100)}%`;
@@ -5123,7 +5131,8 @@ function renderDataInfo() {
     rows.push(['Available', `${range(D.t[0], D.t[D.n - 1])} · ${spanText(D.t[D.n - 1] - D.t[0])} · ${mil(D.n)} bars · ${base} base`]);
     if (D.C) rows.push(['Contracts', `${D.C.list.length} in the file`]);
   }
-  rows.push(['This session', `started ${fmtNice(D.t[E.start], false)} · now ${fmtNice(E.time, false)}`]);
+  rows.push(['This session', `started ${fmtNice(startT(), false)} · now ${fmtNice(E.time, false)}`]);
+  if (D.cont && D.V) rows.push(['Plays on', `to the end of the data, ${fmtNice(D.V.to, false)} · loaded to ${fmtNice(D.t[D.n - 1], false)}`]);
   rows.push(['Left to replay', `${mil(D.n - E.i)} bars · ${spanText(D.t[D.n - 1] - E.time)} of market time`]);
   $('#csData').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
 }
@@ -5559,7 +5568,7 @@ function ui(force) {
   R.lastUi = now;
   setT($('#clock'), fmtNice(shownTime()));
   setT($('#clockSub'), zoneName(shownTime()));
-  const pw = ((E.i - E.start) / Math.max(1, D.n - E.start) * 100).toFixed(2) + '%', pb = $('#progBar'); if (pb.style.width !== pw) pb.style.width = pw;
+  const pw = (D.cont && D.V ? (E.time - startT()) / Math.max(1, D.V.to - startT()) * 100 : (E.i - E.start) / Math.max(1, D.n - E.start) * 100).toFixed(2) + '%', pb = $('#progBar'); if (pb.style.width !== pw) pb.style.width = pw;
   const b = bidPx(), a = askPx();
   setT($('#bidPx'), fp(b)); setT($('#askPx'), fp(a));
   setT($('#spreadLbl'), cfg.spread ? 'spr ' + fp(cfg.spread) : 'no spread');
@@ -5675,13 +5684,13 @@ function progSet(f, step) {
 // id: end only that job (a background save must not close a newer job's card)
 function progEnd(id) { if (typeof id === 'number' && id !== PG.id) return; clearTimeout(PG.timer); $('#progCard').hidden = true; }
 function setSaveState(txt) { const s = $('#saveState'); s.hidden = !txt; s.textContent = txt || ''; }
-const sessName = () => S.name || `${D.sample ? 'Sample' : assetName(D)} ${tfLabel(TF)} from ${fmtDT(D.t[E.start]).slice(0, 16)}`;
+const sessName = () => S.name || `${D.sample ? 'Sample' : assetName(D)} ${tfLabel(TF)} from ${fmtDT(startT()).slice(0, 16)}`;
 function worthSaving() { return T.hist.length || T.trades.length || T.orders.length || (E.i - E.start) >= 50; }
 function snapshot() {
-  return { v: 1, id: S.sid, name: sessName(), datasetId: S.dsId, datasetName: D.name, datasetPick: D.pick || '', datasetWindow: D.window || null, created: S.created, updated: Date.now(),
-    status: E.i >= D.n ? 'finished' : 'in progress', cfg: { ...cfg }, tf: tfLabel(TF), start: E.start, pos: E.i, k: E.k, time: E.time,
+  return { v: 1, id: S.sid, name: sessName(), datasetId: S.dsId, datasetName: D.name, datasetPick: D.pick || '', datasetWindow: D.window || null, datasetCont: D.cont ? { hist: D.cont.hist } : null, startT: E.startT ?? null, created: S.created, updated: Date.now(),
+    status: E.i >= D.n && !contMore() ? 'finished' : 'in progress', cfg: { ...cfg }, tf: tfLabel(TF), start: E.start, pos: E.i, k: E.k, time: E.time,
     T, eq: E.eq, drawings: DR.list, strategy: S.strategy || null,
-    summary: { ...computeStats(), from: D.t[E.start], to: E.time, bars: E.i - E.start, tf: tfLabel(TF), base: D.base, prop: simLabel() || propLabel() } };
+    summary: { ...computeStats(), from: startT(), to: E.time, bars: E.i - E.start, tf: tfLabel(TF), base: D.base, prop: simLabel() || propLabel() } };
 }
 async function saveSession(force) {
   if (!STORE || !E || !D || !S.sid || !S.dsId || S.busy) return;
@@ -5709,6 +5718,7 @@ async function resumeSession(id) {
     // the same section of the long series the backtest was run on
     if (!s.datasetWindow) throw new Error('This backtest has no saved date range, so it cannot be reopened.');
     data = await loadSection(data, s.datasetWindow.from, s.datasetWindow.to);
+    if (s.datasetCont && CONT_OK()) data.cont = { hist: s.datasetCont.hist };
   }
   Object.assign(cfg, s.cfg);
   if (s.cfg.commMode == null) cfg.commMode = 'pct'; // saved before there was a choice: it was % of notional
@@ -5732,6 +5742,84 @@ async function openDataset(id, pick) {
   return loadSource(blobSource('dataset', id, meta.size, meta.name), { dsId: id, pick });
 }
 const SPANS = [[30, '1 month'], [91, '3 months'], [182, '6 months'], [365, '1 year'], [730, '2 years']];
+// Windows app: a session can also play on to the end of a long series. It loads a month to begin with, then the next
+// month as the replay nears the end of what is loaded; once the loaded bars pass CONT_KEEP, the oldest are let go
+// (keeping the history chosen before the replay time), so memory stays level however long it plays.
+const CONT_OK = () => !!(STORE && !window.TAPE_IOS);
+const CONT_END = -1, CONT_STEP = 31 * 86400, CONT_KEEP = () => MAX_BARS * 0.6;
+const spanList = () => CONT_OK() ? [...SPANS, [CONT_END, 'To the end of the data']] : SPANS;
+const contMore = () => !!(D && D.cont && !RUN.on && D.V && D.window && D.window.to < D.V.to); // a strategy run keeps to what is loaded
+const startT = () => E.startT ?? D.t[E.start];
+// The practice data is generated a trading day at a time, and a section that starts or ends inside a day draws that
+// day differently, so it would not come back the same when the session is reopened. For it, the months loaded and
+// the bars let go break at the ends of trading days. Real data has no such limit.
+function contDayEnd(V, t) {
+  if (!V.synthetic) return t;
+  const { days } = synthDays(); let e = days[0].t1;
+  for (const d of days) { if (d.t0 > t) break; e = d.t1; }
+  return e;
+}
+function contDayStart(V, t) {
+  if (!V.synthetic) return t;
+  for (const d of synthDays().days) if (d.t0 >= t) return d.t0;
+  return t;
+}
+// grows a section's columns by another section's bars (in place while their buffers have room)
+function contAppend(d, p) {
+  const n = d.n, m = p.n, need = n + m;
+  for (const k of ['t', 'o', 'h', 'l', 'c', 'v']) {
+    const a = d[k], C = a.constructor, room = a.buffer.byteLength / C.BYTES_PER_ELEMENT - a.byteOffset / C.BYTES_PER_ELEMENT;
+    let full;
+    if (room >= need) full = new C(a.buffer, a.byteOffset, need);
+    else { full = new C(Math.ceil(need * 1.5)); full.set(a); }
+    full.set(p[k].subarray(0, m), n);
+    d[k] = full.subarray(0, need);
+  }
+  d.n = need;
+}
+// lets go of bars older than the history kept before the replay time
+function contTrim(d, add) {
+  if (d.n + add <= CONT_KEEP() || E.i < 2) return;
+  const cutT = contDayStart(d.V, d.t[E.i - 1] - d.cont.hist * 86400), c = lowerBound(d.t, cutT);
+  if (c <= 0 || c > E.i - 1) return;
+  if (E.startT == null) E.startT = d.t[E.start];
+  for (const k of ['t', 'o', 'h', 'l', 'c', 'v']) { d[k].copyWithin(0, c); d[k] = d[k].subarray(0, d.n - c); }
+  d.n -= c; E.i -= c; E.start = Math.max(0, E.start - c);
+  d.window.from = d.V.synthetic ? cutT : d.t[0];
+}
+// the next month, loaded once (callers share the promise); a month with no bars is passed over
+function contLoad() {
+  if (!contMore()) return null;
+  const d = D;
+  if (d.cont.loading) return d.cont.loading;
+  d.cont.loading = (async () => {
+    try {
+      while (D === d && d.window.to < d.V.to) {
+        const t0 = d.window.to + 1, t1 = Math.min(d.V.to, contDayEnd(d.V, d.window.to + CONT_STEP));
+        let part = null;
+        try { part = await loadSection(d.V, t0, t1); }
+        catch (e) { if (!/no bars/i.test(e.message)) throw e; }
+        if (D !== d) return;
+        if (part && part.n) {
+          contTrim(d, part.n); contAppend(d, part);
+          // the equity curve keeps about the same number of points however long the replay runs
+          if (E.eq.length > 8000) { const last = E.eq[E.eq.length - 1]; E.eq = E.eq.filter((_, k) => k % 2 === 0); if (E.eq[E.eq.length - 1] !== last) E.eq.push(last); E.eqStride *= 2; }
+        }
+        d.window.to = t1;
+        if (part && part.n) break;
+      }
+      $('#dsSub').textContent = `${fmtDT(d.t[0]).slice(0, 10)} → ${fmtDT(d.t[d.n - 1]).slice(0, 10)} · ${mil(d.n)} bars loaded · to ${fmtDT(d.V.to).slice(0, 10)}`;
+      S.dirty = true;
+    } catch (e) { toast('Could not load the next month: ' + e.message, 'err'); setPlaying(false); }
+    finally { d.cont.loading = null; }
+  })();
+  return d.cont.loading;
+}
+// near the end of what is loaded (two days of replay left): start loading the next month
+function contAhead() {
+  if (RUN.on) return;
+  if (D.cont && !D.cont.loading && contMore() && D.t[D.n - 1] - E.time < 2 * 86400) contLoad();
+}
 const HISTS = [[1, '1 day'], [7, '1 week'], [30, '1 month'], [91, '3 months']];
 // bars a section of a chunked series would hold (from the monthly block sizes)
 function sectionBars(V, t0, t1) { return V.index.blocks.reduce((s, b) => s + (b.t1 < t0 || b.t0 > t1 ? 0 : b.n * Math.min(1, (Math.min(b.t1, t1) - Math.max(b.t0, t0)) / Math.max(1, b.t1 - b.t0))), 0); }
@@ -6501,7 +6589,7 @@ function endTour() {
 /* ---------------- controls ---------------- */
 function setPlaying(on) {
   if (!E) return;
-  if (on && E.i >= D.n) { toast('Reached the end of the data. Start a new session to replay again.'); on = false; }
+  if (on && E.i >= D.n && !contMore()) { toast('Reached the end of the data. Start a new session to replay again.'); on = false; }
   E.playing = on;
   if (on) skipClosedGap();
   $('#playIco').innerHTML = on ? '<path d="M3 2h4v12H3zM9 2h4v12H9z"/>' : '<path d="M4 2l10 6-10 6z"/>';
@@ -6644,7 +6732,7 @@ function openSkipMenu() {
   if (!E || !D) return;
   if (POP.el && POP.anchor === $('#bSkip')) return closePop();
   closePop();
-  const now = E.time, end = D.t[D.n - 1], items = [];
+  const now = E.time, end = D.cont && D.V ? D.V.to : D.t[D.n - 1], items = [];
   const add = (label, t) => { if (isFinite(t) && t > now && t <= end) items.push([label, t]); };
   for (const [s, l] of [[300, '5 minutes'], [900, '15 minutes'], [3600, '1 hour'], [14400, '4 hours']]) add('+' + l, now + s);
   // next trading day: the day-start hour in New York (the simulation's or the prop rules'), skipping weekends.
@@ -6676,7 +6764,7 @@ function startPresets() {
   const d = pendingD, lo = START.min, hi = START.max, day = 86400;
   const r = (a, b) => Math.round(a + Math.random() * Math.max(0, b - a));
   if (d && d.chunked && !d.t) {
-    const span = +$('#fSpan').value * day;
+    const span = Math.max(0, +$('#fSpan').value) * day || 182 * day;
     return [['Start of data', lo], ['2 years before the end', hi - 730 * day], ['1 year before the end', hi - 365 * day], ['6 months before the end', hi - 182 * day],
             ['1 month before the end', hi - 30 * day], ['Random date', r(lo, Math.max(lo, hi - span))]];
   }
@@ -6697,7 +6785,8 @@ function startSession(data, startIdx, tfPref, resume) {
   maS.forEach(s => s.applyOptions({ priceFormat: { type: 'price', precision: PREC, minMove: 1 / POW } }));
   // the data chip: a short name, then the range loaded
   $('#dsName').textContent = D.sample ? 'Sample data' : assetName(D);
-  $('#dsSub').textContent = `${fmtDT(D.t[0]).slice(0, 10)} → ${fmtDT(D.t[D.n - 1]).slice(0, 10)} · ${mil(D.n)} bars · ${tfLabel({ kind: 's', sec: D.base })}`;
+  $('#dsSub').textContent = `${fmtDT(D.t[0]).slice(0, 10)} → ${fmtDT(D.t[D.n - 1]).slice(0, 10)} · ${mil(D.n)} bars · ${tfLabel({ kind: 's', sec: D.base })}` +
+    (D.cont && D.V ? ` · plays on to ${fmtDT(D.V.to).slice(0, 10)}` : '');
   $('#bData').title = `${D.name}${D.window ? ' (section loaded)' : ''}. Click to open the Library.`;
   E = newEngine(clamp(startIdx, 1, D.n - 1));
   T = newTrading();
@@ -6707,7 +6796,7 @@ function startSession(data, startIdx, tfPref, resume) {
   S.dirty = false; S.lastI = -1; S.strategy = resume ? resume.strategy || null : null;
   if (resume) {
     // jump to the saved bar; the saved account already reflects everything before it
-    T = resume.T; E.eq = resume.eq || [];
+    T = resume.T; E.eq = resume.eq || []; if (resume.startT != null) E.startT = resume.startT;
     if (!T.prop) T.prop = newPropState(T.start);
     const pos = clamp(resume.pos, E.start, D.n);
     E.i = pos; E.price = D.c[pos - 1]; E.prevClose = D.c[pos - 1]; E.barTime = D.t[pos - 1];
@@ -6755,14 +6844,21 @@ function setupSeries(V) {
     (D && D.V === V && E ? '<br>A new session starts a fresh account. The current one stays in the Library.' : '');
   $('#fSymRow').hidden = true;
   const keep = (sel, list, def) => { const was = +sel.value || def; sel.innerHTML = list.map(([d, l]) => `<option value="${d}"${d === was ? ' selected' : ''}>${l}</option>`).join(''); };
-  keep($('#fSpan'), SPANS, 182); keep($('#fHist'), HISTS, 7);
+  keep($('#fSpan'), spanList(), 182); keep($('#fHist'), HISTS, 7);
   START.min = V.from + 86400; START.max = V.to - 3600;
   setStart(clamp(D && D.V === V && E ? D.t[E.start] : V.to - 182 * 86400, START.min, START.max));
 }
 function sectionNote() {
   const V = pendingD; if (!V || !V.chunked || V.t) return;
   const st = START.value;
-  const t0 = st - +$('#fHist').value * 86400, t1 = st + +$('#fSpan').value * 86400;
+  const t0 = st - +$('#fHist').value * 86400;
+  if (+$('#fSpan').value === CONT_END) {
+    const all = sectionBars(V, st, V.to), first = sectionBars(V, t0, Math.min(V.to, st + CONT_STEP));
+    $('#fSecNote').textContent = `Plays on from the start to the end of the data (${fmtDT(V.to).slice(0, 10)}): about ${(all / 1e6).toFixed(1)} million bars in all. ` +
+      `The first month (about ${(first / 1e6).toFixed(1)} million bars) loads now, the next one as the replay reaches it; older bars are let go as it goes, so memory stays about the same.`;
+    return;
+  }
+  const t1 = st + +$('#fSpan').value * 86400;
   const bars = sectionBars(V, t0, t1);
   $('#fSecNote').textContent = `About ${(bars / 1e6).toFixed(1)} million bars, roughly ${Math.max(1, Math.round(bars * 30 / 1048576))} MB of memory.` +
     (bars > MAX_BARS ? ' That is too much to load at once: pick a shorter span.' : bars > MAX_BARS * 0.6 ? ' Loading takes a little while.' : '');
@@ -6870,10 +6966,12 @@ function confirmSetup() {
   savePrefs();
   if (data.chunked && !data.t) {
     // a long built-in series: load the chosen section, then start
-    const t0 = st - +$('#fHist').value * 86400, t1 = st + +$('#fSpan').value * 86400;
+    const cont = +$('#fSpan').value === CONT_END && CONT_OK(), hist = +$('#fHist').value;
+    const t0 = st - hist * 86400, t1 = cont ? Math.min(data.to, contDayEnd(data, st + CONT_STEP)) : st + +$('#fSpan').value * 86400;
     if (sectionBars(data, t0, t1) > MAX_BARS) return toast('That section is too big to load at once. Pick a shorter span or less history.', 'err');
     $('#mStart').disabled = true;
     return loadSection(data, t0, t1).then(d => {
+      if (cont) d.cont = { hist };
       $('#modal').hidden = true; pendingD = null;
       startSession(d, lowerBound(d.t, st), TF);
       toast(TOUCH ? 'Session ready. Tap play to start the tape.' : 'Session ready. Press Space or the play button to start the tape.');
