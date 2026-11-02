@@ -953,19 +953,60 @@ html.m .stsim dl{columns:1}
 .sttr{border:1px solid var(--line);border-radius:5px;overflow:auto;max-height:30vh}
 .stact{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
 .stact .note{margin-right:auto}
-.sthelp{font-size:13px;line-height:1.55;display:grid;align-content:start;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 24px}
-.sthelp h4{margin:10px 0 2px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.sthelp p{margin:0 0 6px}
-.sthelp code{font-family:var(--f-num);font-size:12px;color:var(--fg);background:var(--raise);border-radius:3px;padding:0 3px}
-html.m #strat .sheet{overflow:auto;position:fixed;inset:0;width:auto;max-width:none;max-height:none;border:0;border-radius:0;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px calc(env(safe-area-inset-bottom,0px) + 18px)}
-html.m .stbody,html.m .stres,html.m .stfoot,html.m .stpick,html.m .sthelp,html.m #stCode,html.m #stRes,html.m #stHelp,html.m #stOpt{flex:none;overflow:visible}
+/* the Indicator panel (Python): laid out like the Strategy panel */
+#pind .sheet,#docs .sheet{gap:10px;overflow:hidden}
+.sthead #piRun{display:inline-flex;align-items:center;gap:6px}
+.sthead #piRun svg{width:11px;height:11px;fill:currentColor}
+.pion{display:flex;flex-direction:column;gap:4px}
+.pirow,.indrow.pyrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px;align-items:center}
+.pilink{background:none!important;border:0!important;padding:2px 0!important;width:auto!important;height:auto!important;color:var(--fg)!important;text-align:left;cursor:pointer;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pilink:hover{color:var(--accent)!important}
+.pierr{font-size:10.5px;color:var(--down);border:1px solid color-mix(in srgb,var(--down) 45%,transparent);border-radius:3px;padding:0 4px}
+.pirow:not(:has(.pierr)){grid-template-columns:auto minmax(0,1fr) auto}
+.indrow.pyrow:not(:has(.pierr)){grid-template-columns:auto minmax(0,1fr) auto}
+.pix{background:none;border:1px solid var(--line);border-radius:4px;color:var(--muted);width:22px;height:22px;padding:0;line-height:1;display:grid;place-items:center;cursor:pointer}
+.pix:hover{color:var(--down);border-color:var(--down)}
+.pisets{display:grid;gap:6px;max-height:180px;overflow:auto}
+.pisetrow{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:8px;align-items:center;font:12px var(--f-num)}
+.pisetrow span{overflow:hidden;text-overflow:ellipsis}
+.pisetrow input,.pisetrow select{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:3px 6px;color:var(--fg);font-size:12px;min-width:0}
+.pisetrow input[type=checkbox]{justify-self:start}
+#piSet .note code{font-family:var(--f-num);font-size:11.5px}
+.indpop .indpy{margin-top:8px;display:flex;align-items:center;gap:6px}
+.indpop .indpy .pytag{font-size:9.5px;letter-spacing:.04em;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:3px;padding:0 4px;text-transform:none}
+/* the Python guide */
+.guide{display:grid;grid-template-columns:190px minmax(0,1fr);gap:18px;min-height:0;height:min(68vh,640px)}
+.guide[hidden]{display:none}
+.gnav{display:flex;flex-direction:column;gap:10px;min-height:0;overflow:auto}
+.seg.gseg{grid-template-columns:1fr 1fr;flex:none}
+.gtoc{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+.gtoc button{background:none;border:0;border-radius:4px;padding:4px 8px;width:100%;text-align:left;color:var(--muted);font-size:12.5px;cursor:pointer}
+.gtoc button:hover{background:var(--raise);color:var(--fg)}
+.gbody{overflow:auto;font-size:13px;line-height:1.6;padding-right:10px;max-width:900px}
+.gbody h3{margin:20px 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600;scroll-margin-top:4px}
+.gbody h3:first-child{margin-top:0}
+.gbody p{margin:0 0 8px}
+.gbody ul{margin:0 0 8px;padding-left:20px}
+.gbody li{margin:3px 0}
+.gbody code{font-family:var(--f-num);font-size:12px;color:var(--fg);background:var(--raise);border-radius:3px;padding:0 3px}
+.gbody pre{margin:0 0 10px;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:10px 12px;overflow:auto;font:12px/1.55 var(--f-num);color:var(--fg)}
+.gtab{border-collapse:collapse;margin:0 0 10px;width:100%}
+.gtab td{border-top:1px solid var(--grid);padding:5px 8px 5px 0;vertical-align:top}
+.gtab td:first-child{white-space:nowrap;width:1%;padding-right:14px}
+html.m #strat .sheet,html.m #pind .sheet,html.m #docs .sheet{overflow:auto;position:fixed;inset:0;width:auto;max-width:none;max-height:none;border:0;border-radius:0;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px calc(env(safe-area-inset-bottom,0px) + 18px)}
+html.m .stbody,html.m .stres,html.m .stfoot,html.m .stpick,html.m #stCode,html.m #stRes,html.m #stHelp,html.m #stOpt,html.m #piCode,html.m .guide{flex:none;overflow:visible}
+html.m .guide{grid-template-columns:1fr;height:auto}
+html.m .gtoc{display:none}
+html.m .gbody{overflow:visible;padding-right:0}
+html.m .gtab td:first-child{white-space:normal;width:45%}
+html.m .pisetrow input,html.m .pisetrow select{height:36px;font-size:15px}
+html.m .pix{width:36px;height:36px}
 html.m .sthead h2{font-size:18px}
 html.m .sthead button{min-height:36px}
 html.m .stbody{grid-template-columns:1fr}
 html.m .sted{height:42vh}
 html.m .sted .ln,html.m .sted textarea{font-size:11.5px}
 html.m .stkpi{grid-template-columns:repeat(2,minmax(0,1fr))}
-html.m .sthelp{grid-template-columns:1fr;max-height:none}
 html.m .sthead .spacer{display:none}
 html.m .stpick input{max-width:none}
 
@@ -1115,7 +1156,7 @@ html.m .optcard button{flex:1;min-height:40px}
     <div class="tgroup">
       <button id="bLib" hidden title="Saved backtests and data files">Library</button>
       <button id="bStrat" title="Backtest a strategy written in Python" aria-haspopup="dialog" aria-label="Strategy"><svg class="mico" viewBox="0 0 20 20"><path d="M7 5.5L2.5 10 7 14.5M13 5.5l4.5 4.5-4.5 4.5"/><path d="M11 4l-2 12" style="opacity:.6"/></svg><span class="mlbl">Strategy</span></button>
-      <button id="bInd" title="Moving averages and VWAP on the chart" aria-haspopup="dialog" aria-label="Indicators"><svg class="mico" viewBox="0 0 20 20"><path d="M2.5 14c2.5 0 3-7 6-7s3 6 5.5 6 2.5-4 3.5-5"/><path d="M2.5 17h15" style="opacity:.5"/></svg><span class="mlbl">Indicators</span></button>
+      <button id="bInd" title="Moving averages, VWAP and your own indicators in Python" aria-haspopup="dialog" aria-label="Indicators"><svg class="mico" viewBox="0 0 20 20"><path d="M2.5 14c2.5 0 3-7 6-7s3 6 5.5 6 2.5-4 3.5-5"/><path d="M2.5 17h15" style="opacity:.5"/></svg><span class="mlbl">Indicators</span></button>
       <button id="bChart" title="Themes, colors, time zone and session lines" aria-label="Chart settings"><svg class="mico" viewBox="0 0 20 20"><path d="M3 5.5h8M15 5.5h2M3 10h2M9 10h8M3 14.5h6M13 14.5h4"/><circle cx="13" cy="5.5" r="1.8"/><circle cx="7" cy="10" r="1.8"/><circle cx="11" cy="14.5" r="1.8"/></svg><span class="mlbl">Chart</span></button>
       <button id="bSettings" title="Start time, costs and the prop simulation">Session</button>
       <button id="bKeys" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
@@ -1294,8 +1335,10 @@ html.m .optcard button{flex:1;min-height:40px}
 
   <!-- phones: one screen at a time, picked from the tab bar; replay controls just above it -->
   <section id="mmore" class="mmore" role="dialog" aria-label="More">
-    <h4>Backtest</h4>
+    <h4>Python</h4>
     <button data-go="bStrat"><b>Strategy</b><span>Write a strategy in Python and backtest it on this data</span></button>
+    <button data-go="pind"><b>Indicator</b><span>Write an indicator in Python and draw it on the chart</span></button>
+    <button data-go="guide"><b>Python guide</b><span>How to code indicators and strategies</span></button>
     <h4>Session</h4>
     <button data-go="bHome"><b>Home</b><span>Start a new session or continue one</span></button>
     <button data-go="bSettings"><b>Session settings</b><span>Start date, costs and the prop simulation</span></button>
@@ -1303,7 +1346,7 @@ html.m .optcard button{flex:1;min-height:40px}
     <button data-go="import"><b>Import data</b><span>CSV or DBN files, any size</span></button>
     <button data-go="bCopy"><b>Copy trades</b><span>Closed trades as CSV</span></button>
     <h4>Chart</h4>
-    <button data-go="bInd"><b>Indicators</b><span>EMA, SMA and VWAP</span></button>
+    <button data-go="bInd"><b>Indicators</b><span>EMA, SMA, VWAP and your own in Python</span></button>
     <button data-go="bChart"><b>Chart settings</b><span>Themes, colors, time zone and session lines</span></button>
     <button data-go="tour"><b>Take the tour</b><span>How the app works, in a minute</span></button>
     <button data-go="bKeys"><b>Keyboard shortcuts</b><span>For a keyboard on an iPad</span></button>
@@ -1668,42 +1711,241 @@ html.m .optcard button{flex:1;min-height:40px}
       </div>
     </div>
 
-    <div id="stHelp" class="sthelp" hidden>
-      <div>
-        <h4>Functions you write</h4>
-        <p><code>on_bar(ctx, bar)</code> runs when each candle of the strategy timeframe closes. <code>bar</code> has <code>time</code>, <code>open</code>, <code>high</code>, <code>low</code>, <code>close</code>, <code>volume</code> and <code>index</code>; <code>time</code> is the candle's open in the chart's time zone.</p>
-        <p><code>on_tick(ctx, tick)</code> runs on every simulated tick when you choose <b>Every tick</b>: <code>tick.time</code>, <code>tick.price</code>.</p>
-        <p>Optional: <code>init(ctx)</code> before the first bar, <code>on_fill(ctx, fill)</code> after each fill (<code>side</code>, <code>qty</code>, <code>price</code>, <code>kind</code> entry or exit, <code>reason</code>, <code>pnl</code>), and <code>on_end(ctx)</code> at the end.</p>
-        <h4>Orders</h4>
-        <p><code>ctx.buy(qty, sl=None, tp=None)</code> and <code>ctx.sell(…)</code> trade at market; add <code>limit=price</code> or <code>stop=price</code> for a working order. Also <code>buy_limit</code>, <code>sell_limit</code>, <code>buy_stop</code>, <code>sell_stop</code><code>(price, qty, sl, tp)</code>. Leave out <code>qty</code> to use the size in Session settings. Stop loss and take profit are prices. Each returns the order's id, or <code>None</code> if it was rejected (the console says why).</p>
-        <p><code>ctx.close()</code> closes the position at market, <code>ctx.cancel(id)</code> and <code>ctx.cancel_all()</code> cancel working orders, <code>ctx.set_bracket(sl=…, tp=…)</code> moves the open position's stop and target.</p>
-        <h4>How fills work</h4>
-        <p>Market orders and <code>close()</code> fill on the next tick: from <code>on_bar</code> that is the next bar's open, so a strategy cannot trade at a price it has already seen. Limit and stop orders, stop losses and take profits fill inside bars, exactly as in manual replay. Size, costs, spread, slippage, point value and the prop simulation come from <b>Session settings</b>.</p>
-      </div>
-      <div>
-        <h4>What the strategy can read</h4>
-        <p><code>ctx.closes(n)</code>, <code>opens</code>, <code>highs</code>, <code>lows</code>, <code>volumes</code>, <code>times</code>: the last <code>n</code> closed candles (all of them without <code>n</code>) as numpy arrays, oldest first. <code>times</code> are UTC epoch seconds.</p>
-        <p><code>ctx.df(n)</code>: the same candles as a pandas DataFrame (choose <b>numpy + pandas</b>). Building one on every bar is slow over long runs; numpy arrays are much faster.</p>
-        <p><code>ctx.position</code> (+ long, − short, 0 flat), <code>ctx.position_price</code>, <code>ctx.equity</code>, <code>ctx.balance</code>, <code>ctx.time</code>, <code>ctx.price</code>, <code>ctx.orders</code>, <code>ctx.trades</code>, <code>ctx.history</code>.</p>
-        <p><code>ctx.tick_size</code>, <code>ctx.ticks(n)</code> (n ticks as a price distance), <code>ctx.bid</code> and <code>ctx.ask</code> (sells fill at the bid, buys at the ask), <code>ctx.spread</code>, <code>ctx.round(price)</code> (to the data's precision), <code>ctx.point_value</code>, <code>ctx.at("09:30")</code> (a time to compare with <code>bar.time.time()</code>). Keep your own values on <code>ctx</code>, like <code>ctx.count = 0</code>.</p>
-        <h4 class="opthelp" hidden>Optimize</h4>
-        <p class="opthelp" hidden>The Optimize tab lists the <code>NAME = value</code> settings at the top of your code (numbers, True/False and text choices; times of day are left out). Tick the ones to try, adjust the values, and it runs every combination, several at a time, ranked by your goal. A setting can also carry its own range: <code>FAST = param(9, 5, 30, step=5)</code>. <b>Check on the last</b> leaves the end of the dates out of the ranking and shows how each combination did there: a result that only works on the dates it was tuned on is luck. On iPhone and iPad it runs one or two at a time, up to 300 combinations, and pauses if you leave the app (tap Resume when you are back).</p>
-        <h4>Good to know</h4>
-        <p><code>print()</code> writes to the console. Errors stop the run and show the line. A run is a new session: it is saved to the Library and opens on the chart, and the session you had stays in the Library.</p>
-        <p><b>At bar close</b> is fast. <b>Every tick</b> calls Python many times per bar and is slower; the ticks are simulated from each bar's open, high, low and close. A strategy that never returns stops the app responding.</p>
-      </div>
-    </div>
+    <div id="stHelp" class="guide" hidden></div>
 
     <div class="stfoot"><span id="stStat">Ready</span><div class="stprog"><i id="stProg"></i></div><span id="stPct" class="num"></span></div>
   </div>
 </div>
+
+<!-- the Indicator panel: an indicator written in Python, drawn on the chart (like the Strategy panel) -->
+<div id="pind" class="modal" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="piTitle">
+    <div class="sthead">
+      <h2 id="piTitle">Indicator <span class="pytag">Python</span></h2>
+      <div class="seg st" id="piTabs">
+        <button data-pt="code" aria-pressed="true">Code</button>
+        <button data-pt="help" aria-pressed="false">Help</button>
+      </div>
+      <span class="spacer"></span>
+      <button id="piRun" class="primary"><svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg><span id="piRunLbl">Add to chart</span></button>
+      <button id="piOff" hidden>Remove from chart</button>
+      <button id="piClose">Close</button>
+    </div>
+
+    <div id="piCode" class="stres">
+      <div class="stpick">
+        <select id="piTpl" aria-label="Open an indicator or template"></select>
+        <input id="piName" maxlength="60" aria-label="Indicator name" placeholder="Indicator name">
+        <button id="piDel" hidden>Delete</button>
+      </div>
+      <div class="stbody">
+        <div class="sted"><div class="ln" id="piLn"></div><textarea id="piSrc" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Indicator code"></textarea></div>
+        <div class="stside">
+          <div class="stcard">
+            <h3>On the chart</h3>
+            <div id="piOn" class="pion"></div>
+            <p class="note">Runs on each closed candle of the chart's timeframe, up to the replay time, so it never sees a candle before it prints.</p>
+          </div>
+          <div class="stcard">
+            <h3>Settings</h3>
+            <div id="piSet"></div>
+          </div>
+          <div class="stcard" style="flex:1">
+            <h3>Console</h3>
+            <div class="stcons" id="piCons"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="piHelp" class="guide" hidden></div>
+
+    <div class="stfoot"><span id="piStat">Ready</span><div class="stprog"><i id="piProg"></i></div><span id="piPct" class="num"></span></div>
+  </div>
+</div>
+
+<!-- the Python guide: how to code indicators and strategies (also on each panel's Help tab) -->
+<div id="docs" class="modal" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="docTitle">
+    <div class="sthead">
+      <h2 id="docTitle">Python guide</h2>
+      <span class="spacer"></span>
+      <button id="docClose">Close</button>
+    </div>
+    <div id="docBody" class="guide"></div>
+  </div>
+</div>
+
+<template id="guideInd">
+  <h3 id="gi-start">How an indicator runs</h3>
+  <p>An indicator is a short Python script. Open <b>Indicators</b> on the toolbar (on a phone: <b>More</b>, then <b>Indicator</b>), pick a template or write your own, then <b>Add to chart</b>. It is saved under its name and stays on the chart for every session until you remove it.</p>
+  <p>Your <code>on_bar(ctx, bar)</code> function runs once for each <b>closed candle</b> of the chart's timeframe, oldest first. When the chart opens it catches up on the history before the replay time (up to the last 40,000 candles; 8,000 on phones and tablets), then runs once more each time a candle closes as the tape plays. It never sees the candle that is still forming, or anything after it, so an indicator cannot peek at the future.</p>
+  <p>Changing the timeframe, the time zone or the session starts every indicator again from the beginning. What it draws is kept: a line drawn on an earlier candle stays where it was drawn, as on TradingView.</p>
+
+  <h3 id="gi-first">A first indicator</h3>
+<pre>LENGTH = 20                          # a setting: change it on the Settings card
+
+def init(ctx):
+    ctx.avg = ta.EMA(LENGTH)         # runs once, before the first candle
+
+def on_bar(ctx, bar):                # runs on every closed candle
+    value = ctx.avg.update(bar.close)
+    ctx.plot(value, "EMA", "orange")
+    if value is not None and bar.close > value and bar.open < value:
+        ctx.marker("Cross", shape="arrow_up", position="below", color="up")</pre>
+  <p><code>ctx</code> is how the indicator reads candles and draws. Keep your own values on it (<code>ctx.avg</code> above), not in global variables. <code>np</code> (numpy) and <code>ta</code> are ready to use without importing.</p>
+
+  <h3 id="gi-hooks">Functions you write</h3>
+  <p><code>on_bar(ctx, bar)</code> (required) runs on each closed candle. <code>bar</code> has <code>time</code>, <code>open</code>, <code>high</code>, <code>low</code>, <code>close</code>, <code>volume</code> and <code>index</code>. <code>time</code> is the candle's open as a datetime in the chart's time zone; <code>index</code> counts candles from 0 at the first one the indicator saw.</p>
+  <p><code>init(ctx)</code> (optional) runs once before the first candle: set up your values and levels there.</p>
+
+  <h3 id="gi-read">Reading candles</h3>
+  <p><code>ctx.closes(n)</code>, <code>ctx.opens(n)</code>, <code>ctx.highs(n)</code>, <code>ctx.lows(n)</code>, <code>ctx.volumes(n)</code>, <code>ctx.times(n)</code>: the last <code>n</code> closed candles as numpy arrays, oldest first, the current candle last (all of them without <code>n</code>). Early on there are fewer than <code>n</code>, so check <code>len(...)</code>. <code>times</code> are UTC seconds.</p>
+  <p><code>ctx.df(n)</code>: the same candles as a pandas DataFrame. Write <code>import pandas</code> in your code and pandas loads with it (slower than numpy; avoid it on every bar).</p>
+  <p><code>ctx.time</code> and <code>ctx.price</code> (this candle's time and close), <code>ctx.bar_index</code>, <code>ctx.symbol</code>, <code>ctx.timeframe</code> (like <code>"5m"</code>), <code>ctx.tick_size</code>, <code>ctx.ticks(n)</code> (n ticks as a price distance), <code>ctx.round(price)</code> (to the data's precision), <code>ctx.point_value</code>, and <code>ctx.at("09:30")</code>, a time to compare with <code>bar.time.time()</code>.</p>
+
+  <h3 id="gi-plot">Plots</h3>
+  <p><code>ctx.plot(value, title, color=None, width=1, style="line", pane="price")</code> adds this candle's point to a line. Call it on every bar with the same <code>title</code>; a <code>None</code> or <code>NaN</code> value leaves a gap. A plot's style and pane are set by its first call; its color can change from bar to bar (<code>"up" if fast &gt; slow else "down"</code>).</p>
+  <ul>
+    <li><b>style</b>: <code>"line"</code>, <code>"step"</code>, <code>"dashed"</code>, <code>"dotted"</code>, <code>"points"</code> or <code>"histogram"</code> (bars up from 0, as for a MACD histogram).</li>
+    <li><b>pane</b>: <code>"price"</code> draws on the candles. <code>"lower"</code> puts the plot in a band of its own under the chart, with its own scale, for values such as RSI or MACD. All of an indicator's lower plots share its band.</li>
+  </ul>
+  <p>The legend shows each plot's value on the candle under the pointer.</p>
+
+  <h3 id="gi-levels">Levels, fills and background</h3>
+  <p><code>ctx.hline(price, title=None, color="muted", width=1, style="dashed", pane="price")</code>: a level across the chart, such as 70 and 30 on an RSI (<code>pane="lower"</code>). Call it in <code>init</code>; calling it again with the same title moves it. Levels in the lower band are kept in view.</p>
+  <p><code>ctx.fill(title1, title2, color)</code>: shades between two plots on this candle. Call it on each bar where you want the shading; the color can change from bar to bar.</p>
+  <p><code>ctx.bgcolor(color)</code>: tints the chart behind this candle. Use a see-through color: <code>rgba("down", 0.1)</code>.</p>
+
+  <h3 id="gi-markers">Markers</h3>
+  <p><code>ctx.marker(text="", shape="circle", position="above", color="accent", at=None, size=1)</code>: a marker on this candle, beside the trade markers. <b>shape</b> is <code>"arrow_up"</code>, <code>"arrow_down"</code>, <code>"circle"</code> or <code>"square"</code>; <b>position</b> is <code>"above"</code>, <code>"below"</code> or <code>"inside"</code> the candle. <code>at</code> puts it on an earlier candle instead (a bar index or time), as when a swing high is only confirmed a few candles later.</p>
+
+  <h3 id="gi-draw">Boxes, lines and labels</h3>
+  <p>These are placed by a bar position and a price. A position is a bar index (<code>bar.index</code>, <code>bar.index - 10</code>, or one in the future such as <code>bar.index + 5</code>) or a time (<code>bar.time</code>).</p>
+  <ul>
+    <li><code>ctx.box(left, top, right, bottom, color="accent", fill=None, width=1, style="solid", text="", text_color=None, extend=False)</code>. <code>fill</code> defaults to a see-through version of <code>color</code>; <code>extend=True</code> runs it to the right edge of the chart.</li>
+    <li><code>ctx.line(x1, y1, x2, y2, color="accent", width=1, style="solid", extend="none")</code>. <code>extend</code>: <code>"none"</code>, <code>"right"</code>, <code>"left"</code> or <code>"both"</code>.</li>
+    <li><code>ctx.label(x, y, text, color="accent", text_color=None, style="up")</code>. <code>style</code>: <code>"up"</code> sits below the price and points up at it, <code>"down"</code> sits above and points down, <code>"center"</code> sits on it, <code>"text"</code> is text with no background.</li>
+  </ul>
+  <p>Each returns the drawing. Keep it on <code>ctx</code> to change it on later bars, by setting what changed or with <code>set(...)</code>, and remove it with <code>delete()</code>:</p>
+<pre>ctx.range = ctx.box(bar.index, bar.high, bar.index, bar.low, text="Range")
+...
+ctx.range.right = bar.index                        # keep it running
+ctx.range.set(top=max(ctx.range.top, bar.high))    # or several at once
+ctx.range.delete()</pre>
+  <p>An indicator keeps up to 500 boxes, 500 lines and 500 labels; past that the oldest of that kind is removed. <code>ctx.boxes</code>, <code>ctx.lines</code> and <code>ctx.labels</code> list the ones still drawn, and <code>ctx.clear()</code> removes them all.</p>
+  <p><code>style</code> for boxes, lines and levels is <code>"solid"</code>, <code>"dashed"</code> or <code>"dotted"</code>.</p>
+
+  <h3 id="gi-colors">Colors</h3>
+  <p>Any CSS color: <code>"#22c55e"</code>, <code>"orange"</code>, <code>"rgb(80, 120, 255)"</code>. The theme's own colors follow light and dark themes: <code>"up"</code>, <code>"down"</code>, <code>"accent"</code>, <code>"muted"</code> and <code>"fg"</code> (the text color). <code>rgba(color, alpha)</code> makes any of them see-through, from 0 (clear) to 1 (solid): <code>rgba("up", 0.2)</code>.</p>
+
+  <h3 id="gi-ta">Indicator math: ta</h3>
+  <p><code>ta</code> has the common calculations two ways. The classes take <b>one value at a time</b>, which is fast in <code>on_bar</code>: make one in <code>init</code>, then call <code>update</code> on each bar. It returns <code>None</code> until it has enough values.</p>
+  <table class="gtab">
+    <tr><td><code>ta.SMA(n)</code>, <code>ta.EMA(n)</code>, <code>ta.RMA(n)</code></td><td><code>.update(value)</code>: simple, exponential and Wilder's moving averages. The EMA starts from the simple average of its first <code>n</code> values, like the chart's.</td></tr>
+    <tr><td><code>ta.RSI(n=14)</code></td><td><code>.update(close)</code>: relative strength, 0 to 100.</td></tr>
+    <tr><td><code>ta.ATR(n=14)</code></td><td><code>.update(high, low, close)</code>: average true range.</td></tr>
+    <tr><td><code>ta.STDEV(n)</code></td><td><code>.update(value)</code>: standard deviation of the last <code>n</code>.</td></tr>
+    <tr><td><code>ta.HIGHEST(n)</code>, <code>ta.LOWEST(n)</code></td><td><code>.update(value)</code>: the highest or lowest of the last <code>n</code>.</td></tr>
+  </table>
+  <p>The functions take <b>whole arrays</b>, like <code>ctx.closes(100)</code>, and return an array of the same length, <code>NaN</code> where there is not enough data yet: <code>ta.sma(x, n)</code>, <code>ta.ema(x, n)</code>, <code>ta.rma(x, n)</code>, <code>ta.rsi(x, n)</code>, <code>ta.atr(highs, lows, closes, n)</code>, <code>ta.stdev(x, n)</code>, <code>ta.highest(x, n)</code>, <code>ta.lowest(x, n)</code>. <code>ta.crossover(a, b)</code> and <code>ta.crossunder(a, b)</code> are <code>True</code> when <code>a</code> crossed above (or below) <code>b</code> on the last value; <code>b</code> can be a number.</p>
+  <p>Running a function over all candles on every bar gets slower as the history grows. Give it a window (<code>ta.rsi(ctx.closes(100), 14)[-1]</code>) or use the class instead.</p>
+
+  <h3 id="gi-settings">Settings</h3>
+  <p>Write the numbers you might change as <code>NAME = value</code> lines at the top of the code, in capitals: <code>LENGTH = 14</code>, <code>SHOW_LABELS = True</code>, <code>SOURCE = "close"  # "close" or "hl2"</code>. They appear on the <b>Settings</b> card, where changing one rewrites that line and updates the chart. Text in quotes in the comment becomes a list of choices.</p>
+
+  <h3 id="gi-pine">Coming from Pine Script</h3>
+  <table class="gtab">
+    <tr><td><code>plot(x, "T", color.orange)</code></td><td><code>ctx.plot(x, "T", "orange")</code></td></tr>
+    <tr><td><code>indicator(overlay=false)</code></td><td><code>ctx.plot(x, "T", pane="lower")</code></td></tr>
+    <tr><td><code>hline(70)</code></td><td><code>ctx.hline(70, pane="lower")</code> in <code>init</code></td></tr>
+    <tr><td><code>fill(p1, p2, color)</code></td><td><code>ctx.fill("T1", "T2", color)</code></td></tr>
+    <tr><td><code>bgcolor(color)</code></td><td><code>ctx.bgcolor(color)</code></td></tr>
+    <tr><td><code>plotshape(cond, style=shape.triangleup)</code></td><td><code>if cond: ctx.marker(shape="arrow_up", position="below")</code></td></tr>
+    <tr><td><code>box.new(...)</code>, <code>box.set_right(b, x)</code></td><td><code>b = ctx.box(...)</code>, <code>b.right = x</code></td></tr>
+    <tr><td><code>line.new(...)</code>, <code>label.new(...)</code></td><td><code>ctx.line(...)</code>, <code>ctx.label(...)</code></td></tr>
+    <tr><td><code>close[1]</code></td><td><code>ctx.closes(2)[0]</code></td></tr>
+    <tr><td><code>ta.ema(close, 20)</code></td><td><code>ctx.e = ta.EMA(20)</code> in <code>init</code>, then <code>ctx.e.update(bar.close)</code></td></tr>
+    <tr><td><code>var x = 0</code></td><td><code>ctx.x = 0</code> in <code>init</code></td></tr>
+    <tr><td><code>bar_index</code>, <code>time</code></td><td><code>bar.index</code>, <code>bar.time</code></td></tr>
+    <tr><td><code>color.new(c, 80)</code></td><td><code>rgba(c, 0.2)</code> (Pine's 80% transparent is 0.2 here)</td></tr>
+    <tr><td><code>input.int(14)</code></td><td><code>LENGTH = 14</code> at the top (the Settings card)</td></tr>
+  </table>
+
+  <h3 id="gi-more">Good to know</h3>
+  <p><code>print()</code> writes to the console in the Indicator panel. An error stops that indicator, shows the line in the console and keeps what it had drawn; fix it and press <b>Update chart</b>.</p>
+  <p>An indicator works on the chart's candles. It cannot place orders; a strategy can (see <b>Strategies</b>), and can use the same <code>ta</code> math.</p>
+  <p>Python runs inside the app: no internet, files or other packages than numpy and pandas. Python loads the first time an indicator runs, in a few seconds.</p>
+</template>
+
+<template id="guideStrat">
+  <h3 id="gs-start">How a run works</h3>
+  <p>A strategy is a Python script that places orders. Open <b>Strategy</b> on the toolbar (on a phone: <b>More</b>, then <b>Strategy</b>), pick dates, a timeframe and how often it is called, then <b>Run backtest</b>. A run is a new session on the loaded data: the replay goes as fast as it can, calls your code as each candle of the strategy's timeframe closes, and fills orders exactly as in manual replay. The finished run opens on the chart and is saved to the Library; the session you had stays in the Library too.</p>
+
+  <h3 id="gs-hooks">Functions you write</h3>
+  <p><code>on_bar(ctx, bar)</code> runs when each candle of the strategy timeframe closes. <code>bar</code> has <code>time</code>, <code>open</code>, <code>high</code>, <code>low</code>, <code>close</code>, <code>volume</code> and <code>index</code>; <code>time</code> is the candle's open in the chart's time zone.</p>
+  <p><code>on_tick(ctx, tick)</code> runs on every simulated tick when you choose <b>Every tick</b>: <code>tick.time</code>, <code>tick.price</code>. <code>on_bar</code> still runs at each close.</p>
+  <p>Optional: <code>init(ctx)</code> before the first bar, <code>on_fill(ctx, fill)</code> after each fill (<code>side</code> buy or sell, <code>qty</code>, <code>price</code>, <code>kind</code> entry or exit, <code>reason</code>, <code>trade_id</code>, <code>pnl</code> on exits, net of costs), and <code>on_end(ctx)</code> at the end.</p>
+  <p>Keep your own values on <code>ctx</code>, like <code>ctx.count = 0</code> in <code>init</code>.</p>
+
+  <h3 id="gs-orders">Orders</h3>
+  <p><code>ctx.buy(qty=None, sl=None, tp=None)</code> and <code>ctx.sell(...)</code> trade at market; add <code>limit=price</code> or <code>stop=price</code> for a working order. Also <code>ctx.buy_limit</code>, <code>ctx.sell_limit</code>, <code>ctx.buy_stop</code> and <code>ctx.sell_stop</code><code>(price, qty=None, sl=None, tp=None)</code>.</p>
+  <p>Leave out <code>qty</code> to use the size in <b>Session settings</b>. The stop loss <code>sl</code> and take profit <code>tp</code> are prices: build them with <code>ctx.ticks(n)</code> and round them with <code>ctx.round(price)</code>. Each call returns the order's id, or <code>None</code> if it was rejected (the console says why). A buy stop must be above the ask and a sell stop below the bid.</p>
+  <p><code>ctx.close()</code> closes the position at market, <code>ctx.cancel(id)</code> and <code>ctx.cancel_all()</code> cancel working orders, <code>ctx.set_bracket(sl=..., tp=...)</code> moves the open position's stop and target.</p>
+  <p>There is one position at a time. <code>ctx.position</code> is positive when long, negative when short, 0 when flat. To reverse, <code>ctx.close()</code> and then enter the other way.</p>
+
+  <h3 id="gs-fills">How fills work</h3>
+  <p>Market orders and <code>close()</code> fill on the next tick: from <code>on_bar</code> that is the next bar's open, so a strategy cannot trade at a price it has already seen. Limit and stop orders, stop losses and take profits fill inside bars, exactly as in manual replay. Each bar of the data replays as open, low, high, close (or open, high, low, close on a down bar). Size, costs, spread, slippage, point value and the prop simulation come from <b>Session settings</b>.</p>
+
+  <h3 id="gs-read">What the strategy can read</h3>
+  <p><code>ctx.closes(n)</code>, <code>opens</code>, <code>highs</code>, <code>lows</code>, <code>volumes</code>, <code>times</code>: the last <code>n</code> closed candles (all of them without <code>n</code>) as numpy arrays, oldest first. <code>times</code> are UTC seconds. Check <code>len(...)</code> early on.</p>
+  <p><code>ctx.df(n)</code>: the same candles as a pandas DataFrame (choose <b>numpy + pandas</b> under Libraries). Building one on every bar is slow over long runs; numpy arrays are much faster.</p>
+  <p><code>ctx.position</code>, <code>ctx.position_price</code>, <code>ctx.equity</code>, <code>ctx.balance</code>, <code>ctx.time</code>, <code>ctx.price</code>, <code>ctx.orders</code> (working orders), <code>ctx.trades</code> (open trades), <code>ctx.history</code> (closed trades).</p>
+  <p><code>ctx.tick_size</code>, <code>ctx.ticks(n)</code>, <code>ctx.bid</code> and <code>ctx.ask</code> (sells fill at the bid, buys at the ask), <code>ctx.spread</code>, <code>ctx.round(price)</code>, <code>ctx.point_value</code> (money per 1.0 of price per contract), <code>ctx.at("09:30")</code> (a time to compare with <code>bar.time.time()</code>).</p>
+
+  <h3 id="gs-ta">Indicator math</h3>
+  <p>The <code>ta</code> helpers from indicators work in strategies too: <code>ctx.ema = ta.EMA(20)</code> in <code>init</code>, then <code>ctx.ema.update(bar.close)</code> on each bar, or <code>ta.rsi(ctx.closes(100), 14)[-1]</code>. The <b>Indicators</b> guide lists them all.</p>
+
+  <h3 id="gs-example">An example</h3>
+<pre>FAST = 9
+SLOW = 21
+STOP = 40      # ticks
+TARGET = 80    # ticks
+
+def init(ctx):
+    ctx.fast, ctx.slow = ta.EMA(FAST), ta.EMA(SLOW)
+
+def on_bar(ctx, bar):
+    f, s = ctx.fast.update(bar.close), ctx.slow.update(bar.close)
+    if f is None or s is None:
+        return
+    if f &gt; s and ctx.position &lt;= 0:
+        ctx.close()
+        ctx.buy(sl=bar.close - ctx.ticks(STOP), tp=bar.close + ctx.ticks(TARGET))
+    elif f &lt; s and ctx.position &gt;= 0:
+        ctx.close()
+        ctx.sell(sl=bar.close + ctx.ticks(STOP), tp=bar.close - ctx.ticks(TARGET))
+
+def on_fill(ctx, fill):
+    print(f"{fill.time:%m-%d %H:%M}  {fill.side} {fill.qty:g} @ {fill.price}  {fill.reason}")</pre>
+
+  <h3 id="gs-settings">Settings and the optimizer</h3>
+  <p>Write tunable numbers as <code>NAME = value</code> lines at the top, in capitals. The Optimize tab finds them (numbers, True/False and text choices; times of day are left out). A comment can help it: quoted words become choices (<code>ENTRY = "break"  # "break" or "retest"</code>), and <code># 0 = off</code> makes it always try 0. A setting can carry its own range: <code>FAST = param(9, 5, 30, step=5)</code> or <code>param("break", values=["break", "retest"])</code>; in a normal run it is just the first value.</p>
+  <p class="opthelp" hidden>On the Optimize tab, tick the settings to try and adjust their values; it runs every combination, several at a time, ranked by your goal. <b>Check on the last</b> leaves the end of the dates out of the ranking and shows how each combination did there: a result that only works on the dates it was tuned on is luck. Robustness tests (out of sample, walk-forward, Monte Carlo) then check the best ones. On iPhone and iPad it runs one or two at a time, up to 300 combinations, and pauses if you leave the app (tap Resume when you are back).</p>
+
+  <h3 id="gs-more">Good to know</h3>
+  <p><code>print()</code> writes to the console. Errors stop the run and show the line.</p>
+  <p><b>At bar close</b> is fast. <b>Every tick</b> calls Python many times per bar and is slower; the ticks are simulated from each bar's open, high, low and close. A strategy that never returns stops the app responding.</p>
+  <p>Prop rules (daily loss, drawdown) and buying new evaluations are handled by the app from Session settings; you do not code them.</p>
+  <p>Python runs inside the app: no internet, files or other packages than numpy and pandas.</p>
+</template>
 
 <!-- home: shown at launch and from the logo -->
 <div id="home" class="home" hidden>
   <div class="hwrap">
     <header class="hhead">
       <div class="brand hlogo"><i></i>Tape Replay</div>
-      <nav class="hnav"><button id="hTour" class="hghost">Take the tour</button><button id="hLib" class="hghost">Library</button></nav>
+      <nav class="hnav"><button id="hTour" class="hghost">Take the tour</button><button id="hGuide" class="hghost">Python guide</button><button id="hLib" class="hghost">Library</button></nav>
     </header>
     <p class="htag">Replay the futures tape bar by bar and trade it as if it were live.</p>
     <div id="hResume" class="hresume" hidden></div>
@@ -1831,33 +2073,22 @@ class Fill:
         return f"Fill({self.time:%Y-%m-%d %H:%M} {self.side} {self.qty:g} @ {self.price} {self.kind} {self.reason}{pnl})"
 
 
-class Context:
-    """What a strategy sees and does. Prices are in the data's units; qty in contracts (or units)."""
+class _History:
+    """Completed candles (oldest first, the current one last) and the helpers strategies and indicators share."""
 
-    def __init__(self, api, info):
-        self._api = api
+    def __init__(self, info):
         self.symbol = info.get("name", "")
         self.timeframe = info.get("tf", "")
         self.tick_size = info.get("tick", 0.01)
         self.point_value = info.get("pv", 1)
-        self.spread = info.get("spread", 0.0)
-        self.default_qty = info.get("qty", 1)
         self._prec = int(info.get("prec", 2))
-        self.mode = info.get("mode", "bar")
-        self.position = 0.0
-        self.position_price = None
-        self.equity = self.balance = info.get("balance", 0.0)
         self.time = None
         self.price = None
         self.bar_index = -1
         self._k = 0
         self._cap = 4096
         self._a = np.zeros((6, self._cap))
-        self._rejects = {}
-        self._hist = []
-        self._quiet = bool(info.get("quiet"))
 
-    # ---- history of completed candles (oldest first, the current one last)
     def _push(self, t, o, h, l, c, v):
         if self._k >= self._cap:
             self._cap *= 2
@@ -1907,16 +2138,6 @@ class Context:
         """A price rounded to the data's precision, as the app rounds order prices."""
         return round(price, self._prec)
 
-    @property
-    def bid(self):
-        """The price now (the bar's close in on_bar). Sells fill here."""
-        return self.price
-
-    @property
-    def ask(self):
-        """The bid plus the spread. Buys fill here."""
-        return None if self.price is None else round(self.price + self.spread, self._prec)
-
     def ticks(self, n):
         """n ticks as a price distance."""
         return n * self.tick_size
@@ -1926,6 +2147,33 @@ class Context:
         """'09:30' -> a datetime.time, to compare with bar.time.time()."""
         h, m = str(hhmm).strip().split(":")
         return _dtime(int(h), int(m))
+
+
+class Context(_History):
+    """What a strategy sees and does. Prices are in the data's units; qty in contracts (or units)."""
+
+    def __init__(self, api, info):
+        super().__init__(info)
+        self._api = api
+        self.spread = info.get("spread", 0.0)
+        self.default_qty = info.get("qty", 1)
+        self.mode = info.get("mode", "bar")
+        self.position = 0.0
+        self.position_price = None
+        self.equity = self.balance = info.get("balance", 0.0)
+        self._rejects = {}
+        self._hist = []
+        self._quiet = bool(info.get("quiet"))
+
+    @property
+    def bid(self):
+        """The price now (the bar's close in on_bar). Sells fill here."""
+        return self.price
+
+    @property
+    def ask(self):
+        """The bid plus the spread. Buys fill here."""
+        return None if self.price is None else round(self.price + self.spread, self._prec)
 
     # ---- orders. Market orders fill on the next tick (from on_bar: the next bar's open).
     def _send(self, side, qty, sl, tp, limit, stop):
@@ -2288,7 +2536,7 @@ def _start(api, code, info_json):
     try:
         info = json.loads(info_json)
         ctx = Context(api, info)
-        ns = {"__name__": "strategy", "np": np, "numpy": np, "param": param}
+        ns = {"__name__": "strategy", "np": np, "numpy": np, "param": param, "ta": ta}
         if info.get("quiet"):
             ns["print"] = lambda *a, **k: None
         # so tracebacks can show the line of the strategy that failed
@@ -2362,6 +2610,596 @@ def _tr_end(pos, avg, eq, bal):
         return _err()
     finally:
         _S.update(ctx=None, ns=None, on_bar=None, on_tick=None, on_fill=None, on_end=None)
+    return None
+
+
+# ---- ta: indicator math for strategies and indicators
+class _Stream:
+    """Base for the one-value-at-a-time indicators in ta: update(...) returns the value, or None while warming up."""
+    value = None
+
+    def __repr__(self):
+        return f"{type(self).__name__}({getattr(self, 'n', '')}) = {self.value}"
+
+
+class _SMA(_Stream):
+    def __init__(self, n):
+        self.n, self._w, self._sum, self.value = int(n), [], 0.0, None
+
+    def update(self, x):
+        x = float(x)
+        self._w.append(x)
+        self._sum += x
+        if len(self._w) > self.n:
+            self._sum -= self._w.pop(0)
+        self.value = self._sum / self.n if len(self._w) == self.n else None
+        return self.value
+
+
+class _EMA(_Stream):
+    """Exponential average, seeded with the simple average of the first n values (as the chart's EMA)."""
+    def __init__(self, n, alpha=None):
+        self.n = int(n)
+        self._a = 2.0 / (self.n + 1) if alpha is None else alpha
+        self._seed, self._cnt, self.value = 0.0, 0, None
+
+    def update(self, x):
+        x = float(x)
+        if self.value is None:
+            self._cnt += 1
+            self._seed += x
+            if self._cnt == self.n:
+                self.value = self._seed / self.n
+            return self.value
+        self.value += self._a * (x - self.value)
+        return self.value
+
+
+class _RMA(_EMA):
+    """Wilder's average (alpha = 1/n), used by RSI and ATR."""
+    def __init__(self, n):
+        super().__init__(n, 1.0 / int(n))
+
+
+class _RSI(_Stream):
+    def __init__(self, n=14):
+        self.n, self._prev, self._up, self._dn, self.value = int(n), None, _RMA(n), _RMA(n), None
+
+    def update(self, x):
+        x = float(x)
+        if self._prev is not None:
+            d = x - self._prev
+            u, v = self._up.update(max(d, 0.0)), self._dn.update(max(-d, 0.0))
+            if u is not None:
+                self.value = 100.0 if v == 0 else 100.0 - 100.0 / (1.0 + u / v)
+        self._prev = x
+        return self.value
+
+
+class _ATR(_Stream):
+    def __init__(self, n=14):
+        self.n, self._prev, self._r, self.value = int(n), None, _RMA(n), None
+
+    def update(self, high, low, close):
+        tr = high - low if self._prev is None else max(high - low, abs(high - self._prev), abs(low - self._prev))
+        self._prev = float(close)
+        self.value = self._r.update(tr)
+        return self.value
+
+
+class _STDEV(_Stream):
+    """Standard deviation of the last n values (population, as most charting tools)."""
+    def __init__(self, n):
+        self.n, self._w, self.value = int(n), [], None
+
+    def update(self, x):
+        self._w.append(float(x))
+        if len(self._w) > self.n:
+            self._w.pop(0)
+        self.value = float(np.std(self._w)) if len(self._w) == self.n else None
+        return self.value
+
+
+class _Window(_Stream):
+    def __init__(self, n, f):
+        self.n, self._w, self._f, self.value = int(n), [], f, None
+
+    def update(self, x):
+        self._w.append(float(x))
+        if len(self._w) > self.n:
+            self._w.pop(0)
+        self.value = self._f(self._w) if len(self._w) == self.n else None
+        return self.value
+
+
+def _arr(x):
+    return np.asarray(x, dtype=float)
+
+
+def _ewm(x, n, alpha):
+    x = _arr(x)
+    out = np.full(len(x), np.nan)
+    if len(x) < n:
+        return out
+    v = x[:n].mean()
+    out[n - 1] = v
+    for i in range(n, len(x)):
+        v += alpha * (x[i] - v)
+        out[i] = v
+    return out
+
+
+def _roll(x, n, f):
+    x = _arr(x)
+    out = np.full(len(x), np.nan)
+    if n >= 1 and len(x) >= n:
+        out[n - 1:] = f(np.lib.stride_tricks.sliding_window_view(x, n), axis=1)
+    return out
+
+
+class _TA:
+    """Indicator math. Lower-case functions take whole arrays (like ctx.closes()) and return an array of the same
+    length, NaN where there is not enough data yet. Capitalised classes take one value at a time (fast in on_bar):
+    make one in init, then call .update(...) on each bar."""
+    SMA, EMA, RMA, RSI, ATR, STDEV = _SMA, _EMA, _RMA, _RSI, _ATR, _STDEV
+
+    @staticmethod
+    def HIGHEST(n):
+        return _Window(n, max)
+
+    @staticmethod
+    def LOWEST(n):
+        return _Window(n, min)
+
+    @staticmethod
+    def sma(x, n):
+        return _roll(x, int(n), np.mean)
+
+    @staticmethod
+    def ema(x, n):
+        return _ewm(x, int(n), 2.0 / (int(n) + 1))
+
+    @staticmethod
+    def rma(x, n):
+        return _ewm(x, int(n), 1.0 / int(n))
+
+    @staticmethod
+    def stdev(x, n):
+        return _roll(x, int(n), np.std)
+
+    @staticmethod
+    def highest(x, n):
+        return _roll(x, int(n), np.max)
+
+    @staticmethod
+    def lowest(x, n):
+        return _roll(x, int(n), np.min)
+
+    @staticmethod
+    def rsi(x, n=14):
+        x = _arr(x)
+        out = np.full(len(x), np.nan)
+        if len(x) <= n:
+            return out
+        d = np.diff(x)
+        up, dn = _ewm(np.maximum(d, 0), n, 1.0 / n), _ewm(np.maximum(-d, 0), n, 1.0 / n)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            r = np.where(dn == 0, 100.0, 100.0 - 100.0 / (1.0 + up / dn))
+        out[1:] = np.where(np.isnan(up), np.nan, r)
+        return out
+
+    @staticmethod
+    def atr(high, low, close, n=14):
+        h, l, c = _arr(high), _arr(low), _arr(close)
+        if not len(c):
+            return np.array([])
+        pc = np.concatenate(([np.nan], c[:-1]))
+        tr = np.fmax(h - l, np.fmax(np.abs(h - pc), np.abs(l - pc)))
+        tr[0] = h[0] - l[0]
+        return _ewm(tr, int(n), 1.0 / int(n))
+
+    @staticmethod
+    def crossover(a, b):
+        """True when a crossed above b on the last value: a[-2] <= b[-2] and a[-1] > b[-1]. b can be a number."""
+        a, b = _arr(a), np.broadcast_to(_arr(b), np.shape(a)) if np.ndim(b) == 0 else _arr(b)
+        return bool(len(a) >= 2 and len(b) >= 2 and a[-2] <= b[-2] and a[-1] > b[-1])
+
+    @staticmethod
+    def crossunder(a, b):
+        a, b = _arr(a), np.broadcast_to(_arr(b), np.shape(a)) if np.ndim(b) == 0 else _arr(b)
+        return bool(len(a) >= 2 and len(b) >= 2 and a[-2] >= b[-2] and a[-1] < b[-1])
+
+
+ta = _TA()
+
+
+# ---- indicators: Python that runs on each closed candle of the chart and draws on it.
+# The page keeps one instance per indicator on the chart, feeds it candles (_ti_feed) and draws what it returns.
+_TI = {}
+_MAX_OBJ = 500  # boxes, lines and labels kept per indicator, each kind; the oldest go first (as TradingView)
+_STYLES = ("line", "step", "dashed", "dotted", "points", "histogram")
+_SHAPES = ("arrow_up", "arrow_down", "circle", "square")
+_LINE_STYLES = ("solid", "dashed", "dotted")
+
+
+def _color(c, what="color"):
+    if c is None:
+        return None
+    if not isinstance(c, str) or not c.strip():
+        raise ValueError(f"{what} must be text such as \"#22c55e\", \"red\", \"up\" or rgba(\"#22c55e\", 0.2).")
+    return c.strip()
+
+
+def rgba(c, alpha):
+    """A color with transparency: rgba("#22c55e", 0.2), or a theme color: rgba("up", 0.3)."""
+    a = float(alpha)
+    if not 0 <= a <= 1:
+        raise ValueError("alpha goes from 0 (clear) to 1 (solid).")
+    return f"{_color(c)}@{a:g}"
+
+
+class Drawing:
+    """A box, line or label an indicator drew. Change it by setting attributes (box.right = bar.index) or with
+    set(...); remove it with delete()."""
+    _FIELDS = {
+        "box": ("left", "top", "right", "bottom", "color", "fill", "width", "style", "text", "text_color", "extend"),
+        "line": ("x1", "y1", "x2", "y2", "color", "width", "style", "extend"),
+        "label": ("x", "y", "text", "color", "text_color", "style"),
+    }
+
+    def __init__(self, ind, kind, fields):
+        object.__setattr__(self, "_ind", ind)
+        object.__setattr__(self, "kind", kind)
+        object.__setattr__(self, "id", ind._next_id())
+        object.__setattr__(self, "_f", {})
+        object.__setattr__(self, "alive", True)
+        self.set(**fields)
+
+    def __getattr__(self, k):
+        f = object.__getattribute__(self, "_f")
+        if k in f:
+            return f[k]
+        raise AttributeError(k)
+
+    def __setattr__(self, k, v):
+        self.set(**{k: v})
+
+    def set(self, **kw):
+        ind, kind = self._ind, self.kind
+        allowed = self._FIELDS[kind]
+        for k, v in kw.items():
+            if k not in allowed:
+                raise AttributeError(f"A {kind} has no '{k}'. It has: {', '.join(allowed)}.")
+            if k in ("left", "right", "x1", "x2", "x"):
+                ind._x(v)  # checks it now, so the error points at this line
+            elif k in ("top", "bottom", "y1", "y2", "y"):
+                v = _num(v)
+            elif k in ("color", "fill", "text_color"):
+                v = _color(v, k)
+            elif k == "width":
+                v = max(0.5, min(10.0, float(v)))
+            elif k == "text":
+                v = "" if v is None else str(v)[:200]
+            self._f[k] = v
+        if self.alive:
+            ind._dirty[self.id] = self
+        return self
+
+    def delete(self):
+        if self.alive:
+            object.__setattr__(self, "alive", False)
+            self._ind._remove(self)
+
+    def __repr__(self):
+        return f"{self.kind.capitalize()}({', '.join(f'{k}={v!r}' for k, v in self._f.items())})"
+
+
+class IndContext(_History):
+    """What an indicator sees and draws. on_bar runs when each candle of the chart closes."""
+
+    def __init__(self, ind, info):
+        super().__init__(info)
+        self._ind = ind
+        self._tfs = float(info.get("tfs", 60))
+
+    def plot(self, value, title=None, color=None, width=1, style="line", pane="price"):
+        """A line through this value on each bar: plot(ema, "EMA 20", "orange"). None or NaN leaves a gap.
+        style: line, step, dashed, dotted, points or histogram. pane: "price" (on the candles) or "lower"
+        (a band of its own under the chart, for values on another scale such as RSI)."""
+        self._ind._plot(value, title, color, width, style, pane)
+
+    def hline(self, price, title=None, color="muted", width=1, style="dashed", pane="price"):
+        """A horizontal level across the chart, such as 70 and 30 on an RSI: hline(70, pane="lower").
+        Calling it again with the same title (or price) moves it instead of adding another."""
+        self._ind._hline(price, title, color, width, style, pane)
+
+    def fill(self, plot1, plot2, color=None):
+        """Shade between two plots on this bar, given by their titles: fill("Upper", "Lower", rgba("blue", 0.1))."""
+        self._ind._fill(plot1, plot2, color)
+
+    def bgcolor(self, color):
+        """Tint the chart's background behind this candle."""
+        self._ind._bg(color)
+
+    def marker(self, text="", shape="circle", position="above", color="accent", at=None, size=1):
+        """A marker on this candle (or on bar index or time `at`): shape arrow_up, arrow_down, circle or square;
+        position above, below or inside the candle."""
+        self._ind._marker(text, shape, position, color, at, size)
+
+    def box(self, left, top, right, bottom, color="accent", fill=None, width=1, style="solid", text="",
+            text_color=None, extend=False):
+        """A rectangle from (left, top) to (right, bottom). left and right are bar indexes (bar.index) or
+        times (bar.time); top and bottom are prices. extend=True runs it to the right edge. Returns the box."""
+        return self._ind._new("box", dict(left=left, top=top, right=right, bottom=bottom, color=color,
+                                          fill=rgba(color, 0.15) if fill is None else fill, width=width, style=style,
+                                          text=text, text_color=text_color, extend=bool(extend)))
+
+    def line(self, x1, y1, x2, y2, color="accent", width=1, style="solid", extend="none"):
+        """A line from (x1, y1) to (x2, y2): bar indexes or times, and prices. extend: none, right, left or both."""
+        return self._ind._new("line", dict(x1=x1, y1=y1, x2=x2, y2=y2, color=color, width=width, style=style,
+                                           extend=extend))
+
+    def label(self, x, y, text, color="accent", text_color=None, style="up"):
+        """Text at bar index or time x and price y. style: up (below the price, pointing up at it), down (above,
+        pointing down), center, or text (no background)."""
+        return self._ind._new("label", dict(x=x, y=y, text=text, color=color, text_color=text_color, style=style))
+
+    @property
+    def boxes(self):
+        return [d for d in self._ind._objs.values() if d.kind == "box"]
+
+    @property
+    def lines(self):
+        return [d for d in self._ind._objs.values() if d.kind == "line"]
+
+    @property
+    def labels(self):
+        return [d for d in self._ind._objs.values() if d.kind == "label"]
+
+    def clear(self):
+        """Delete every box, line and label this indicator drew."""
+        for d in list(self._ind._objs.values()):
+            d.delete()
+
+
+class _Ind:
+    def __init__(self, info):
+        self.ctx = IndContext(self, info)
+        self.ns = None
+        self.on_bar = None
+        self.err = None
+        self._id = 0
+        self._objs = {}        # id -> Drawing (alive), oldest first
+        self._dirty = {}       # id -> Drawing changed since the last feed
+        self._gone = []        # ids deleted since the last feed
+        self._meta = {}        # plot title -> {style, pane, ...}, sent once
+        self._new_meta = []
+        self._pts = {}         # plot title -> [[t, v] or [t, v, color]] since the last feed
+        self._now = {}         # plot title -> value on this bar
+        self._hl = {}
+        self._hl_dirty = False
+        self._fills = {}       # (a, b) -> color on this bar
+        self._fill_pts = {}    # (a, b) -> [[t, va, vb, color]]
+        self._bgs = []
+        self._marks = []
+        self._auto = 0
+
+    def _next_id(self):
+        self._id += 1
+        return self._id
+
+    def _t(self):
+        return self.ctx._a[0, self.ctx._k - 1]
+
+    def _x(self, x):
+        """A bar index or a datetime -> UTC seconds (indexes past the last candle are extended by the timeframe)."""
+        if isinstance(x, datetime):
+            return x.timestamp()
+        if isinstance(x, (bool, np.bool_)) or not isinstance(x, (int, float, np.integer, np.floating)):
+            raise TypeError("x positions are bar indexes (bar.index, ctx.bar_index - 5) or times (bar.time).")
+        i, k = int(round(float(x))), self.ctx._k
+        if k == 0:
+            raise ValueError("No candles yet.")
+        if 0 <= i < k:
+            return float(self.ctx._a[0, i])
+        if i >= k:
+            return float(self.ctx._a[0, k - 1] + (i - k + 1) * self.ctx._tfs)
+        return float(self.ctx._a[0, 0] + i * self.ctx._tfs)
+
+    def _plot(self, value, title, color, width, style, pane):
+        if title is None:
+            self._auto += 1
+            title = f"Plot {self._auto}"
+        title = str(title)[:60]
+        if title not in self._meta:
+            if style not in _STYLES:
+                raise ValueError(f"style must be one of {', '.join(_STYLES)}.")
+            if pane not in ("price", "lower"):
+                raise ValueError('pane must be "price" or "lower".')
+            if len(self._meta) >= 64:
+                raise ValueError("An indicator can have up to 64 plots.")
+            m = {"title": title, "style": style, "pane": pane, "width": max(0.5, min(10.0, float(width))),
+                 "color": _color(color)}
+            self._meta[title] = m
+            self._new_meta.append(m)
+        v = None if value is None else float(value)
+        if v is not None and (v != v or v in (float("inf"), float("-inf"))):
+            v = None
+        self._now[title] = v
+        t = self._t()
+        pts = self._pts.setdefault(title, [])
+        c = _color(color)
+        pt = [t, v] if c is None or c == self._meta[title]["color"] else [t, v, c]
+        if pts and pts[-1][0] == t:
+            pts[-1] = pt
+        else:
+            pts.append(pt)
+
+    def _hline(self, price, title, color, width, style, pane):
+        if style not in _LINE_STYLES:
+            raise ValueError(f"style must be one of {', '.join(_LINE_STYLES)}.")
+        if pane not in ("price", "lower"):
+            raise ValueError('pane must be "price" or "lower".')
+        p = _num(price)
+        key = str(title) if title is not None else f"{pane}:{p}"
+        h = {"price": p, "title": None if title is None else str(title)[:60], "color": _color(color),
+             "width": max(0.5, min(10.0, float(width))), "style": style, "pane": pane}
+        if self._hl.get(key) != h:
+            self._hl[key] = h
+            self._hl_dirty = True
+
+    def _fill(self, a, b, color):
+        self._fills[(str(a), str(b))] = _color(color)
+
+    def _bg(self, color):
+        c = _color(color)
+        if c:
+            self._bgs.append([self._t(), c])
+
+    def _marker(self, text, shape, position, color, at, size):
+        if shape not in _SHAPES:
+            raise ValueError(f"shape must be one of {', '.join(_SHAPES)}.")
+        if position not in ("above", "below", "inside"):
+            raise ValueError('position must be "above", "below" or "inside".')
+        if at is None:
+            t = self._t()
+        else:
+            if not isinstance(at, datetime):
+                at = max(0, min(self.ctx._k - 1, int(at)))  # markers sit on candles that exist
+            t = self._x(at)
+        self._marks.append([t, shape, position, _color(color), str(text or "")[:40], max(0.5, min(4.0, float(size)))])
+
+    def _new(self, kind, fields):
+        if kind == "line" and fields.get("extend") not in ("none", "right", "left", "both"):
+            raise ValueError('extend must be "none", "right", "left" or "both".')
+        if kind == "label" and fields.get("style") not in ("up", "down", "center", "text"):
+            raise ValueError('style must be "up", "down", "center" or "text".')
+        if kind in ("box", "line") and fields.get("style") not in _LINE_STYLES:
+            raise ValueError(f"style must be one of {', '.join(_LINE_STYLES)}.")
+        d = Drawing(self, kind, fields)
+        self._objs[d.id] = d
+        same = [x for x in self._objs.values() if x.kind == kind]
+        if len(same) > _MAX_OBJ:
+            same[0].delete()
+        return d
+
+    def _remove(self, d):
+        self._objs.pop(d.id, None)
+        self._dirty.pop(d.id, None)
+        self._gone.append(d.id)
+
+    def _end_bar(self):
+        t = self._t()
+        for (a, b), c in self._fills.items():
+            va, vb = self._now.get(a), self._now.get(b)
+            if va is not None and vb is not None:
+                self._fill_pts.setdefault((a, b), []).append([t, va, vb, c])
+        self._fills.clear()
+        self._now.clear()
+        self._auto = 0
+
+    def _drawing_out(self, d):
+        f = dict(d._f)
+        for k in ("left", "right", "x1", "x2", "x"):
+            if k in f:
+                f[k] = self._x(f[k])
+        f["id"], f["kind"] = d.id, d.kind
+        return f
+
+    def _out(self, err=None):
+        o = {}
+        if self._new_meta:
+            o["meta"] = self._new_meta
+            self._new_meta = []
+        if self._pts:
+            o["plots"] = self._pts
+            self._pts = {}
+        if self._hl_dirty:
+            o["hlines"] = list(self._hl.values())
+            self._hl_dirty = False
+        if self._fill_pts:
+            o["fills"] = [[a, b, pts] for (a, b), pts in self._fill_pts.items()]
+            self._fill_pts = {}
+        if self._bgs:
+            o["bg"] = self._bgs
+            self._bgs = []
+        if self._marks:
+            o["marks"] = self._marks
+            self._marks = []
+        if self._dirty:
+            o["draw"] = [self._drawing_out(d) for d in self._dirty.values()]
+            self._dirty = {}
+        if self._gone:
+            o["del"] = self._gone
+            self._gone = []
+        if err:
+            o["error"] = err
+        return json.dumps(o, allow_nan=False)
+
+
+def _tr_err(fname):
+    """The traceback for code compiled as fname, only its own lines."""
+    et, ev, tb = sys.exc_info()
+    out = [f'  line {f.lineno}, in {f.name}' + (f"\n    {f.line}" if f.line else "")
+           for f in traceback.extract_tb(tb) if f.filename == fname]
+    if isinstance(ev, SyntaxError) and ev.filename == fname:
+        out.append(f"  line {ev.lineno}\n    {(ev.text or '').rstrip()}")
+        return "SyntaxError: " + str(ev.msg) + "\n" + "\n".join(out)
+    return f"{et.__name__}: {ev}" + ("\n" + "\n".join(out) if out else "")
+
+
+def _ti_check(code):
+    """None when the indicator compiles, else the syntax error."""
+    try:
+        compile(code, "<indicator>", "exec")
+    except SyntaxError:
+        return _tr_err("<indicator>")
+    return None
+
+
+def _ti_start(iid, code, info_json):
+    """Start indicator instance iid: JSON {} or {"error": text}."""
+    ind = _Ind(json.loads(info_json))
+    _TI[iid] = ind
+    try:
+        ns = {"__name__": "indicator", "np": np, "numpy": np, "ta": ta, "rgba": rgba, "param": param}
+        linecache.cache["<indicator>"] = (len(code), None, code.splitlines(True), "<indicator>")
+        exec(compile(code, "<indicator>", "exec"), ns)
+        ind.ns, ind.on_bar = ns, ns.get("on_bar")
+        if not callable(ind.on_bar):
+            raise NameError("An indicator needs an on_bar(ctx, bar) function.")
+        if callable(ns.get("init")):
+            ns["init"](ind.ctx)
+    except Exception:
+        ind.err = _tr_err("<indicator>")
+        return ind._out(ind.err)
+    return ind._out()
+
+
+def _ti_feed(iid, buf):
+    """Closed candles for instance iid, 7 numbers each (time, open, high, low, close, volume, zone offset),
+    as a flat buffer. JSON of what to draw since the last call, with "error" if on_bar failed (it then stops)."""
+    ind = _TI.get(iid)
+    if ind is None or ind.err:
+        return json.dumps({})
+    a = np.asarray(buf.to_py() if hasattr(buf, "to_py") else buf, dtype=np.float64).reshape(-1, 7)
+    ctx, f = ind.ctx, ind.on_bar
+    try:
+        for t, o, h, l, c, v, off in a.tolist():
+            ctx._push(t, o, h, l, c, v)
+            ctx.bar_index += 1
+            ctx.time = _dt(t, int(off))
+            ctx.price = c
+            f(ctx, Bar(ctx.time, o, h, l, c, v, ctx.bar_index))
+            ind._end_bar()
+    except Exception:
+        ind.err = _tr_err("<indicator>")
+        ind._end_bar()
+    return ind._out(ind.err)
+
+
+def _ti_stop(iid):
+    _TI.pop(iid, None)
     return None
 </script>
 <script src="lw.js"></script>
@@ -3169,7 +4007,7 @@ function applyTheme() {
   eqChart.applyOptions({ ...base, grid: { horzLines: { color: C.grid } }, rightPriceScale: { borderColor: C.line }, timeScale: { borderColor: C.line } });
   cs.applyOptions({ upColor: C.up, downColor: C.down, wickUpColor: C.wickUp, wickDownColor: C.wickDown,
                     borderVisible: C.border, borderUpColor: C.wickUp, borderDownColor: C.wickDown });
-  syncIndSeries();
+  syncIndSeries(); piSetAll();
   eqS.applyOptions({ lineColor: C.accent, topColor: hexA(C.accent, 0.28), bottomColor: hexA(C.accent, 0.02) });
   if (E) { R.full = true; R.marks = true; render(); refreshLines(); }
 }
@@ -3198,7 +4036,7 @@ function legend(bar) {
   const inds = activeInds().map((x, k) => {
     const v = live ? (E.F && E.mas[k] ? E.mas[k].peek(E.F) : null) : (E.tfCandles[j] && E.tfCandles[j].time === b.time ? E.maVals[k]?.[j] : null);
     return v == null ? '' : `<span><span class="k" style="color:${x.color}">${indLabel(x)}</span> ${fp(v)}</span>`;
-  }).join('');
+  }).join('') + piLegend(live ? null : b.time);
   setLegend(`<b>${name}</b><span>${tfLabel(TF)}</span>` +
     `<span><span class="k">O</span> ${fp(b.open)}</span><span><span class="k">H</span> ${fp(b.high)}</span><span><span class="k">L</span> ${fp(b.low)}</span><span><span class="k">C</span> ${fp(b.close)}</span>` +
     `<span class="${cls(ch)}">${ch >= 0 ? '+' : ''}${ch.toFixed(2)}%</span>${vol}${left}${inds ? `<div class="lind">${inds}</div>` : ''}`);
@@ -3267,10 +4105,20 @@ function openIndPop() {
         <input type="color" data-i="${i}" data-f="color" value="${x.color}" aria-label="Color">
         <button data-x="${i}" title="Remove" aria-label="Remove ${indLabel(x)}">×</button></div>`).join('') : '<p class="note">No indicators on the chart.</p>') +
       '<div class="indadd"><button data-add="ema">+ EMA</button><button data-add="sma">+ SMA</button><button data-add="vwap">+ VWAP</button></div>' +
-      '<p class="note">Any length for EMA and SMA. VWAP restarts each trading day at 6 PM New York time and is hidden on daily and longer candles.</p>';
+      '<p class="note">Any length for EMA and SMA. VWAP restarts each trading day at 6 PM New York time and is hidden on daily and longer candles.</p>' +
+      '<h5 class="indpy">Python <span class="pytag">your own</span></h5>' +
+      (piList().length ? piList().map((x, i) => {
+        const ins = PI.inst.find(y => y.x === x);
+        return `<div class="indrow pyrow"><input type="checkbox" data-p="${i}"${x.on ? ' checked' : ''} aria-label="Show ${esc(x.name)}">
+          <button class="pilink" data-pe="${i}" title="Open in the Indicator editor">${esc(x.name)}</button>${ins && ins.err ? '<span class="pierr" title="Stopped with an error">error</span>' : ''}
+          <button data-px="${i}" title="Remove" aria-label="Remove ${esc(x.name)}">×</button></div>`;
+      }).join('') : '') +
+      '<div class="indadd"><button data-pnew>+ Python indicator…</button><button data-pguide>Guide</button></div>' +
+      '<p class="note">Write your own in Python: lines, levels, fills, markers, boxes and labels, or a band under the chart for something like RSI.</p>';
   };
   draw();
   el.addEventListener('change', e => {
+    if (e.target.dataset.p != null) { piList()[+e.target.dataset.p].on = e.target.checked; return piChanged(); }
     const i = e.target.dataset.i, f = e.target.dataset.f; if (i == null) return;
     const x = indPrefs()[+i];
     if (f === 'on') x.on = e.target.checked;
@@ -3282,6 +4130,10 @@ function openIndPop() {
   el.addEventListener('input', e => { if (e.target.dataset.f === 'color') { indPrefs()[+e.target.dataset.i].color = e.target.value; syncIndSeries(); } });
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.pnew != null) return openPind();
+    if (b.dataset.pe != null) return openPind(piList()[+b.dataset.pe]);
+    if (b.dataset.pguide != null) { closePop(); return openGuide('ind'); }
+    if (b.dataset.px != null) { piList().splice(+b.dataset.px, 1); piChanged(); return draw(); }
     const list = indPrefs();
     if (b.dataset.x != null) list.splice(+b.dataset.x, 1);
     else if (b.dataset.add) {
@@ -3350,6 +4202,7 @@ function aggBar(t, o, h, l, c, v) {
 const MAX_CANDLES = TOUCH ? 8000 : 40000, CANDLE_SLACK = TOUCH ? 1500 : 5000;
 function completeForming() {
   const F = E.F; E.tfCandles.push(F);
+  if (PI.inst.length) { PI.q.push(F); piKick(); } // Python indicators: fed between frames
   for (let k = 0; k < E.mas.length; k++) E.maVals[k].push(E.mas[k].push(F));
   if (E.tfCandles.length > MAX_CANDLES + CANDLE_SLACK) {
     const drop = E.tfCandles.length - MAX_CANDLES;
@@ -3359,6 +4212,7 @@ function completeForming() {
 }
 function rebuild() {
   E.tfCandles = []; E.F = null;
+  piReset();
   syncIndSeries(); E.mas = activeInds().map(makeInd); E.maVals = E.mas.map(() => []);
   E.rebuilding = true;
   for (let j = 0; j < E.i; j++) aggBar(D.t[j], D.o[j], D.h[j], D.l[j], D.c[j], D.v[j]);
@@ -4812,6 +5666,7 @@ function drawOverlay() {
   g.save(); g.beginPath(); g.rect(0, 0, pw, ph); g.clip();
   drawSessions(g, pw, ph);
   drawZones(g, pw);
+  drawScripts(g, pw, ph);
   for (const d of DR.list) drawOne(g, d, pw, ph);
   drawTradeLabels(g);
   drawLive(g, pw);
@@ -5524,6 +6379,7 @@ function render() {
         if (F) { const pv = m.peek(F); if (pv != null) md.push({ time: F.time, value: pv }); } }
       maS[k].setData(md);
     }
+    piSetAll();
     R.count = arr.length; R.full = false; R.marks = true;
   } else {
     for (let j = R.count; j < arr.length; j++) {
@@ -5554,6 +6410,7 @@ function renderMarks() {
     else if (m.kind === 'in') ms.push({ time, position: m.side > 0 ? 'belowBar' : 'aboveBar', color: m.side > 0 ? C.up : C.down, shape: m.side > 0 ? 'arrowUp' : 'arrowDown', text: (m.side > 0 ? 'B' : 'S') + m.id });
     else ms.push({ time, position: m.side > 0 ? 'belowBar' : 'aboveBar', color: C.muted, shape: 'circle', text: ({ 'Stop loss': 'SL', 'Take profit': 'TP' }[m.reason] || 'X') + m.id });
   }
+  ms.push(...piMarkers(first));
   ms.sort((a, b) => a.time - b.time);
   cs.setMarkers(ms);
 }
@@ -6292,6 +7149,8 @@ function wirePhone() {
     closeSheet();
     if (go === 'import') { if (CAN_PICK) pickFile(); else $('#fileIn').click(); return; }
     if (go === 'tour') { if (E) { setMview('chart'); startTour(); } return; }
+    if (go === 'pind') return openPind();
+    if (go === 'guide') return openGuide('ind');
     const target = $('#' + go);
     if (go === 'bInd') { setMview('chart'); setTimeout(() => target.click(), 0); return; }
     target.click();
@@ -7137,6 +7996,8 @@ function wire() {
       if (e.key === 'Escape') endTour(); else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); tourGo(TOUR.i + 1); } else if (e.key === 'ArrowLeft') tourGo(TOUR.i - 1);
       return;
     }
+    if (!$('#docs').hidden) { if (e.key === 'Escape') $('#docs').hidden = true; return; }
+    if (!$('#pind').hidden) { if (e.key === 'Escape') closePind(); return; }
     if (!$('#strat').hidden) { if (e.key === 'Escape') closeStrat(); return; }
     if (!$('#lib').hidden) { if (e.key === 'Escape') $('#lib').hidden = true; return; }
     if (SHEET.el) { if (e.key === 'Escape') closeSheet(); return; }
@@ -7216,7 +8077,7 @@ function frame(now) {
 const PYODIDE_VER = '0.27.7'; // keep in step with desktop/build.py
 const PY_CDN = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VER}/full/`;
 const RUN = { on: false, stop: false, mute: false, fills: null, pending: [], rejects: new Map(), shown: 0 };
-const PY = { py: null, fn: null, libs: new Set(), loading: null };
+const PY = { py: null, fn: null, libs: new Set(), loading: null, out: null };
 const STRAT_TFS = ['1m', '2m', '3m', '5m', '10m', '15m', '30m', '1h', '2h', '4h', '1D', '1W'];
 const STRAT_TPL = {
   'MA cross': `# Moving-average cross: long when the fast average is above the slow one, short when below.
@@ -7342,13 +8203,13 @@ function stratTab(t) {
   $('#stCode').hidden = t !== 'code'; $('#stRes').hidden = t !== 'res'; $('#stHelp').hidden = t !== 'help'; $('#stOpt').hidden = t !== 'opt';
   if (t === 'opt') optOpen();
 }
-function stratLines() {
-  const src = $('#stSrc');
+// the code editors (Strategy and Indicator): line numbers, and as tall and wide as the code
+function edLines(src, ln) {
   const lines = src.value.split('\n');
-  $('#stLn').textContent = Array.from({ length: lines.length }, (_, i) => i + 1).join('\n');
+  ln.textContent = Array.from({ length: lines.length }, (_, i) => i + 1).join('\n');
   src.style.height = 'auto'; src.style.height = src.scrollHeight + 'px';
   // as wide as the longest line, so long lines scroll sideways instead of being cut off
-  const m = stratLines.m || (stratLines.m = document.createElement('canvas').getContext('2d'));
+  const m = edLines.m || (edLines.m = document.createElement('canvas').getContext('2d'));
   if (m) {
     const cs = getComputedStyle(src);
     m.font = `${cs.fontSize} ${cs.fontFamily}`;
@@ -7356,6 +8217,28 @@ function stratLines() {
     for (const l of lines) w = Math.max(w, m.measureText(l.replace(/\t/g, '    ')).width);
     src.style.width = Math.ceil(w + (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) + 4) + 'px';
   }
+}
+const stratLines = () => edLines($('#stSrc'), $('#stLn'));
+// typing in a code editor: straight quotes, four-space tabs, indents kept; Ctrl+Enter runs; saved after a pause
+function wireEditor(src, ln, run, save) {
+  let saveT = 0;
+  src.addEventListener('input', () => {
+    // phone keyboards' smart quotes are not Python: straight quotes instead (same length, so the caret stays)
+    if (/[\u2018\u2019\u201C\u201D]/.test(src.value)) {
+      const a = src.selectionStart, b = src.selectionEnd;
+      src.value = src.value.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+      src.setSelectionRange(a, b);
+    }
+    edLines(src, ln); clearTimeout(saveT); saveT = setTimeout(save, 800); });
+  src.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); return; }
+    if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); src.setRangeText('    ', src.selectionStart, src.selectionEnd, 'end'); edLines(src, ln); }
+    else if (e.key === 'Enter') { // keep the indent, and indent after a colon
+      const s = src.selectionStart, line = src.value.slice(src.value.lastIndexOf('\n', s - 1) + 1, s);
+      const ind = line.match(/^\s*/)[0] + (/:\s*$/.test(line) ? '    ' : '');
+      if (ind) { e.preventDefault(); src.setRangeText('\n' + ind, s, src.selectionEnd, 'end'); edLines(src, ln); }
+    }
+  });
 }
 function segPick(sel, v) { for (const b of document.querySelectorAll(sel + ' button')) b.setAttribute('aria-pressed', String(b.dataset.v === v)); }
 function fillStratList(sel) {
@@ -7430,12 +8313,14 @@ async function loadPython(libs) {
         }
       }
       const py = await window.loadPyodide({ indexURL: base });
-      py.setStdout({ batched: s => stratLog(s, 'pr') });
-      py.setStderr({ batched: s => stratLog(s, 'er') });
+      // print() goes to the console of the panel whose code is running (PY.out: the Indicator panel's)
+      py.setStdout({ batched: s => (PY.out || stratLog)(s, 'pr') });
+      py.setStderr({ batched: s => (PY.out || stratLog)(s, 'er') });
       await py.loadPackage('numpy', { messageCallback: () => {}, errorCallback: m => stratLog(m, 'er') });
       py.runPython($('#trRuntime').textContent);
       const g = n => py.globals.get(n);
-      PY.fn = { check: g('_tr_check'), start: g('_tr_start'), bar: g('_tr_bar'), tick: g('_tr_tick'), fill: g('_tr_fill'), end: g('_tr_end'), params: g('_tr_params'), combos: g('_tr_combos'), setvals: g('_tr_setvals') };
+      PY.fn = { check: g('_tr_check'), start: g('_tr_start'), bar: g('_tr_bar'), tick: g('_tr_tick'), fill: g('_tr_fill'), end: g('_tr_end'), params: g('_tr_params'), combos: g('_tr_combos'), setvals: g('_tr_setvals'),
+                tiCheck: g('_ti_check'), tiStart: g('_ti_start'), tiFeed: g('_ti_feed'), tiStop: g('_ti_stop') };
       PY.libs.add('numpy'); PY.py = py;
     })();
     try { await PY.loading; } finally { PY.loading = null; }
@@ -7749,25 +8634,674 @@ function wireStrat() {
     if ($('#stDel').textContent !== 'Delete?') { $('#stDel').textContent = 'Delete?'; setTimeout(() => { $('#stDel').textContent = 'Delete'; }, 3000); return; }
     delete stratCodes()[v.slice(2)]; savePrefsSoon(); $('#stDel').textContent = 'Delete'; fillStratList('');
   };
-  let saveT = 0;
-  const src = $('#stSrc');
-  src.addEventListener('input', () => {
-    // phone keyboards' smart quotes are not Python: straight quotes instead (same length, so the caret stays)
-    if (/[\u2018\u2019\u201C\u201D]/.test(src.value)) {
-      const a = src.selectionStart, b = src.selectionEnd;
-      src.value = src.value.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
-      src.setSelectionRange(a, b);
+  wireEditor($('#stSrc'), $('#stLn'), runStrategy, saveStratCode);
+}
+
+/* ---------------- Python indicators ---------------- */
+// An indicator runs on each closed candle of the chart timeframe, oldest first, up to the replay time: it never sees
+// a candle that has not printed. Each one on the chart is an instance in Pyodide (_ti_* in the runtime), fed candles
+// in chunks between frames. What it returns (plots, levels, fills, background, markers, boxes, lines, labels) is kept
+// here: plots are chart series, markers join the trade markers, and the rest is drawn on the drawing overlay.
+const PI_TPL = {
+  'EMA cross': `# Two EMAs, the gap between them shaded green or red, and an arrow where they cross.
+FAST = 9     # candles
+SLOW = 21    # candles
+
+def init(ctx):
+    ctx.fast, ctx.slow = ta.EMA(FAST), ta.EMA(SLOW)
+    ctx.was_above = None
+
+def on_bar(ctx, bar):
+    f, s = ctx.fast.update(bar.close), ctx.slow.update(bar.close)
+    ctx.plot(f, "Fast", "#e2a63c")
+    ctx.plot(s, "Slow", "#7f9cf5", width=2)
+    if f is None or s is None:          # still warming up
+        return
+    above = f > s
+    ctx.fill("Fast", "Slow", rgba("up" if above else "down", 0.15))
+    if ctx.was_above is not None and above != ctx.was_above:
+        if above:
+            ctx.marker("Up", shape="arrow_up", position="below", color="up")
+        else:
+            ctx.marker("Down", shape="arrow_down", position="above", color="down")
+    ctx.was_above = above
+`,
+  'RSI': `# RSI in a band under the chart, with 70 and 30 levels; the price chart is tinted at the extremes.
+LENGTH = 14
+HIGH = 70
+LOW = 30
+
+def init(ctx):
+    ctx.rsi = ta.RSI(LENGTH)
+    ctx.hline(HIGH, "Overbought", color="down", pane="lower")
+    ctx.hline(LOW, "Oversold", color="up", pane="lower")
+    ctx.hline(50, color="muted", style="dotted", pane="lower")
+
+def on_bar(ctx, bar):
+    r = ctx.rsi.update(bar.close)
+    ctx.plot(r, "RSI", "#c158dc", pane="lower")
+    if r is not None and r > HIGH:
+        ctx.bgcolor(rgba("down", 0.08))
+    elif r is not None and r < LOW:
+        ctx.bgcolor(rgba("up", 0.08))
+`,
+  'Bollinger Bands': `# A moving average with bands MULT standard deviations above and below it.
+LENGTH = 20
+MULT = 2.0
+
+def on_bar(ctx, bar):
+    closes = ctx.closes(LENGTH)          # the last LENGTH closes, a numpy array
+    if len(closes) < LENGTH:
+        return
+    mid, dev = closes.mean(), closes.std()
+    ctx.plot(mid, "Basis", "muted", style="dashed")
+    ctx.plot(mid + MULT * dev, "Upper", "#26c6da")
+    ctx.plot(mid - MULT * dev, "Lower", "#26c6da")
+    ctx.fill("Upper", "Lower", rgba("#26c6da", 0.08))
+`,
+  'Opening range box': `# The high and low of the first 30 minutes after the open (in the chart's time zone) as a box that
+# runs with the session, and a label where price first closes outside it.
+OPEN = "09:30"
+RANGE_END = "10:00"
+SESSION_END = "16:00"
+
+def init(ctx):
+    ctx.day, ctx.range, ctx.broke = None, None, False
+
+def on_bar(ctx, bar):
+    t = bar.time.time()
+    if bar.time.date() != ctx.day:                 # a new day
+        ctx.day, ctx.range, ctx.broke = bar.time.date(), None, False
+    if ctx.at(OPEN) <= t < ctx.at(RANGE_END):
+        if ctx.range is None:
+            ctx.range = ctx.box(bar.index, bar.high, bar.index, bar.low, color="accent", text="Opening range")
+        else:
+            r = ctx.range
+            r.set(top=max(r.top, bar.high), bottom=min(r.bottom, bar.low), right=bar.index)
+    elif ctx.range is not None and ctx.at(RANGE_END) <= t < ctx.at(SESSION_END):
+        r = ctx.range
+        r.right = bar.index                        # the box keeps running with the session
+        if not ctx.broke and bar.close > r.top:
+            ctx.broke = True
+            ctx.label(bar.index, bar.high, "Breakout", color="up", style="down")
+        elif not ctx.broke and bar.close < r.bottom:
+            ctx.broke = True
+            ctx.label(bar.index, bar.low, "Breakdown", color="down", style="up")
+`,
+  'Swing levels': `# Swing highs and lows: a candle higher (or lower) than the SIDE candles on each side of it.
+# Each one is a level that runs right until a candle closes through it, then turns dotted.
+SIDE = 5    # candles on each side
+
+def init(ctx):
+    ctx.live = []                              # (line, "high" or "low")
+
+def on_bar(ctx, bar):
+    for ln, kind in list(ctx.live):
+        ln.x2 = bar.index
+        if (kind == "high" and bar.close > ln.y1) or (kind == "low" and bar.close < ln.y1):
+            ln.style = "dotted"
+            ctx.live.remove((ln, kind))
+    n = 2 * SIDE + 1
+    highs, lows = ctx.highs(n), ctx.lows(n)
+    if len(highs) < n:
+        return
+    i = bar.index - SIDE                       # the candle in the middle: confirmed SIDE candles later
+    if highs[SIDE] == highs.max():
+        ctx.live.append((ctx.line(i, highs[SIDE], bar.index, highs[SIDE], color="down"), "high"))
+        ctx.marker("H", shape="arrow_down", position="above", color="down", at=i)
+    if lows[SIDE] == lows.min():
+        ctx.live.append((ctx.line(i, lows[SIDE], bar.index, lows[SIDE], color="up"), "low"))
+        ctx.marker("L", shape="arrow_up", position="below", color="up", at=i)
+`,
+  'Blank': `# Runs on every closed candle of the chart, oldest first. Help lists everything ctx can draw.
+def init(ctx):
+    pass
+
+def on_bar(ctx, bar):
+    # bar.time, bar.open, bar.high, bar.low, bar.close, bar.volume, bar.index
+    ctx.plot(bar.close, "Close")
+`,
+};
+const PI = { inst: [], q: [], qh: 0, gen: 0, timer: 0, nextIid: 1, chunk: 256, bandTotal: 0, marks: false, t0: 0, total: 0 };
+const piList = () => (chartPrefs().pyInds ||= []);       // on the chart: { id, name, code, on }
+const piCodes = () => (PREFS.indScripts ||= {});         // saved in the editor: name -> code
+const piPrefs = () => (PREFS.pyInd ||= { name: 'EMA cross' });
+const PI_SHAPE = { arrow_up: 'arrowUp', arrow_down: 'arrowDown', circle: 'circle', square: 'square' };
+const PI_POS = { above: 'aboveBar', below: 'belowBar', inside: 'inBar' };
+const PI_THEME = ['up', 'down', 'accent', 'muted', 'fg'];
+const PI_PANDAS = /^\s*(import\s+pandas|from\s+pandas\b)/m;
+
+// colors: CSS colors, theme names (up, down, accent, muted, fg), each with an optional "@alpha" from rgba()
+const piHexC = {};
+function piHex(c) {
+  if (/^#[0-9a-f]{6}$/i.test(c)) return c;
+  if (piHexC[c]) return piHexC[c];
+  const g = piHex.g || (piHex.g = document.createElement('canvas').getContext('2d'));
+  g.fillStyle = '#000000'; g.fillStyle = c;
+  let v = g.fillStyle;
+  if (!/^#[0-9a-f]{6}$/i.test(v)) { const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(v); v = m ? '#' + [m[1], m[2], m[3]].map(x => (+x).toString(16).padStart(2, '0')).join('') : '#888888'; }
+  return (piHexC[c] = v);
+}
+function piColor(s, def) {
+  if (!s) return def ?? null;
+  let a = null;
+  const i = s.lastIndexOf('@');
+  if (i > 0) { a = parseFloat(s.slice(i + 1)); s = s.slice(0, i); }
+  const base = PI_THEME.includes(s) ? C[s] : s;
+  return a == null || !isFinite(a) ? base : hexA(piHex(base), a);
+}
+
+function piLog(text, kind) {
+  const box = $('#piCons'); if (!box) return;
+  const d = document.createElement('div');
+  if (kind) d.className = kind;
+  d.textContent = text; box.appendChild(d);
+  while (box.childElementCount > 1500) box.firstChild.remove();
+  box.scrollTop = box.scrollHeight;
+}
+function piStatus(text, p) {
+  $('#piStat').textContent = text;
+  $('#piProg').style.width = p == null ? '0' : (p * 100).toFixed(1) + '%';
+  $('#piPct').textContent = p == null ? '' : Math.round(p * 100) + '%';
+}
+
+// ---- instances: one per indicator shown, started again whenever the candles are rebuilt
+function piNewInst(x) {
+  return { x, name: x.name, code: x.code, iid: 'i' + PI.nextIid++, started: false, err: null, fed: 0,
+           plots: new Map(), hl: [], fills: new Map(), bg: { t: [], c: [] }, marks: [], draws: new Map(), lowerS: null, band: null };
+}
+function piDrop(ins) {
+  for (const p of ins.plots.values()) if (p.s) chart.removeSeries(p.s);
+  ins.plots.clear();
+  if (ins.started && PY.fn) PY.fn.tiStop(ins.iid);
+}
+// called as the candles are rebuilt (new session, timeframe or time zone, indicators changed)
+function piReset() {
+  for (const ins of PI.inst) piDrop(ins);
+  PI.inst = piList().filter(x => x.on).map(piNewInst);
+  PI.q = []; PI.qh = 0; PI.gen++; PI.total = 0; PI.marks = true;
+  clearTimeout(PI.timer); PI.timer = 0;
+  piLayout();
+}
+function piChanged() {
+  savePrefsSoon();
+  if (E) { rebuild(); render(); }
+  if (!$('#pind').hidden) { piOnList(); piSyncButtons(); }
+}
+function piKick() { if (!PI.timer && PI.inst.length && PI.q.length > PI.qh) PI.timer = setTimeout(piStep, 0); }
+function piStart(ins) {
+  ins.started = true;
+  const info = { name: D.name, tf: tfLabel(TF), tfs: tfSecs(), tick: mintick(), pv: cfg.pv, prec: PREC };
+  PY.out = piLog;
+  try { piApply(ins, JSON.parse(PY.fn.tiStart(ins.iid, ins.code, JSON.stringify(info)))); }
+  catch (e) { piFail(ins, (e && e.message) || String(e)); }
+  finally { PY.out = null; }
+}
+// feed the waiting candles, about 20 ms at a time so the replay and the page stay responsive
+async function piStep() {
+  PI.timer = 0;
+  if (!E || !PI.inst.length) { PI.q = []; PI.qh = 0; return; }
+  if (RUN.on) { PI.timer = setTimeout(piStep, 250); return; } // a backtest is running: after it
+  const gen = PI.gen;
+  if (!PY.py || PI.inst.some(x => !x.started)) {
+    const libs = PI.inst.some(x => PI_PANDAS.test(x.code)) ? ['numpy', 'pandas'] : ['numpy'];
+    if (!PY.py || libs.some(l => !PY.libs.has(l))) {
+      piStatus('Loading Python…');
+      try { await loadPython(libs); }
+      catch (e) {
+        piStatus('Python did not load'); piLog((e && e.message) || String(e), 'er');
+        return toast('Python did not load, so the Python indicators are not shown.', 'err');
+      }
+      if (gen !== PI.gen) return piKick();
     }
-    stratLines(); clearTimeout(saveT); saveT = setTimeout(saveStratCode, 800); });
-  src.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runStrategy(); return; }
-    if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); src.setRangeText('    ', src.selectionStart, src.selectionEnd, 'end'); stratLines(); }
-    else if (e.key === 'Enter') { // keep the indent, and indent after a colon
-      const s = src.selectionStart, line = src.value.slice(src.value.lastIndexOf('\n', s - 1) + 1, s);
-      const ind = line.match(/^\s*/)[0] + (/:\s*$/.test(line) ? '    ' : '');
-      if (ind) { e.preventDefault(); src.setRangeText('\n' + ind, s, src.selectionEnd, 'end'); stratLines(); }
+    for (const ins of PI.inst) if (!ins.started) piStart(ins);
+  }
+  // far behind (just opened, or skipped a long way): start over on the newest candles, as many as the chart keeps
+  const cap = MAX_CANDLES;
+  if (PI.q.length - PI.qh > cap) {
+    if (PI.inst.some(x => x.fed)) PI.inst = PI.inst.map(ins => { piDrop(ins); const n = piNewInst(ins.x); piStart(n); return n; });
+    PI.q = PI.q.slice(-cap); PI.qh = 0; PI.total = 0; PI.marks = true; piLayout();
+  }
+  if (!PI.total) { PI.total = PI.q.length - PI.qh; PI.t0 = performance.now(); }
+  const live = PI.inst.filter(x => x.started && !x.err), until = performance.now() + 20;
+  let n = PI.chunk;
+  PY.out = piLog;
+  try {
+    while (PI.qh < PI.q.length && live.some(x => !x.err)) {
+      const k = Math.min(n, PI.q.length - PI.qh), buf = new Float64Array(7 * k);
+      for (let j = 0; j < k; j++) {
+        const b = PI.q[PI.qh + j], o = 7 * j;
+        buf[o] = b.time; buf[o + 1] = b.o; buf[o + 2] = b.h; buf[o + 3] = b.l; buf[o + 4] = b.c; buf[o + 5] = b.v || 0; buf[o + 6] = zoneOff(b.time);
+      }
+      PI.qh += k;
+      for (const ins of live) {
+        if (ins.err) continue;
+        let out;
+        try { out = JSON.parse(PY.fn.tiFeed(ins.iid, buf)); } catch (e) { out = { error: (e && e.message) || String(e) }; }
+        piApply(ins, out); ins.fed += k;
+      }
+      if (performance.now() > until) break;
+      n = Math.min(n * 2, 8192);
     }
+  } finally { PY.out = null; }
+  PI.chunk = Math.max(64, Math.min(n, 8192));
+  const left = PI.q.length - PI.qh;
+  if (!left || !live.some(x => !x.err)) { PI.q = []; PI.qh = 0; }
+  else if (PI.qh > 50000) { PI.q = PI.q.slice(PI.qh); PI.qh = 0; }
+  piFlush();
+  if (PI.q.length) {
+    if (PI.total > 2000) piStatus(`Running on ${PI.total.toLocaleString('en-US')} candles…`, 1 - left / PI.total);
+    PI.timer = setTimeout(piStep, 0);
+  } else {
+    if (PI.total > 2000 || !$('#pind').hidden) {
+      const ok = PI.inst.filter(x => !x.err);
+      piStatus(ok.length ? `On the chart: ${ok.map(x => x.name).join(', ')}${PI.total > 2000 ? ` · ${PI.total.toLocaleString('en-US')} candles in ${((performance.now() - PI.t0) / 1000).toFixed(1)} s` : ''}` : 'Stopped with an error');
+    }
+    PI.total = 0;
+  }
+}
+function piFail(ins, err) {
+  if (ins.err) return;
+  ins.err = err;
+  piLog(`${ins.name} stopped:\n${err}`, 'er');
+  toast(`${ins.name} stopped: ${err.split('\n')[0]}`, 'err');
+  if (!$('#pind').hidden) piOnList();
+}
+function piApply(ins, o) {
+  if (o.meta) for (const m of o.meta) piAddPlot(ins, m);
+  if (o.plots) for (const [k, pts] of Object.entries(o.plots)) {
+    const p = ins.plots.get(k); if (!p) continue;
+    for (const q of pts) {
+      const last = p.t.length - 1;
+      if (last >= 0 && p.t[last] === q[0]) { p.v[last] = q[1]; p.c[last] = q[2] ?? null; p.dirty = true; }
+      else { p.t.push(q[0]); p.v.push(q[1]); p.c.push(q[2] ?? null); }
+    }
+  }
+  if (o.hlines) ins.hl = o.hlines;
+  if (o.fills) for (const [a, b, pts] of o.fills) {
+    const key = a + '\u0000' + b;
+    let f = ins.fills.get(key);
+    if (!f) ins.fills.set(key, f = { a, b, t: [], va: [], vb: [], c: [] });
+    for (const q of pts) { f.t.push(q[0]); f.va.push(q[1]); f.vb.push(q[2]); f.c.push(q[3]); }
+  }
+  if (o.bg) for (const q of o.bg) { ins.bg.t.push(q[0]); ins.bg.c.push(q[1]); }
+  if (o.marks && o.marks.length) { ins.marks.push(...o.marks); PI.marks = true; }
+  if (o.draw) for (const d of o.draw) ins.draws.set(d.id, d);
+  if (o.del) for (const id of o.del) ins.draws.delete(id);
+  if (o.error) piFail(ins, o.error);
+}
+
+// ---- plots: one chart series each; "lower" ones share a band of their own under the candles
+function piAddPlot(ins, m) {
+  const lower = m.pane === 'lower';
+  const p = { m, base: m.color || IND_COLORS[(ins.plots.size + 2) % IND_COLORS.length], t: [], v: [], c: [], s: null, sent: 0, dirty: false };
+  const w = Math.max(1, Math.min(4, Math.round(m.width)));
+  const o = { color: piColor(p.base), priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+              priceFormat: lower ? { type: 'price', precision: Math.max(2, PREC), minMove: 10 ** -Math.max(2, PREC) } : { type: 'price', precision: PREC, minMove: 1 / POW } };
+  if (lower) { o.priceScaleId = 'pi' + ins.iid; o.autoscaleInfoProvider = orig => piAutoscale(ins, orig()); }
+  if (m.style === 'histogram') p.s = chart.addHistogramSeries({ ...o, base: 0 });
+  else {
+    o.lineWidth = w;
+    if (m.style === 'step') o.lineType = 1;
+    if (m.style === 'dashed') o.lineStyle = 2;
+    if (m.style === 'dotted') o.lineStyle = 1;
+    if (m.style === 'points') { o.lineVisible = false; o.pointMarkersVisible = true; o.pointMarkersRadius = w + 1; }
+    p.s = chart.addLineSeries(o);
+  }
+  ins.plots.set(m.title, p);
+  if (lower && !ins.lowerS) { ins.lowerS = p.s; piLayout(); }
+}
+// a lower band's scale also takes in its levels (70 and 30 on an RSI)
+function piAutoscale(ins, r) {
+  const hs = ins.hl.filter(h => h.pane === 'lower');
+  if (!r || !r.priceRange || !hs.length) return r;
+  let lo = r.priceRange.minValue, hi = r.priceRange.maxValue;
+  for (const h of hs) { lo = Math.min(lo, h.price); hi = Math.max(hi, h.price); }
+  return { ...r, priceRange: { minValue: lo, maxValue: hi } };
+}
+// lower bands stack under the candles and the volume; up to three get a good share of the height
+function piLayout() {
+  if (!chart || !cs) return;
+  const bands = PI.inst.filter(x => x.lowerS), k = bands.length;
+  const b = !k ? 0 : k === 1 ? 0.22 : k === 2 ? 0.17 : k === 3 ? 0.13 : 0.42 / k, tot = b * k;
+  PI.bandTotal = tot;
+  cs.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: k ? tot + 0.1 : 0.2 } });
+  chart.priceScale('vol').applyOptions({ scaleMargins: k ? { top: 1 - tot - 0.1, bottom: tot + 0.005 } : { top: 0.84, bottom: 0 } });
+  for (const ins of PI.inst) ins.band = null;
+  bands.forEach((ins, j) => {
+    const y0 = 1 - tot + j * b;
+    ins.band = { y0, y1: y0 + b };
+    chart.priceScale('pi' + ins.iid).applyOptions({ scaleMargins: { top: y0 + 0.035, bottom: 1 - (y0 + b) + 0.012 } });
   });
+  OV.dirty = true;
+}
+const piFirst = () => E.tfCandles.length ? E.tfCandles[0].time : E.F ? E.F.time : 0;
+function piPt(p, j) {
+  const v = p.v[j], c = p.c[j];
+  if (v == null) return { time: p.t[j] };
+  return c ? { time: p.t[j], value: v, color: piColor(c) } : { time: p.t[j], value: v };
+}
+function piSetData(p, first) {
+  const d = [];
+  for (let j = lowerBound(p.t, first); j < p.t.length; j++) d.push(piPt(p, j));
+  p.s.setData(d); p.sent = p.t.length; p.dirty = false;
+}
+// all plots again: the candles on the chart were reset or trimmed, or the theme changed
+function piSetAll() {
+  if (!E) return;
+  const first = piFirst();
+  for (const ins of PI.inst) for (const p of ins.plots.values()) { p.s.applyOptions({ color: piColor(p.base) }); piSetData(p, first); }
+  PI.marks = true;
+}
+function piFlush() {
+  if (!E) return;
+  const first = piFirst();
+  for (const ins of PI.inst) for (const p of ins.plots.values()) {
+    const n = p.t.length;
+    if (p.sent === n && !p.dirty) continue;
+    if (p.dirty || !p.sent || n - p.sent > 64) piSetData(p, first);
+    else { for (let j = p.sent; j < n; j++) if (p.t[j] >= first) p.s.update(piPt(p, j)); p.sent = n; }
+  }
+  if (PI.marks) { PI.marks = false; renderMarks(); }
+  OV.dirty = true;
+  if (!RUN.on) legend(null);
+}
+// markers for renderMarks: the newest few thousand of each indicator, on candles still on the chart
+function piMarkers(first) {
+  const ms = [];
+  for (const ins of PI.inst) for (const q of ins.marks.slice(-3000)) {
+    if (q[0] < first) continue;
+    ms.push({ time: q[0], position: PI_POS[q[2]], shape: PI_SHAPE[q[1]], color: piColor(q[3], C.accent), text: q[4], size: q[5] });
+  }
+  return ms;
+}
+// the legend: each plot's value on the candle under the pointer (the last closed one on the forming candle)
+function piLegend(time) {
+  let h = '';
+  for (const ins of PI.inst) {
+    let k = 0;
+    for (const p of ins.plots.values()) {
+      if (k++ >= 6) break;
+      let j = time == null ? p.t.length - 1 : lowerBound(p.t, time);
+      if (j < 0 || j >= p.t.length || (time != null && p.t[j] !== time) || p.v[j] == null) continue;
+      const v = p.v[j], txt = p.m.pane === 'lower' ? (Math.abs(v) >= 1 ? v.toFixed(2) : v.toPrecision(3)) : fp(v);
+      h += `<span><span class="k" style="color:${esc(piColor(p.c[j] || p.base))}">${esc(p.m.title)}</span> ${txt}</span>`;
+    }
+  }
+  return h;
+}
+
+// ---- the drawing overlay: background, fills, levels, boxes, lines, labels and the lower bands
+function drawScripts(g, pw, ph) {
+  if (!PI.inst.length) return;
+  const ts = chart.timeScale(), vr = ts.getVisibleLogicalRange();
+  if (!vr) return;
+  const tA = l2t(vr.from - 2), tB = l2t(vr.to + 2), bs = ts.options().barSpacing, top = ph * (1 - PI.bandTotal);
+  g.save(); g.beginPath(); g.rect(0, 0, pw, top); g.clip();
+  for (const ins of PI.inst) {
+    const B = ins.bg;
+    for (let j = lowerBound(B.t, tA); j < B.t.length && B.t[j] <= tB; j++) {
+      const x = X(B.t[j]); if (x == null) continue;
+      g.fillStyle = piColor(B.c[j]); g.fillRect(x - bs / 2, 0, bs, top);
+    }
+  }
+  for (const ins of PI.inst) for (const f of ins.fills.values()) if (ins.plots.get(f.a)?.m.pane !== 'lower') piDrawFill(g, ins, f, tA, tB);
+  for (const ins of PI.inst) {
+    piDrawLevels(g, ins, 'price', pw, null);
+    const ds = [...ins.draws.values()], order = { box: 0, line: 1, label: 2 };
+    ds.sort((a, b) => order[a.kind] - order[b.kind] || a.id - b.id);
+    for (const d of ds) piDrawObj(g, d, pw, top);
+  }
+  g.restore();
+  for (const ins of PI.inst) {
+    if (!ins.band) continue;
+    const y0 = Math.round(ph * ins.band.y0) + 0.5, y1 = ph * ins.band.y1;
+    g.save();
+    g.strokeStyle = C.line; g.lineWidth = 1; g.setLineDash([]);
+    g.beginPath(); g.moveTo(0, y0); g.lineTo(pw, y0); g.stroke();
+    g.beginPath(); g.rect(0, y0, pw, y1 - y0); g.clip();
+    for (const f of ins.fills.values()) if (ins.plots.get(f.a)?.m.pane === 'lower') piDrawFill(g, ins, f, tA, tB);
+    piDrawLevels(g, ins, 'lower', pw, ins.lowerS);
+    g.font = '11px "JetBrains Mono", Consolas, monospace'; g.textBaseline = 'middle'; g.textAlign = 'left';
+    g.fillStyle = hexA(piHex(C.bg), 0.75);
+    const title = ins.name + (ins.err ? ' (stopped)' : '');
+    g.fillRect(4, y0 + 3, g.measureText(title).width + 8, 15);
+    g.fillStyle = ins.err ? C.down : C.muted; g.fillText(title, 8, y0 + 11);
+    g.restore();
+  }
+}
+function piDrawFill(g, ins, f, tA, tB) {
+  const pa = ins.plots.get(f.a), pb = ins.plots.get(f.b);
+  if (!pa || !pb) return;
+  const ts = chart.timeScale();
+  for (let j = Math.max(0, lowerBound(f.t, tA) - 1); j < f.t.length - 1 && f.t[j] <= tB; j++) {
+    const l0 = t2l(f.t[j]), l1 = t2l(f.t[j + 1]);
+    if (l0 == null || l1 == null || l1 - l0 > 1.01) continue; // not shaded across a gap
+    const x0 = ts.logicalToCoordinate(l0), x1 = ts.logicalToCoordinate(l1);
+    const a0 = pa.s.priceToCoordinate(f.va[j]), a1 = pa.s.priceToCoordinate(f.va[j + 1]);
+    const b0 = pb.s.priceToCoordinate(f.vb[j]), b1 = pb.s.priceToCoordinate(f.vb[j + 1]);
+    if (x0 == null || x1 == null || a0 == null || a1 == null || b0 == null || b1 == null) continue;
+    g.fillStyle = piColor(f.c[j + 1], hexA(piHex(C.accent), 0.15));
+    g.beginPath(); g.moveTo(x0, a0); g.lineTo(x1, a1); g.lineTo(x1, b1); g.lineTo(x0, b0); g.closePath(); g.fill();
+  }
+}
+function piDrawLevels(g, ins, pane, pw, s) {
+  for (const h of ins.hl) {
+    if (h.pane !== pane) continue;
+    const y = s ? s.priceToCoordinate(h.price) : Y(h.price);
+    if (y == null) continue;
+    const col = piColor(h.color, C.muted), yy = Math.round(y) + 0.5;
+    g.strokeStyle = col; g.lineWidth = h.width; g.setLineDash(DASH[h.style] || []);
+    g.beginPath(); g.moveTo(0, yy); g.lineTo(pw, yy); g.stroke();
+    g.setLineDash([]); g.font = '10.5px "JetBrains Mono", Consolas, monospace'; g.textBaseline = 'bottom'; g.textAlign = 'right';
+    g.fillStyle = col; g.fillText(`${h.title ? h.title + ' ' : ''}${pane === 'lower' ? +h.price.toFixed(4) : fp(h.price)}`, pw - 6, yy - 2);
+    g.textAlign = 'left';
+  }
+}
+function piDrawObj(g, d, pw, ph) {
+  const col = piColor(d.color, C.accent);
+  g.lineWidth = d.width || 1; g.strokeStyle = col; g.setLineDash(DASH[d.style] || []);
+  g.font = '11px "JetBrains Mono", Consolas, monospace'; g.textBaseline = 'middle';
+  if (d.kind === 'box') {
+    const xa = X(d.left), xb = d.extend ? pw + 2 : X(d.right), ya = Y(d.top), yb = Y(d.bottom);
+    if (xa == null || xb == null || ya == null || yb == null) return;
+    const l = Math.min(xa, xb), t = Math.min(ya, yb), w = Math.abs(xb - xa), h = Math.abs(yb - ya);
+    if (d.fill) { g.fillStyle = piColor(d.fill); g.fillRect(l, t, w, h); }
+    g.strokeRect(l, t, w, h);
+    if (d.text) {
+      g.setLineDash([]); g.textAlign = 'center'; g.fillStyle = piColor(d.text_color, col);
+      g.fillText(d.text, Math.max(l, 0) + Math.min(w, pw) / 2, t + h / 2); g.textAlign = 'left';
+    }
+  } else if (d.kind === 'line') {
+    let x1 = X(d.x1), y1 = Y(d.y1), x2 = X(d.x2), y2 = Y(d.y2);
+    if (x1 == null || y1 == null || x2 == null || y2 == null) return;
+    const far = (xa, ya, xb, yb) => { // past (xb, yb), away from (xa, ya), to the edge
+      if (Math.abs(xb - xa) < 1e-6) return [xb, yb > ya ? ph + 2 : -2];
+      const x = xb > xa ? pw + 2 : -2; return [x, ya + (yb - ya) * (x - xa) / (xb - xa)];
+    };
+    if (d.extend === 'right' || d.extend === 'both') [x2, y2] = far(x1, y1, x2, y2);
+    if (d.extend === 'left' || d.extend === 'both') [x1, y1] = far(x2, y2, x1, y1);
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  } else if (d.kind === 'label') {
+    const x = X(d.x), y = Y(d.y);
+    if (x == null || y == null || !d.text) return;
+    g.setLineDash([]);
+    const w = g.measureText(d.text).width + 10, h = 18, tc = piColor(d.text_color);
+    if (d.style === 'text') { g.textAlign = 'center'; g.fillStyle = tc || col; g.fillText(d.text, x, y); g.textAlign = 'left'; return; }
+    const y0 = d.style === 'up' ? y + 7 : d.style === 'down' ? y - 7 - h : y - h / 2;
+    g.fillStyle = col; g.beginPath();
+    if (g.roundRect) g.roundRect(x - w / 2, y0, w, h, 3); else g.rect(x - w / 2, y0, w, h);
+    g.fill();
+    if (d.style === 'up' || d.style === 'down') {
+      const e = d.style === 'up' ? y0 : y0 + h, tip = d.style === 'up' ? y + 1 : y - 1;
+      g.beginPath(); g.moveTo(x - 5, e); g.lineTo(x + 5, e); g.lineTo(x, tip); g.closePath(); g.fill();
+    }
+    g.fillStyle = tc || textOn(piHex(col)); g.textAlign = 'center'; g.fillText(d.text, x, y0 + h / 2 + 0.5); g.textAlign = 'left';
+  }
+}
+
+// ---- the Indicator panel: like the Strategy panel, an editor with templates, your saved indicators and a console
+function piTab(t) {
+  for (const b of document.querySelectorAll('#piTabs button')) b.setAttribute('aria-pressed', String(b.dataset.pt === t));
+  $('#piCode').hidden = t !== 'code'; $('#piHelp').hidden = t !== 'help';
+}
+function piFillList(sel) {
+  const mine = Object.keys(piCodes()).sort((a, b) => a.localeCompare(b));
+  $('#piTpl').innerHTML = '<option value="">Open…</option>' +
+    (mine.length ? `<optgroup label="Your indicators">${mine.map(n => `<option value="u:${esc(n)}">${esc(n)}</option>`).join('')}</optgroup>` : '') +
+    `<optgroup label="Templates">${Object.keys(PI_TPL).map(n => `<option value="t:${esc(n)}">${esc(n)}</option>`).join('')}</optgroup>`;
+  $('#piTpl').value = sel || '';
+  $('#piDel').hidden = !(sel && sel.startsWith('u:'));
+}
+function piLoad(name, code) {
+  $('#piName').value = name; $('#piSrc').value = code; edLines($('#piSrc'), $('#piLn'));
+  piPrefs().name = name; savePrefsSoon();
+  piSyncButtons(); piParamsSoon(0);
+}
+function piSave() {
+  const name = $('#piName').value.trim(); if (!name) return;
+  piCodes()[name] = $('#piSrc').value; piPrefs().name = name; savePrefsSoon();
+}
+const piOnChart = () => piList().find(x => x.name === $('#piName').value.trim());
+function piSyncButtons() {
+  const on = piOnChart();
+  $('#piRunLbl').textContent = on ? 'Update chart' : 'Add to chart';
+  $('#piOff').hidden = !on;
+}
+function piOnList() {
+  const list = piList();
+  $('#piOn').innerHTML = list.length ? list.map((x, i) => {
+    const ins = PI.inst.find(y => y.x === x);
+    return `<div class="pirow"><input type="checkbox" data-i="${i}"${x.on ? ' checked' : ''} aria-label="Show ${esc(x.name)}">
+      <button class="pilink" data-e="${i}" title="Open in the editor">${esc(x.name)}</button>${ins && ins.err ? '<span class="pierr" title="Stopped with an error: see the console">error</span>' : ''}
+      <button class="pix" data-x="${i}" title="Remove from the chart" aria-label="Remove ${esc(x.name)}">×</button></div>`;
+  }).join('') : '<p class="note">None yet. Open a template or write one, then Add to chart.</p>';
+}
+// Settings: the NAME = value lines at the top of the code, changed here as on the Optimize tab (the code is rewritten)
+let piParamT = 0;
+function piParamsSoon(ms = 500) { clearTimeout(piParamT); piParamT = setTimeout(piParams, ms); }
+function piParams() {
+  const box = $('#piSet');
+  if (!PY.py) { box.innerHTML = '<p class="note">Settings show here once Python has loaded.</p>'; return; }
+  const r = JSON.parse(PY.fn.params($('#piSrc').value));
+  if (r.error) { if (!box.querySelector('.pisets')) box.innerHTML = '<p class="note">Settings show here when the code has no syntax errors.</p>'; return; }
+  if (!r.params.length) { box.innerHTML = '<p class="note">Settings at the top of the code, like <code>LENGTH = 14</code>, show here to change without editing.</p>'; return; }
+  box.innerHTML = '<div class="pisets">' + r.params.map(p => {
+    const n = esc(p.name), tip = p.comment ? ` title="${esc(p.comment)}"` : '';
+    const input = p.kind === 'bool' ? `<input type="checkbox" data-n="${n}" data-k="bool"${p.value ? ' checked' : ''}>`
+      : p.kind === 'choice' && p.choices && p.choices.length > 1 ? `<select data-n="${n}" data-k="choice">${p.choices.map(c => `<option${c === p.value ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>`
+      : p.kind === 'choice' ? `<input data-n="${n}" data-k="choice" value="${esc(p.value)}">`
+      : `<input type="number" data-n="${n}" data-k="${p.kind}" step="${p.kind === 'int' ? 1 : 'any'}" value="${p.value}">`;
+    return `<label class="pisetrow"${tip}><span>${n}</span>${input}</label>`;
+  }).join('') + '</div>';
+}
+function piSetParam(el) {
+  if (!PY.py) return;
+  const k = el.dataset.k;
+  let v = k === 'bool' ? el.checked : k === 'int' ? Math.round(+el.value) : k === 'float' ? +el.value : el.value;
+  if ((k === 'int' || k === 'float') && (el.value === '' || !isFinite(v))) return piParams();
+  // a float setting stays a float (2.0, not 2): the runtime keeps the type the code had
+  const r = JSON.parse(PY.fn.setvals($('#piSrc').value, JSON.stringify({ [el.dataset.n]: v })));
+  if (r.error) return piLog(r.error, 'er');
+  $('#piSrc').value = r.code; edLines($('#piSrc'), $('#piLn')); piSave();
+  const on = piOnChart();
+  if (on) { on.code = r.code; piChanged(); }
+}
+function openPind(entry) {
+  closePop();
+  if (typeof closeSheet === 'function') closeSheet();
+  if (!E || !D) return toast('Start a session first: an indicator runs on the session’s candles.', 'err');
+  setPlaying(false); endTour();
+  if (entry) { piLoad(entry.name, entry.code); piFillList(piCodes()[entry.name] != null ? 'u:' + entry.name : ''); }
+  else {
+    if (!$('#piSrc').value) { const p = piPrefs(); piLoad(p.name, piCodes()[p.name] ?? PI_TPL[p.name] ?? PI_TPL['EMA cross']); }
+    piFillList(piCodes()[$('#piName').value] != null ? 'u:' + $('#piName').value : '');
+  }
+  piSyncButtons(); piOnList(); piParams();
+  if (!$('#piCons').childElementCount) piLog('Python loads the first time you add an indicator, in a few seconds.');
+  $('#pind').hidden = false; piTab('code');
+  if (document.fonts) document.fonts.ready.then(() => { if (!$('#pind').hidden) edLines($('#piSrc'), $('#piLn')); });
+  if (!PY.py) loadPython(['numpy']).then(() => { if (!$('#pind').hidden) piParams(); }).catch(() => {});
+}
+function closePind() { $('#pind').hidden = true; }
+async function piRun() {
+  const name = ($('#piName').value.trim() || 'Indicator').slice(0, 60), code = $('#piSrc').value;
+  $('#piName').value = name; piSave(); piFillList('u:' + name);
+  $('#piCons').textContent = '';
+  $('#piRun').disabled = true;
+  try {
+    piStatus(PY.py ? 'Checking…' : 'Loading Python…');
+    try { await loadPython(PI_PANDAS.test(code) ? ['numpy', 'pandas'] : ['numpy']); }
+    catch (e) { piStatus('Python did not load'); return piLog((e && e.message) || String(e), 'er'); }
+    const syn = PY.fn.tiCheck(code);
+    if (syn) { piStatus('Fix the error and try again'); return piLog(syn, 'er'); }
+    const list = piList();
+    let x = list.find(y => y.name === name);
+    if (x) { x.code = code; x.on = true; } else list.push(x = { id: Date.now().toString(36), name, code, on: true });
+    piStatus('Running…');
+    piChanged(); piParams();
+  } finally { $('#piRun').disabled = false; }
+}
+function wirePind() {
+  $('#piClose').onclick = closePind;
+  $('#pind').addEventListener('mousedown', e => { if (e.target.id === 'pind') closePind(); });
+  $('#piRun').onclick = piRun;
+  $('#piOff').onclick = () => { const on = piOnChart(); if (!on) return; piList().splice(piList().indexOf(on), 1); piChanged(); piStatus('Removed from the chart'); };
+  $('#piTabs').onclick = e => { const b = e.target.closest('button'); if (b) piTab(b.dataset.pt); };
+  $('#piTpl').onchange = e => {
+    const v = e.target.value; if (!v) return;
+    const name = v.slice(2);
+    piLoad(name, v[0] === 'u' ? piCodes()[name] : PI_TPL[name]);
+    piFillList(v[0] === 'u' ? v : '');
+  };
+  $('#piDel').onclick = () => {
+    const v = $('#piTpl').value; if (!v.startsWith('u:')) return;
+    if ($('#piDel').textContent !== 'Delete?') { $('#piDel').textContent = 'Delete?'; setTimeout(() => { $('#piDel').textContent = 'Delete'; }, 3000); return; }
+    delete piCodes()[v.slice(2)]; savePrefsSoon(); $('#piDel').textContent = 'Delete'; piFillList('');
+  };
+  $('#piName').addEventListener('input', piSyncButtons);
+  $('#piOn').addEventListener('change', e => { const i = e.target.dataset.i; if (i == null) return; piList()[+i].on = e.target.checked; piChanged(); });
+  $('#piOn').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const list = piList();
+    if (b.dataset.e != null) { const x = list[+b.dataset.e]; piLoad(x.name, x.code); piFillList(piCodes()[x.name] != null ? 'u:' + x.name : ''); }
+    else if (b.dataset.x != null) { list.splice(+b.dataset.x, 1); piChanged(); }
+  });
+  $('#piSet').addEventListener('change', e => { if (e.target.dataset.n) piSetParam(e.target); });
+  $('#piSet').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.n) { e.preventDefault(); e.target.blur(); } });
+  wireEditor($('#piSrc'), $('#piLn'), piRun, () => { piSave(); piParamsSoon(); });
+}
+
+/* ---------------- the Python guide: indicators and strategies, on each panel's Help tab and from the menus ---------------- */
+function guideShow(el, which) {
+  const body = el.querySelector('.gbody');
+  body.replaceChildren($(which === 'strat' ? '#guideStrat' : '#guideInd').content.cloneNode(true));
+  for (const h of body.querySelectorAll('h3[id]')) { h.dataset.h = h.id; h.removeAttribute('id'); } // the guide shows in three places
+  for (const b of el.querySelectorAll('.gseg button')) b.setAttribute('aria-pressed', String(b.dataset.g === which));
+  el.querySelector('.gtoc').innerHTML = [...body.querySelectorAll('h3')].map(h => `<li><button data-h="${h.dataset.h}">${esc(h.textContent)}</button></li>`).join('');
+  for (const p of body.querySelectorAll('.opthelp')) p.hidden = !optAvailable();
+  body.scrollTop = 0;
+}
+function renderGuide(el, which) {
+  el.innerHTML = '<nav class="gnav"><div class="seg gseg"><button data-g="ind">Indicators</button><button data-g="strat">Strategies</button></div><ol class="gtoc"></ol></nav><article class="gbody"></article>';
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.g) guideShow(el, b.dataset.g);
+    else if (b.dataset.h) el.querySelector(`.gbody [data-h="${b.dataset.h}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
+  guideShow(el, which);
+}
+function openGuide(which) {
+  if (typeof closeSheet === 'function') closeSheet();
+  closePop();
+  guideShow($('#docBody'), which);
+  $('#docs').hidden = false;
+}
+function wireGuide() {
+  renderGuide($('#stHelp'), 'strat'); renderGuide($('#piHelp'), 'ind'); renderGuide($('#docBody'), 'ind');
+  $('#docClose').onclick = () => { $('#docs').hidden = true; };
+  $('#docs').addEventListener('mousedown', e => { if (e.target.id === 'docs') $('#docs').hidden = true; });
+  $('#hGuide').onclick = () => openGuide('ind');
 }
 
 /* ---------------- strategy optimization (Windows app) ---------------- */
@@ -8720,7 +10254,7 @@ if (self.__TAPE_WORKER) { workerMain(); return; }
 
 /* ---------------- boot ---------------- */
 if (!LW) { document.getElementById('chart').innerHTML = '<div class="empty">The charting library did not load. Check your connection and reload the page.</div>'; return; }
-initCharts(); initDrag(); wire(); wireStrat(); wireDraw(); wireSim(); wireChartSet(); wireZones(); initTips();
+initCharts(); initDrag(); wire(); wireStrat(); wirePind(); wireGuide(); wireDraw(); wireSim(); wireChartSet(); wireZones(); initTips();
 try { const tab = localStorage.getItem('tape-replay-tab'); if (tab) document.querySelector(`.tab[data-tab="${tab}"]`)?.click(); } catch (e) {}
 // open on the labelled sample so the tool is usable at once
 // (sample costs: 0.6 pip spread, 1 standard lot; loading a CSV resets them)
