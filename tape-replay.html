@@ -9357,7 +9357,9 @@ function stratForm() {
   // Windows app, a long series: dates outside the loaded section are loaded as the run goes
   const V = D.V, loadedTo = D.window ? Math.max(D.window.to, D.t[D.n - 1]) : D.t[D.n - 1];
   const stream = !!(CONT_OK() && V && (t0 < D.t[1] || t1 > loadedTo + 1));
-  return { p, code, name, mode, libs, tf, start, end, rebuy, maxEvals: p.maxEvals || 0, t0, t1,
+  // whole days of the loaded data: the To date runs to midnight, the loaded data to the end of that day's trading
+  const inLoaded = t0 >= ymdUtc(ymd(D.t[1]), 0) && t1 <= ymdUtc(ymd(loadedTo), 1);
+  return { p, code, name, mode, libs, tf, start, end, rebuy, maxEvals: p.maxEvals || 0, t0, t1, inLoaded,
            stream: stream ? { V, t0: Math.max(t0, V.from + 86400), t1: Math.min(t1, V.to + 1) } : null };
 }
 async function runStrategy(opts = {}) {
@@ -10495,9 +10497,24 @@ async function optRun(resume) {
   if (OPT.on || RUN.on || !E || !D) return;
   let doc = OPT.doc;
   if (!resume) {
-    const f = stratForm();
+    let f = stratForm();
     if (f.error) return optMsg(f.error, true);
-    if (f.stream) return optMsg(`An optimization runs on the loaded data, ${ymd(D.t[1])} to ${ymd(D.t[D.n - 1])}: pick dates inside it on the Code tab, or load a longer section in Session settings.`, true);
+    if (f.stream && !f.inLoaded) {
+      // dates beyond what is loaded: a new session over them (the open one is saved), then the optimization on it
+      const sm = f.stream, t0 = contDayStart(sm.V, sm.t0 - 86400), t1 = Math.min(sm.V.to, contDayEnd(sm.V, sm.t1 - 1)), bars = sectionBars(sm.V, t0, t1);
+      if (bars > MAX_BARS) return optMsg(`${ymd(sm.t0)} to ${ymd(sm.t1 - 1)} is about ${mil(bars)} bars, more than an optimization can hold at once (${mil(MAX_BARS)}): pick a shorter range on the Code tab.`, true);
+      optMsg(`Loading ${ymd(sm.t0)} to ${ymd(sm.t1 - 1)}…`);
+      let d;
+      try { d = await loadSection(sm.V, t0, t1); } catch (e) { return optMsg(e.message, true); }
+      const xsIds = XS.map(x => x.dsId);
+      setPlaying(false);
+      RUN.on = true; XS_KEEP = true; // no tour or pop-ups while the session starts
+      try { startSession(d, lowerBound(d.t, sm.t0), TF); } finally { RUN.on = false; }
+      if (xsIds.length) { optMsg('Loading the other instruments…'); await xsSet(xsIds); }
+      f = stratForm();
+      if (f.error) return optMsg(f.error, true);
+      if (f.stream && !f.inLoaded) return optMsg(`Could not load ${ymd(sm.t0)} to ${ymd(sm.t1 - 1)}: pick dates inside ${ymd(D.t[1])} to ${ymd(D.t[D.n - 1])}.`, true);
+    }
     const sp = optSpec();
     if (sp.error) return optMsg(sp.error, true);
     if (!sp.params.length) return optMsg('Tick at least one setting to try.', true);
