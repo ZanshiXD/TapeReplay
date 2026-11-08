@@ -1871,6 +1871,14 @@ def on_bar(ctx, bar):
   <p><code>ctx.df(n)</code>: the same candles as a pandas DataFrame. Write <code>import pandas</code> in your code and pandas loads with it (slower than numpy; avoid it on every bar).</p>
   <p><code>ctx.time</code> and <code>ctx.price</code> (this candle's time and close), <code>ctx.bar_index</code>, <code>ctx.symbol</code>, <code>ctx.timeframe</code> (like <code>"5m"</code>), <code>ctx.tick_size</code>, <code>ctx.ticks(n)</code> (n ticks as a price distance), <code>ctx.round(price)</code> (to the data's precision), <code>ctx.point_value</code>, and <code>ctx.at("09:30")</code>, a time to compare with <code>bar.time.time()</code>.</p>
 
+  <h3 id="gi-other">Other instruments</h3>
+  <p>A session can load other instruments beside the chart's own, such as ES next to NQ, to compare them (SMT divergence). <code>ctx.other("ES")</code> gives that instrument's closed candles on the chart's timeframe, read just like the chart's: <code>.closes(n)</code>, <code>.opens(n)</code>, <code>.highs(n)</code>, <code>.lows(n)</code>, <code>.volumes(n)</code>, <code>.times(n)</code>, <code>.df(n)</code>, and <code>.time</code> and <code>.price</code> (its latest candle's open time and close), <code>.symbol</code>, <code>.name</code>. <code>ctx.other(0)</code> or <code>ctx.other()</code> is the first one loaded; <code>ctx.others()</code> lists their symbols, <code>[]</code> when there are none.</p>
+  <p>It only has candles whose bars had all finished when this candle closed, so it never runs ahead of the chart. The two need not have a candle at the same times (one may not trade for a while): check <code>other.time == bar.time</code> before comparing this candle with its. With no other instrument loaded, <code>ctx.other()</code> has no candles (<code>len(...) == 0</code>) rather than failing; a symbol that is not loaded is an error that lists the ones that are.</p>
+<pre>es = ctx.other("ES")
+if es.time == bar.time and len(es.highs(21)) == 21:
+    if bar.high &gt; ctx.highs(21)[:-1].max() and es.highs(21)[-1] &lt; es.highs(21)[:-1].max():
+        ctx.marker("SMT", shape="arrow_down", color="down")</pre>
+
   <h3 id="gi-plot">Plots</h3>
   <p><code>ctx.plot(value, title, color=None, width=1, style="line", pane="price")</code> adds this candle's point to a line. Call it on every bar with the same <code>title</code>; a <code>None</code> or <code>NaN</code> value leaves a gap. A plot's style and pane are set by its first call; its color can change from bar to bar (<code>"up" if fast &gt; slow else "down"</code>).</p>
   <ul>
@@ -1937,6 +1945,7 @@ ctx.range.delete()</pre>
     <tr><td><code>bar_index</code>, <code>time</code></td><td><code>bar.index</code>, <code>bar.time</code></td></tr>
     <tr><td><code>color.new(c, 80)</code></td><td><code>rgba(c, 0.2)</code> (Pine's 80% transparent is 0.2 here)</td></tr>
     <tr><td><code>input.int(14)</code></td><td><code>LENGTH = 14</code> at the top (the Settings card)</td></tr>
+    <tr><td><code>request.security("ES1!", timeframe.period, close)</code></td><td><code>ctx.other("ES").closes(1)</code>, for an instrument loaded with the session (other timeframes: build them from the chart's candles)</td></tr>
   </table>
 
   <h3 id="gi-more">Good to know</h3>
@@ -1969,6 +1978,10 @@ ctx.range.delete()</pre>
   <p><code>ctx.df(n)</code>: the same candles as a pandas DataFrame (choose <b>numpy + pandas</b> under Libraries). Building one on every bar is slow over long runs; numpy arrays are much faster.</p>
   <p><code>ctx.position</code>, <code>ctx.position_price</code>, <code>ctx.equity</code>, <code>ctx.balance</code>, <code>ctx.time</code>, <code>ctx.price</code>, <code>ctx.orders</code> (working orders), <code>ctx.trades</code> (open trades), <code>ctx.history</code> (closed trades).</p>
   <p><code>ctx.tick_size</code>, <code>ctx.ticks(n)</code>, <code>ctx.bid</code> and <code>ctx.ask</code> (sells fill at the bid, buys at the ask), <code>ctx.spread</code>, <code>ctx.round(price)</code>, <code>ctx.point_value</code> (money per 1.0 of price per contract), <code>ctx.at("09:30")</code> (a time to compare with <code>bar.time.time()</code>).</p>
+
+  <h3 id="gs-other">Other instruments</h3>
+  <p>When the session loads other instruments beside the chart's own (such as ES next to NQ), <code>ctx.other("ES")</code> gives one's closed candles on the strategy's timeframe, read like the strategy's own: <code>.closes(n)</code>, <code>.highs(n)</code>, <code>.lows(n)</code>, <code>.opens(n)</code>, <code>.volumes(n)</code>, <code>.times(n)</code>, <code>.df(n)</code>, and <code>.time</code> and <code>.price</code> for its latest candle. <code>ctx.other(0)</code> (or <code>ctx.other()</code>) is the first one loaded; <code>ctx.others()</code> lists their symbols, <code>[]</code> when there are none. Orders still trade the chart's instrument only.</p>
+  <p>Each <code>on_bar</code> sees only the other's candles whose bars had all finished when this candle closed, so a backtest or an optimization cannot see ahead on it. It may lack a candle at some times: check <code>other.time == bar.time</code> before comparing the two on this candle. With no other instrument loaded it has no candles instead of failing; a symbol that is not loaded is an error that lists the ones that are. The <b>SMT divergence</b> template is an example.</p>
 
   <h3 id="gs-ta">Indicator math</h3>
   <p>The <code>ta</code> helpers from indicators work in strategies too: <code>ctx.ema = ta.EMA(20)</code> in <code>init</code>, then <code>ctx.ema.update(bar.close)</code> on each bar, or <code>ta.rsi(ctx.closes(100), 14)[-1]</code>. The <b>Indicators</b> guide lists them all.</p>
@@ -2165,6 +2178,18 @@ class _History:
         self._a[:, self._k] = (t, o, h, l, c, v)
         self._k += 1
 
+    def _push_many(self, cols):
+        """Several candles at once: cols is (6, m), rows time, open, high, low, close, volume."""
+        m = cols.shape[1]
+        if self._k + m > self._cap:
+            while self._k + m > self._cap:
+                self._cap *= 2
+            a = np.zeros((6, self._cap))
+            a[:, :self._k] = self._a[:, :self._k]
+            self._a = a
+        self._a[:, self._k:self._k + m] = cols
+        self._k += m
+
     def _col(self, j, n):
         a = self._a[j, max(0, self._k - n) if n else 0:self._k]
         a.flags.writeable = False
@@ -2216,7 +2241,191 @@ class _History:
         return _dtime(int(h), int(m))
 
 
-class Context(_History):
+# ---- other instruments loaded with the session (SMT divergence, spreads): ctx.other("ES") in strategies and indicators.
+# The page answers through _XS["api"] (set once by _tr_xs_init): list() -> JSON [{key, sym, name, base, prec}], and
+# bars(key, tf, after, tc, n) -> flat [t, bucket, open, high, low, close, volume] for up to n bars of that instrument
+# after time `after` that are complete at time tc (t + base <= tc), bucket being the start of the candle of timeframe
+# tf each falls in. tc is when the script's own candle closed, so a script never sees a bar the replay has not finished.
+_XS = {"api": None, "bars": None}
+_XS_CHUNK = 65536
+
+
+def _tr_xs_init(api):
+    _XS["api"], _XS["bars"] = api, (api.bars if api is not None else None)
+    return None
+
+
+def _xs_list():
+    api = _XS["api"]
+    return json.loads(api.list()) if api is not None else []
+
+
+def _xs_label(m):
+    return m.get("sym") or m.get("name") or m.get("key") or "?"
+
+
+def _xs_pick(lst, which):
+    """The instrument `which` names: an index into others(), or a symbol, name or key (any case)."""
+    if isinstance(which, (int, np.integer)) and not isinstance(which, (bool, np.bool_)):
+        i = int(which)
+        if not -len(lst) <= i < len(lst):
+            raise IndexError(f"other({i}): the session has {len(lst)} other instrument{'' if len(lst) == 1 else 's'}"
+                             + (f", other(0) to other({len(lst) - 1})." if len(lst) > 1 else ", other(0)."))
+        return lst[i]
+    if not isinstance(which, str):
+        raise TypeError('other() takes a symbol such as "ES", or a number (0 for the first other instrument).')
+    s = which.strip().lower()
+    for f in (lambda m: (m.get("sym") or "").lower(), lambda m: (m.get("name") or "").lower(), lambda m: m.get("key") or "",
+              lambda m: re.split(r"[\s,._-]+", (m.get("name") or "").lower())[0]):
+        for m in lst:
+            if s and f(m) == s:
+                return m
+    raise ValueError(f'No other instrument "{which}" in this session. Loaded with it: '
+                     f'{", ".join(_xs_label(m) for m in lst)}. ctx.others() lists them.')
+
+
+class _Others:
+    """ctx.others() and ctx.other(...), for strategies and indicators."""
+    _tc = None   # when the script's latest candle closed (UTC seconds): other instruments' bars must end by then
+    _xs = None
+
+    def others(self):
+        """The symbols of the other instruments loaded with the session, like ["ES"]; [] when there are none."""
+        if self._xs is None:
+            self._xs = {"list": _xs_list(), "inst": {}, "by": {}}
+        return [_xs_label(m) for m in self._xs["list"]]
+
+    def other(self, which=0):
+        """Another instrument loaded with the session ("ES", or 0 for the first): its closed candles on this script's
+        timeframe, read like ctx's own (closes(n), highs(n), times(n), df(n), time, price). Only candles whose bars
+        had finished when this script's latest candle closed. With no other instrument it is empty (len 0)."""
+        xs = self._xs
+        o = xs["by"].get(which) if xs is not None and isinstance(which, (str, int)) else None
+        if o is None:
+            self.others()
+            xs = self._xs
+            m = _xs_pick(xs["list"], which) if xs["list"] else None
+            key = m["key"] if m else ("", str(which))
+            o = xs["inst"].get(key)
+            if o is None:
+                o = xs["inst"][key] = _Other(self, m or {"sym": which if isinstance(which, str) else ""})
+            if isinstance(which, (str, int)):
+                xs["by"][which] = o
+        o._sync()
+        return o
+
+
+class _Other(_History):
+    """Another instrument's candles on the script's timeframe, built from its bars as the script's candles close."""
+
+    def __init__(self, owner, meta):
+        prec = int(meta.get("prec", owner._prec))
+        super().__init__({"name": _xs_label(meta) if meta.get("key") else meta.get("sym", ""), "tf": owner.timeframe,
+                          "tick": 10.0 ** -prec, "pv": None, "prec": prec})
+        self.name = meta.get("name") or self.symbol
+        self._own, self._key, self._base = owner, meta.get("key"), float(meta.get("base") or 0)
+        self._after = None     # the time of the last bar taken
+        self._at = None        # the close it was brought up to
+        self._tcache = None
+
+    def __len__(self):
+        return self._k
+
+    # its latest candle: open time (in the chart's zone, as bar.time), close and index, worked out when read
+    @property
+    def time(self):
+        if not self._k:
+            return None
+        t = float(self._a[0, self._k - 1])
+        if self._tcache is None or self._tcache[0] != t:
+            own = self._own.time
+            self._tcache = (t, datetime.fromtimestamp(t, own.tzinfo if own is not None else timezone.utc))
+        return self._tcache[1]
+
+    @time.setter
+    def time(self, v):
+        pass
+
+    @property
+    def price(self):
+        return float(self._a[4, self._k - 1]) if self._k else None
+
+    @price.setter
+    def price(self, v):
+        pass
+
+    @property
+    def bar_index(self):
+        return self._k - 1
+
+    @bar_index.setter
+    def bar_index(self, v):
+        pass
+
+    def __repr__(self):
+        last = f", last {self.time:%Y-%m-%d %H:%M} C={self.price}" if self.time is not None else ""
+        return f"Other({self.symbol!r} {self.timeframe}, {self._k} candles{last})"
+
+    def _sync(self):
+        own, tc = self._own, self._own._tc
+        bars = _XS["bars"]
+        if self._key is None or tc is None or tc == self._at or bars is None:
+            return
+        self._at = tc
+        if self._after is None:
+            if not own._k:
+                return
+            self._after = float(own._a[0, 0]) - 1e-6  # from the script's first candle on
+        while True:
+            r = bars(self._key, self.timeframe, self._after, tc, _XS_CHUNK)
+            x = r.to_memoryview() if hasattr(r, "to_memoryview") else r  # a copy of the page's numbers
+            m = len(x) // 7
+            if not m:
+                break
+            self._after = float(x[7 * m - 7])
+            self._add(x, m)
+            if m < _XS_CHUNK:
+                break
+
+    def _add(self, x, m):
+        """m bars in time order, 7 numbers each in the flat x (t, bucket, o, h, l, c, v), into candles; a bar in the
+        latest candle's bucket adds to it."""
+        k = self._k
+        last = float(self._a[0, k - 1]) if k else -np.inf
+        if m <= 32:  # the usual case, a candle or two each close: plain Python is quicker than numpy here
+            A = self._a
+            vals = x.tolist() if isinstance(x, memoryview) else list(x)
+            for t, b, o, h, l, c, v in zip(*[iter(vals)] * 7):
+                if b <= last:  # the same candle (a clock change can give an earlier bucket: kept in the open one)
+                    j = self._k - 1
+                    if h > A[2, j]:
+                        A[2, j] = h
+                    if l < A[3, j]:
+                        A[3, j] = l
+                    A[4, j] = c
+                    A[5, j] += v
+                else:
+                    self._push(b, o, h, l, c, v)
+                    A, last = self._a, b
+            return
+        a = np.asarray(x, dtype=np.float64).reshape(-1, 7)
+        b = np.maximum.accumulate(np.maximum(a[:, 1], last))
+        s = np.flatnonzero(np.concatenate(([True], b[1:] != b[:-1])))
+        e = np.append(s[1:], len(a)) - 1
+        cols = np.vstack((b[s], a[s, 2], np.maximum.reduceat(a[:, 3], s), np.minimum.reduceat(a[:, 4], s), a[e, 5],
+                          np.add.reduceat(a[:, 6], s)))
+        if k and cols[0, 0] == last:
+            j = k - 1
+            self._a[2, j] = max(self._a[2, j], cols[2, 0])
+            self._a[3, j] = min(self._a[3, j], cols[3, 0])
+            self._a[4, j] = cols[4, 0]
+            self._a[5, j] += cols[5, 0]
+            cols = cols[:, 1:]
+        if cols.shape[1]:
+            self._push_many(cols)
+
+
+class Context(_Others, _History):
     """What a strategy sees and does. Prices are in the data's units; qty in contracts (or units)."""
 
     def __init__(self, api, info):
@@ -2623,10 +2832,12 @@ def _start(api, code, info_json):
     return None
 
 
-def _tr_bar(t, o, h, l, c, v, off, pos, avg, eq, bal):
+def _tr_bar(t, o, h, l, c, v, off, pos, avg, eq, bal, tc=None):
+    """A candle closed: t is its open; tc when it closed (its last bar's end), for other instruments (ctx.other)."""
     ctx = _S["ctx"]
     ctx._push(t, o, h, l, c, v)
     ctx.bar_index += 1
+    ctx._tc = t if tc is None else tc
     ctx.time = _dt(t, off)
     ctx.price = c
     ctx._state(pos, avg, eq, bal)
@@ -2961,7 +3172,7 @@ class Drawing:
         return f"{self.kind.capitalize()}({', '.join(f'{k}={v!r}' for k, v in self._f.items())})"
 
 
-class IndContext(_History):
+class IndContext(_Others, _History):
     """What an indicator sees and draws. on_bar runs when each candle of the chart closes."""
 
     def __init__(self, ind, info):
@@ -3243,17 +3454,21 @@ def _ti_start(iid, code, info_json):
     return ind._out()
 
 
-def _ti_feed(iid, buf):
-    """Closed candles for instance iid, 7 numbers each (time, open, high, low, close, volume, zone offset),
-    as a flat buffer. JSON of what to draw since the last call, with "error" if on_bar failed (it then stops)."""
+def _ti_feed(iid, buf, cols=7):
+    """Closed candles for instance iid, 7 numbers each (time, open, high, low, close, volume, zone offset), or 8 with
+    when each closed (its last bar's end, for ctx.other), as a flat buffer. JSON of what to draw since the last call,
+    with "error" if on_bar failed (it then stops)."""
     ind = _TI.get(iid)
     if ind is None or ind.err:
         return json.dumps({})
-    a = np.asarray(buf.to_py() if hasattr(buf, "to_py") else buf, dtype=np.float64).reshape(-1, 7)
+    a = np.asarray(buf.to_py() if hasattr(buf, "to_py") else buf, dtype=np.float64).reshape(-1, int(cols))
     ctx, f = ind.ctx, ind.on_bar
+    if a.shape[1] < 8:  # no close times: a candle closes a timeframe after it opens
+        a = np.column_stack((a[:, :7], a[:, 0] + ctx._tfs))
     try:
-        for t, o, h, l, c, v, off in a.tolist():
+        for t, o, h, l, c, v, off, tc in a[:, :8].tolist():
             ctx._push(t, o, h, l, c, v)
+            ctx._tc = tc
             ctx.bar_index += 1
             ctx.time = _dt(t, int(off))
             ctx.price = c
@@ -8765,12 +8980,43 @@ def on_tick(ctx, tick):
     else:
         ctx.best = None
 `,
+  'SMT divergence': `# SMT divergence: this chart's symbol takes out the high of its last LOOKBACK candles while the other
+# instrument loaded with the session (such as ES beside NQ) does not: the move is not confirmed, so sell it.
+# The same at the lows for a buy. Needs a second instrument (Session settings); without one it does nothing.
+OTHER = ""         # the other instrument's symbol, like "ES"; "" = the first one loaded
+LOOKBACK = 20      # candles for the high and low to take out
+STOP = 8           # ticks beyond the new extreme
+RR = 2.0           # target = RR x risk
+
+def init(ctx):
+    ctx.on = bool(ctx.others())
+    if not ctx.on:
+        print("SMT divergence needs another instrument loaded with the session (Session settings).")
+
+def on_bar(ctx, bar):
+    if not ctx.on or ctx.position or ctx.orders:
+        return
+    other = ctx.other(OTHER or 0)        # its closed candles on this timeframe
+    if other.time != bar.time:           # no candle of its own at this time
+        return
+    h, l = ctx.highs(LOOKBACK + 1), ctx.lows(LOOKBACK + 1)
+    oh, ol = other.highs(LOOKBACK + 1), other.lows(LOOKBACK + 1)
+    if len(h) <= LOOKBACK or len(oh) <= LOOKBACK:
+        return
+    if h[-1] > h[:-1].max() and oh[-1] < oh[:-1].max():      # a higher high here, a lower high there
+        sl = ctx.round(h[-1] + ctx.ticks(STOP))
+        ctx.sell(sl=sl, tp=ctx.round(ctx.bid - (sl - ctx.bid) * RR))
+    elif l[-1] < l[:-1].min() and ol[-1] > ol[:-1].min():    # a lower low here, a higher low there
+        sl = ctx.round(l[-1] - ctx.ticks(STOP))
+        ctx.buy(sl=sl, tp=ctx.round(ctx.ask + (ctx.ask - sl) * RR))
+`,
   'Blank': `def init(ctx):
     pass
 
 def on_bar(ctx, bar):
     # bar.time, bar.open, bar.high, bar.low, bar.close, bar.volume
     # ctx.position, ctx.equity, ctx.closes(n) ... see Help
+    # ctx.other("ES").closes(n): another instrument loaded with the session
     pass
 `,
 };
@@ -8930,6 +9176,7 @@ async function loadPython(libs) {
       const g = n => py.globals.get(n);
       PY.fn = { check: g('_tr_check'), start: g('_tr_start'), bar: g('_tr_bar'), tick: g('_tr_tick'), fill: g('_tr_fill'), end: g('_tr_end'), params: g('_tr_params'), combos: g('_tr_combos'), setvals: g('_tr_setvals'),
                 tiCheck: g('_ti_check'), tiStart: g('_ti_start'), tiFeed: g('_ti_feed'), tiStop: g('_ti_stop') };
+      g('_tr_xs_init')(xsApi); // ctx.other(): the other instruments loaded with the session
       PY.libs.add('numpy'); PY.py = py;
     })();
     try { await PY.loading; } finally { PY.loading = null; }
@@ -8971,6 +9218,29 @@ const stratApi = {
   trades: () => JSON.stringify(T.trades.map(t => ({ id: t.id, side: t.side > 0 ? 'long' : 'short', qty: t.qty, entry: t.entry, sl: t.sl ?? null, tp: t.tp ?? null, pnl: unreal(t) }))),
   // closed trades from index `from` on: Python keeps the earlier ones, so reading ctx.history on every bar stays cheap
   history: from => JSON.stringify(T.hist.slice(from || 0).map(h => ({ id: h.id, side: h.side > 0 ? 'long' : 'short', qty: h.qty, entry: h.entry, exit: h.exit, reason: h.reason, pnl: h.net, entry_time: h.time, exit_time: h.exitTime }))),
+};
+// what Python's ctx.other("ES") calls (strategies, indicators, optimization workers): the other instruments in XS.
+// bars(): up to `max` bars of instrument `key` after time `after` that are complete at time tc (t + base <= tc, tc being
+// when the script's candle closed), 7 numbers each: time, the start of the candle of timeframe tf it falls in, open,
+// high, low, close, volume. Python keeps where it got to by time, so XS may grow or be trimmed between calls.
+const xsLB = (a, x, n) => { let lo = 0, hi = n; while (lo < hi) { const m = (lo + hi) >> 1; if (a[m] < x) lo = m + 1; else hi = m; } return lo; };
+const XS_TF = {};
+const xsApi = {
+  list: () => JSON.stringify(XS.filter(x => x.d).map(x => ({ key: x.key, sym: x.sym || '', name: x.name || '', base: x.d.base, prec: x.d.prec ?? 2 }))),
+  bars(key, tf, after, tc, max) {
+    const x = XS.find(y => y.key === key), d = x && x.d, tfo = XS_TF[tf] || (XS_TF[tf] = parseTF(tf));
+    if (!d || !d.n || !tfo) return new Float64Array(0);
+    const T = d.t, n = Math.min(d.n, T.length), base = d.base;
+    let i = xsLB(T, after, n); while (i < n && T[i] <= after) i++;
+    let j = xsLB(T, tc - base, n); while (j < n && T[j] + base <= tc) j++;
+    j = Math.min(j, i + max);
+    if (j <= i) return new Float64Array(0);
+    const b = makeBucket(tfo), out = new Float64Array(7 * (j - i));
+    for (let k = i, o = 0; k < j; k++, o += 7) {
+      out[o] = T[k]; out[o + 1] = b(T[k]); out[o + 2] = d.o[k]; out[o + 3] = d.h[k]; out[o + 4] = d.l[k]; out[o + 5] = d.c[k]; out[o + 6] = d.v ? d.v[k] || 0 : 0;
+    }
+    return out;
+  },
 };
 // market orders and closes queued by the strategy, filled at this tick's price (the same checks as the ticket)
 function execPending() {
@@ -9052,7 +9322,7 @@ async function stratCore(o) {
             if (!C) C = { time: bucketOf(D.t[i]), o: D.o[i], h: D.h[i], l: D.l[i], c: D.c[i], v: D.v[i] || 0 };
             else { if (D.h[i] > C.h) C.h = D.h[i]; if (D.l[i] < C.l) C.l = D.l[i]; C.c = D.c[i]; C.v += D.v[i] || 0; }
             if (E.i >= END ? !(stream && contMore()) : bucketOf(D.t[E.i]) !== C.time) { // at the last bar loaded, the candle waits for the next month
-              fail = PY.fn.bar(C.time, C.o, C.h, C.l, C.c, C.v, zoneOff(C.time), ...stratState()) || null;
+              fail = PY.fn.bar(C.time, C.o, C.h, C.l, C.c, C.v, zoneOff(C.time), ...stratState(), D.t[i] + D.base) || null; // closed at the end of bar i
               C = null;
             }
           }
@@ -9362,6 +9632,27 @@ def on_bar(ctx, bar):
         ctx.live.append((ctx.line(i, lows[SIDE], bar.index, lows[SIDE], color="up"), "low"))
         ctx.marker("L", shape="arrow_up", position="below", color="up", at=i)
 `,
+  'SMT divergence': `# SMT divergence with another instrument loaded with the session (such as ES beside NQ): a marker where this
+# chart takes out the high of its last LOOKBACK candles and the other does not (or the low), and the other's
+# closes in a band under the chart. Without a second instrument (Session settings) it draws nothing.
+OTHER = ""        # the other instrument's symbol, like "ES"; "" = the first one loaded
+LOOKBACK = 20     # candles for the high and low to take out
+
+def on_bar(ctx, bar):
+    if not ctx.others():
+        return
+    other = ctx.other(OTHER or 0)        # its closed candles on the chart's timeframe
+    same = other.time == bar.time        # it has a candle at this time too
+    ctx.plot(other.price if same else None, other.symbol, "#7f9cf5", pane="lower")
+    h, l = ctx.highs(LOOKBACK + 1), ctx.lows(LOOKBACK + 1)
+    oh, ol = other.highs(LOOKBACK + 1), other.lows(LOOKBACK + 1)
+    if not same or len(h) <= LOOKBACK or len(oh) <= LOOKBACK:
+        return
+    if h[-1] > h[:-1].max() and oh[-1] < oh[:-1].max():
+        ctx.marker("SMT", shape="arrow_down", position="above", color="down")
+    elif l[-1] < l[:-1].min() and ol[-1] > ol[:-1].min():
+        ctx.marker("SMT", shape="arrow_up", position="below", color="up")
+`,
   'Blank': `# Runs on every closed candle of the chart, oldest first. Help lists everything ctx can draw.
 def init(ctx):
     pass
@@ -9477,16 +9768,16 @@ async function piStep() {
   PY.out = piLog;
   try {
     while (PI.qh < PI.q.length && live.some(x => !x.err)) {
-      const k = Math.min(n, PI.q.length - PI.qh), buf = new Float64Array(7 * k);
+      const k = Math.min(n, PI.q.length - PI.qh), buf = new Float64Array(8 * k);
       for (let j = 0; j < k; j++) {
-        const b = PI.q[PI.qh + j], o = 7 * j;
-        buf[o] = b.time; buf[o + 1] = b.o; buf[o + 2] = b.h; buf[o + 3] = b.l; buf[o + 4] = b.c; buf[o + 5] = b.v || 0; buf[o + 6] = zoneOff(b.time);
+        const b = PI.q[PI.qh + j], o = 8 * j;
+        buf[o] = b.time; buf[o + 1] = b.o; buf[o + 2] = b.h; buf[o + 3] = b.l; buf[o + 4] = b.c; buf[o + 5] = b.v || 0; buf[o + 6] = zoneOff(b.time); buf[o + 7] = piCloseT(PI.qh + j);
       }
       PI.qh += k;
       for (const ins of live) {
         if (ins.err) continue;
         let out;
-        try { out = JSON.parse(PY.fn.tiFeed(ins.iid, buf)); } catch (e) { out = { error: (e && e.message) || String(e) }; }
+        try { out = JSON.parse(PY.fn.tiFeed(ins.iid, buf, 8)); } catch (e) { out = { error: (e && e.message) || String(e) }; }
         piApply(ins, out); ins.fed += k;
       }
       if (performance.now() > until) break;
@@ -9508,6 +9799,13 @@ async function piStep() {
     }
     PI.total = 0;
   }
+}
+// when queued candle j closed, for ctx.other(): the end of its last base bar (the bar before the next candle's first),
+// never past the replay time; a timeframe after its open if those bars have been let go
+function piCloseT(j) {
+  const b = PI.q[j], nx = j + 1 < PI.q.length ? PI.q[j + 1].time : E.F && E.F.time > b.time ? E.F.time : Infinity;
+  const k = xsLB(D.t, nx, D.n) - 1;
+  return Math.min(k >= 0 && D.t[k] >= b.time ? D.t[k] + D.base : Math.min(nx, b.time + tfSecs()), E.time);
 }
 function piFail(ins, err) {
   if (ins.err) return;
@@ -10066,18 +10364,26 @@ function optWorkerCount(bytes, shared) {
   if (!shared) n = Math.max(1, Math.min(n, Math.floor(1.5e9 / (bytes + 1)))); // each worker holds its own copy
   return n;
 }
-// the bars a run needs, from the bar before the start: shared memory when the page is isolated, else copies
-function optData(start, end) {
-  const a = start - 1, n = end - a, shared = self.crossOriginIsolated === true && typeof SharedArrayBuffer === 'function';
+// the bars a run needs, from the bar before the start: shared memory when the page is isolated, else copies.
+// Other instruments (XS, for ctx.other) go too, from the start of the strategy timeframe tf's first candle to the
+// last bar that can finish by the run's last bar.
+function optData(start, end, tf) {
+  const a = start - 1, shared = self.crossOriginIsolated === true && typeof SharedArrayBuffer === 'function';
   let bytes = 0;
-  const col = src => {
-    const C = ArrayBuffer.isView(src) ? src.constructor : Float64Array, size = n * C.BYTES_PER_ELEMENT;
+  const col = (src, a, end) => {
+    const n = end - a, C = ArrayBuffer.isView(src) ? src.constructor : Float64Array, size = n * C.BYTES_PER_ELEMENT;
     bytes += size;
     const arr = new C(shared ? new SharedArrayBuffer(size) : new ArrayBuffer(size));
     if (ArrayBuffer.isView(src)) arr.set(src.subarray(a, end)); else for (let k = 0; k < n; k++) arr[k] = src[a + k] || 0;
     return arr;
   };
-  const d = { name: D.name, n, t: col(D.t), o: col(D.o), h: col(D.h), l: col(D.l), c: col(D.c), v: col(D.v || new Float32Array(D.n)), base: D.base, prec: D.prec, hasVol: D.hasVol, mintick: mintick() };
+  const cols = (s, a, end) => ({ n: end - a, t: col(s.t, a, end), o: col(s.o, a, end), h: col(s.h, a, end), l: col(s.l, a, end), c: col(s.c, a, end), v: col(s.v || new Float32Array(s.n), a, end) });
+  const d = { name: D.name, ...cols(D, a, end), base: D.base, prec: D.prec, hasVol: D.hasVol, mintick: mintick() };
+  const tfo = tf && parseTF(tf), t0 = Math.min(D.t[a], tfo ? makeBucket(tfo)(D.t[start]) : D.t[a]), t1 = D.t[end - 1] + D.base;
+  d.xs = XS.filter(x => x.d && x.d.n).map(x => {
+    const s = x.d, n = Math.min(s.n, s.t.length), i = xsLB(s.t, t0, n), j = xsLB(s.t, t1 - s.base + 1e-9, n);
+    return { key: x.key, dsId: x.dsId, name: x.name, sym: x.sym, d: { ...cols(s, i, Math.max(i, j)), base: s.base, prec: s.prec, hasVol: s.hasVol } };
+  });
   return { d, shared, bytes };
 }
 function pageScript() { let best = ''; for (const s of document.querySelectorAll('script:not([src]):not([type])')) if (s.textContent.length > best.length) best = s.textContent; return best; }
@@ -10213,7 +10519,7 @@ async function optRun(resume) {
   const todo = doc.combos.map((_, i) => i).filter(i => !doneSet.has(i));
   if (!todo.length) return optMsg('Every combination has run.');
   const start = lowerBound(D.t, doc.from), end = Math.min(D.n, lowerBound(D.t, doc.to) + 1);
-  const data = optData(start, end), job = { code: doc.code, mode: doc.mode, tf: doc.tf, start: 1, end: data.d.n, splitT: doc.splitT, rebuy: doc.rebuy, maxEvals: doc.maxEvals,
+  const data = optData(start, end, doc.tf), job = { code: doc.code, mode: doc.mode, tf: doc.tf, start: 1, end: data.d.n, splitT: doc.splitT, rebuy: doc.rebuy, maxEvals: doc.maxEvals,
                                            libs: doc.libs === 'pandas' ? ['numpy', 'pandas'] : ['numpy'] };
   const n = Math.min(optWorkerCount(data.bytes, data.shared), todo.length);
   const runCfg = doc.cfg || JSON.parse(JSON.stringify(cfg));
@@ -10637,7 +10943,7 @@ async function robRun() {
   doc.robust = { code: doc.code, runTo: R && R.runTo >= runTo ? R.runTo : runTo, trades, spec: sp, fails: {} };
   if (todo.length) {
     const start = lowerBound(D.t, doc.from), end = Math.min(D.n, lowerBound(D.t, runTo));
-    const data = optData(start, Math.max(start + 1, end)), job = { code: doc.code, mode: doc.mode, tf: doc.tf, start: 1, end: data.d.n, splitT: null, rebuy: doc.rebuy, maxEvals: doc.maxEvals, libs: optLibs(doc.libs) };
+    const data = optData(start, Math.max(start + 1, end), doc.tf), job = { code: doc.code, mode: doc.mode, tf: doc.tf, start: 1, end: data.d.n, splitT: null, rebuy: doc.rebuy, maxEvals: doc.maxEvals, libs: optLibs(doc.libs) };
     const n = Math.min(optWorkerCount(data.bytes, data.shared), todo.length);
     const runCfg = doc.cfg || JSON.parse(JSON.stringify(cfg));
     OPT.on = true; OPT.stop = false; OPT.paused = false; optRunning(true);
@@ -10838,11 +11144,13 @@ function workerMain() {
         py.runPython(m.runtime);
         const g = n => py.globals.get(n);
         PY.fn = { check: g('_tr_check'), start: g('_tr_start'), bar: g('_tr_bar'), tick: g('_tr_tick'), fill: g('_tr_fill'), end: g('_tr_end') };
+        g('_tr_xs_init')(xsApi);
         PY.py = py;
         postMessage({ type: 'pyready' });
       } else if (m.type === 'init') {
         const d = m.data;
         D = { name: d.name, n: d.n, t: d.t, o: d.o, h: d.h, l: d.l, c: d.c, v: d.v, base: d.base, prec: d.prec, hasVol: d.hasVol, mintick: d.mintick };
+        XS = d.xs || [];
         setPrec(D.prec);
         Object.assign(cfg, m.cfg);
         cfg.prop = { ...PROP_DEF, ...(m.cfg.prop || {}) }; cfg.sim = simConfig(m.cfg.sim);
