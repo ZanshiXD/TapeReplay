@@ -1435,6 +1435,7 @@ html.m .optcard button{flex:1;min-height:40px}
           <label class="f">Daily loss limit, all stages ($)<input id="sDll" type="number" step="any" min="0" placeholder="off"></label>
           <label class="f">Max loss locks at start + ($)<input id="sPad" type="number" step="any" min="0"></label>
           <label class="f chk"><input id="sAuto" type="checkbox"> Take funded payouts automatically as soon as they are allowed</label>
+          <label class="f chk"><input id="sLAuto" type="checkbox"> Take live payouts automatically: half the available balance, once a trading day</label>
         </div>
         <h4 class="sub">Evaluation</h4>
         <div class="fgrid">
@@ -3261,7 +3262,7 @@ function migrateReset(p, faithful) {
    eDpt: the evaluation's daily profit target, your own rule rather than the firm's: once the day is up that much,
    positions close and trading stops until the next trading day, so one big day cannot break the consistency rule
    and leave the account stuck in the evaluation. */
-const SIM_DEF = { on: false, preset: '', size: 50000, fee: 0, unit: 'micro', resetNY: 18, dll: 0, lockPad: 100, auto: false,
+const SIM_DEF = { on: false, preset: '', size: 50000, fee: 0, unit: 'micro', resetNY: 18, dll: 0, lockPad: 100, auto: false, lAuto: false,
   ePt: 3000, eMll: 2000, eCons: 50, eMax: 4, eMin: 0, eDpt: 0,
   fMll: 2000, fTiers: '0:2, 1000:3, 2000:4', fDays: 5, fDayMin: 150, fPayMin: 500, fPayMax: 2000, fPayPct: 50, split: 90, fPayouts: 5,
   lMll: 2000, lMax: 4, lBonusPt: 4000, lBonusDays: 20, lBonus: 2000 };
@@ -4921,6 +4922,11 @@ function simTick() {
     simNewAccount('funded');
     simLog(`Evaluation passed with ${money(p)} profit. A funded ${money(G.size)} account is open.`, 'up'); stopForRule();
   } else if (s.stage === 'funded' && G.auto && simPayoutInfo().ok) simPayout();
+  // live: half of what can be taken, the first time a payout is available each trading day
+  else if (s.stage === 'live' && G.lAuto && s.lAutoDay !== s.day) {
+    const p = simPayoutInfo(), half = Math.floor(p.max / 2 * 100) / 100;
+    if (p.ok && half >= 1) { s.lAutoDay = s.day; simPayout(half); }
+  }
 }
 function simBlock(qtyAdd) {
   if (!simOn()) return null;
@@ -5002,7 +5008,7 @@ function simToForm(p) {
   p = { ...SIM_DEF, ...p };
   $('#sOn').checked = p.on;
   for (const [k, id] of Object.entries(SIMF)) $(id).value = p[k] || p[k] === 0 && (k === 'resetNY' || k === 'lockPad') ? p[k] : '';
-  $('#sFTiers').value = p.fTiers; $('#sUnit').value = p.unit; $('#sAuto').checked = p.auto;
+  $('#sFTiers').value = p.fTiers; $('#sUnit').value = p.unit; $('#sAuto').checked = p.auto; $('#sLAuto').checked = !!p.lAuto;
   simFormState(); simDptNote();
 }
 // what the daily profit target does, and the largest one that keeps every day inside the consistency rule
@@ -5015,7 +5021,7 @@ function simDptNote() {
     (safe ? ` With a ${money(pt)} target and ${cons}% consistency, ${money(safe)} or less keeps every day inside the rule${dpt > safe ? `; ${money(dpt)} can still leave one day too big` : ''}.` : '');
 }
 function simFromForm() {
-  const p = { ...SIM_DEF, on: $('#sOn').checked, unit: $('#sUnit').value, auto: $('#sAuto').checked, fTiers: $('#sFTiers').value.trim(), preset: $('#sPreset').value };
+  const p = { ...SIM_DEF, on: $('#sOn').checked, unit: $('#sUnit').value, auto: $('#sAuto').checked, lAuto: $('#sLAuto').checked, fTiers: $('#sFTiers').value.trim(), preset: $('#sPreset').value };
   for (const [k, id] of Object.entries(SIMF)) { const v = parseFloat($(id).value); p[k] = isFinite(v) && v >= 0 ? v : (k === 'size' ? SIM_DEF.size : 0); }
   p.resetNY = clamp(Math.round(p.resetNY), 0, 23); p.fDays = Math.round(p.fDays); p.fPayouts = Math.max(1, Math.round(p.fPayouts)); p.fPayPct = p.fPayPct || 100; p.split = p.split || 100;
   return p;
@@ -5039,7 +5045,7 @@ function wireSim() {
   $('#sPreset').addEventListener('change', () => {
     const name = $('#sPreset').value, p = SIM_BUILTIN[name] || (PREFS.simPresets.find(x => x.name === name) || {}).rules; if (!p) return;
     const cur = simFromForm();
-    simToForm({ ...cur, ...p, on: true, unit: cur.unit, fee: p.fee ?? cur.fee, auto: cur.auto, resetNY: p.resetNY ?? cur.resetNY });
+    simToForm({ ...cur, ...p, on: true, unit: cur.unit, fee: p.fee ?? cur.fee, auto: cur.auto, lAuto: cur.lAuto, resetNY: p.resetNY ?? cur.resetNY });
     $('#sName').value = SIM_BUILTIN[name] ? '' : name; fillSimPresets(name);
   });
   $('#sSave').onclick = () => {

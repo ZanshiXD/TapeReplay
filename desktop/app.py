@@ -31,7 +31,13 @@ try:
 except ImportError:
     VERSION = "0.0.0-dev"
 
+try:  # a private build (TAPE_FLAVOR=live) has its own name and window title, and never updates itself
+    from _version import FLAVOR
+except ImportError:
+    FLAVOR = ""
 APP_NAME = "TapeReplay"
+APP_TITLE = "TapeLive" if FLAVOR == "live" else "Tape Replay"
+UPDATES = FLAVOR != "live"
 DATA_DIR = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), APP_NAME)
 DATASETS = os.path.join(DATA_DIR, "datasets")
 SESSIONS = os.path.join(DATA_DIR, "sessions")
@@ -452,7 +458,7 @@ def http_get(url, timeout=20):
 
 def check_update():
     """Runs once at launch, in the background. Only the installed app updates itself, not a copy run from source."""
-    if not getattr(sys, "frozen", False):
+    if not getattr(sys, "frozen", False) or not UPDATES:
         return
     UPDATE["state"] = "checking"  # the page waits for the answer, however long the network takes
     try:
@@ -647,7 +653,7 @@ class Handler(BaseHTTPRequestHandler):
         if parts == ["datasets"]:
             return self.send(200, [m for m in list_json(DATASETS, ".json") if "id" in m and "list" not in m])
         if parts == ["caps"]:
-            return self.send(200, {"pick": WINDOW is not None, "importDbn": True, "update": bool(getattr(sys, "frozen", False)),
+            return self.send(200, {"pick": WINDOW is not None, "importDbn": True, "update": bool(getattr(sys, "frozen", False)) and UPDATES,
                                    "version": VERSION, "optimize": True})
         if parts == ["optims"]:
             return self.send(200, list_json(OPTIMS, ".meta.json"))
@@ -961,7 +967,8 @@ def main():
     if getattr(sys, "frozen", False):
         after_update()
         note_installed_version()
-        UPDATE["state"] = "checking"  # set before the page can ask
+        if UPDATES:
+            UPDATE["state"] = "checking"  # set before the page can ask
         threading.Thread(target=check_update, daemon=True).start()
     shutil.rmtree(os.path.join(DATA_DIR, "tmp"), ignore_errors=True)  # leftovers from decompressed .zst files
     install_builtin()
@@ -969,7 +976,7 @@ def main():
     # the same port each launch keeps the page's own small preferences (it is a different site per port);
     # a second copy of the app falls back to any free port
     try:
-        server = ExclusiveServer(("127.0.0.1", 47613), Handler)
+        server = ExclusiveServer(("127.0.0.1", 47614 if FLAVOR == "live" else 47613), Handler)
     except OSError:
         server = ExclusiveServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -985,7 +992,7 @@ def main():
         import webview
         # links meant for a new window (the chart credit's link to tradingview.com) open in the browser
         webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
-        window = WINDOW = webview.create_window("Tape Replay", url, width=1480, height=920, min_size=(1000, 640),
+        window = WINDOW = webview.create_window(APP_TITLE, url, width=1480, height=920, min_size=(1000, 640),
                                        background_color="#0c1016", text_select=True)
 
         flushed = threading.Event()

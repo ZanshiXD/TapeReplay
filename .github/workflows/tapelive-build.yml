@@ -1,0 +1,40 @@
+# Builds the private TapeLive.exe from the tapelive branch and keeps it as a workflow artifact only.
+# Nothing is signed or published to TapeReplay-releases, and TapeLive never updates itself, so it runs beside
+# an installed Tape Replay without replacing it.
+name: TapeLive build
+
+on:
+  push:
+    branches: [tapelive]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install the build tools
+        run: python -m pip install pyinstaller==6.22.3 pywebview==6.2.1 cryptography==50.0.2
+
+      - name: Build TapeLive.exe
+        working-directory: desktop
+        env:
+          TAPE_FLAVOR: live
+        run: |
+          python build.py dist
+          ls -l dist/TapeLive.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TapeLive
+          path: desktop/dist/TapeLive.exe
+          retention-days: 30

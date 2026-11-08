@@ -37,6 +37,10 @@ PYODIDE_CORE_URL = f"https://github.com/pyodide/pyodide/releases/download/{PYODI
 PYODIDE_CDN = f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/"
 PYODIDE_CORE = ["pyodide.js", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json"]
 PYODIDE_PACKAGES = ["numpy", "pandas"]  # plus what they depend on
+# TAPE_FLAVOR=live builds the private TapeLive.exe: its own name and window, no self-updates, so it runs beside
+# an installed Tape Replay without either replacing the other
+FLAVOR = os.environ.get("TAPE_FLAVOR", "")
+EXE = "TapeLive" if FLAVOR == "live" else "TapeReplay"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 
 
@@ -161,9 +165,14 @@ def main():
     dist = os.path.join(HERE, sys.argv[1] if len(sys.argv) > 1 else "dist")
     # the version the app reports and compares with releases (TAPE_VERSION=1.2.0 for a release build)
     with open(os.path.join(HERE, "_version.py"), "w", encoding="utf-8") as f:
-        f.write(f'VERSION = "{os.environ.get("TAPE_VERSION") or "0.0.0-dev"}"\n')
+        f.write(f'VERSION = "{os.environ.get("TAPE_VERSION") or "0.0.0-dev"}"\nFLAVOR = "{FLAVOR}"\n')
     vendor()
     page()
+    if FLAVOR == "live":  # the private build's page says TapeLive (web/index.html is restored by the next page())
+        ix = os.path.join(WEB, "index.html")
+        html = open(ix, encoding="utf-8").read()
+        html = html.replace("<title>Tape Replay</title>", "<title>TapeLive</title>").replace("<i></i>Tape Replay<", "<i></i>TapeLive<")
+        open(ix, "w", encoding="utf-8").write(html)
     ico = os.path.join(HERE, "icon.ico")
     icon(ico)
     extra = []
@@ -180,10 +189,10 @@ def main():
         for i, f in enumerate([f for f in files if f.endswith(".tapeseries")], 1):
             extra += ["--resource", f"{os.path.join(data, f)},TAPEDATA,SERIES{i},0"]
     subprocess.check_call([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile", "--windowed",
-                           "--name", "TapeReplay", "--icon", ico, "--add-data", f"{WEB}{os.pathsep}web", *extra,
+                           "--name", EXE, "--icon", ico, "--add-data", f"{WEB}{os.pathsep}web", *extra,
                            "--distpath", dist, "--workpath", os.path.join(HERE, "build"),
                            "--specpath", HERE, os.path.join(HERE, "app.py")], cwd=HERE)
-    print("Built", os.path.join(dist, "TapeReplay.exe"))
+    print("Built", os.path.join(dist, EXE + ".exe"))
 
 
 if __name__ == "__main__":
