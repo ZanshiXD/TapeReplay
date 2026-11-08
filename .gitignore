@@ -26,3 +26,4 @@ ios/AppStore/*.xcodeproj
 *.p8
 *.p12
 *.mobileprovision
+.claude/worktrees/

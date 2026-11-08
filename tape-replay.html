@@ -1536,6 +1536,7 @@ html.m .optcard button{flex:1;min-height:40px}
       <kbd>Shift + →</kbd><span>Finish the current candle on the chart timeframe</span>
       <kbd>.</kbd><span>Step one tick</span>
       <kbd>↑ ↓</kbd><span>Replay faster or slower</span>
+      <kbd>Alt + 1–4</kbd><span>Show chart tab 1 to 4</span>
       <kbd>B</kbd><span>Buy with the order ticket</span>
       <kbd>S</kbd><span>Sell with the order ticket</span>
       <kbd>X</kbd><span>Close all positions at market</span>
@@ -8614,6 +8615,7 @@ function wire() {
     if (!$('#home').hidden) return;
     if (e.target.closest && e.target.closest('input,select,textarea')) return;
     if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'z' && E) { e.preventDefault(); undoDrawing(); return; }
+    if (e.altKey && !e.ctrlKey && !e.metaKey && E && /^[1-4]$/.test(e.key) && PN.list[+e.key - 1]) { e.preventDefault(); paneShow(PN.list[+e.key - 1].id); return; } // chart tabs
     if (e.ctrlKey || e.metaKey || e.altKey || !E) return;
     const k = e.key;
     if ((k === 'Delete' || k === 'Backspace') && DR.sel) { e.preventDefault(); deleteDrawing(DR.sel); return; }
