@@ -217,6 +217,55 @@ html.m .mmore .credit{padding:4px 4px 12px}
 .chartwrap{position:relative;min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
 #chart,#draw{position:absolute;top:0;bottom:0;left:40px;right:0}
 #draw{pointer-events:none;z-index:2}
+/* chart tabs, split layouts and the other instruments' charts */
+.ctabs{position:absolute;top:0;left:40px;right:0;height:28px;display:none;align-items:center;gap:2px;padding:0 4px;border-bottom:1px solid var(--line);background:var(--panel);z-index:5;font-size:12px;overflow-x:auto;scrollbar-width:none}
+.chartwrap.tb .ctabs{display:flex}
+.chartwrap.tb #chart,.chartwrap.tb #draw{top:28px}
+.chartwrap.tb #legend{top:36px}
+.ctabs button{display:flex;align-items:center;gap:6px;height:22px;padding:0 8px;border:1px solid transparent;border-radius:5px;background:none;color:var(--muted);cursor:pointer;white-space:nowrap;flex:none}
+.ctabs button:hover:not(:disabled){background:var(--raise);color:var(--fg)}
+.ctabs button:disabled{opacity:.45;cursor:default}
+.ctabs .ctab.on{background:var(--raise);border-color:var(--line);color:var(--fg)}
+.ctabs .ctab b{font-weight:600;font-size:12px}
+.ctabs .ctab span{font-family:var(--f-num);font-size:11px;color:var(--muted)}
+.ctabs .cx{font-style:normal;opacity:.55;padding:0 3px;border-radius:3px;margin-right:-4px}
+.ctabs .cx:hover{opacity:1;background:var(--line)}
+.ctabs .ctsp{flex:1}
+.ctabs button[aria-pressed="true"]{color:var(--accent);font-weight:600}
+.ctabs .chev{width:9px;height:9px;fill:none;stroke:currentColor;stroke-width:1.4}
+.xpane{position:absolute;display:none;background:var(--panel);box-shadow:inset 1px 1px 0 var(--line)}
+.xpane.vis{display:block}
+.xpane .xchart,.xpane .xdraw{position:absolute;inset:1px 0 0 1px}
+.xpane .xdraw{pointer-events:none;z-index:2}
+.xpane .xlegend{position:absolute;left:10px;top:8px;z-index:3;pointer-events:none;font-family:var(--f-num);font-size:12px;display:flex;flex-wrap:wrap;gap:4px 12px;max-width:calc(100% - 70px)}
+.xpane .xlegend b{font-family:var(--f-ui);font-size:13px;letter-spacing:.03em}
+.xpane .xlegend .k{color:var(--muted)}
+.chartwrap.split .xpane.focus{box-shadow:inset 0 0 0 1px var(--accent)}
+.chartwrap.mainoff #chart,.chartwrap.mainoff #draw,.chartwrap.mainoff #legend,.chartwrap.mainoff .dtools,.chartwrap.mainoff #otp,.chartwrap.mainoff #dstyle{visibility:hidden}
+.cpop{width:min(340px,calc(100vw - 16px));display:flex;flex-direction:column;gap:6px;padding:10px;max-height:80vh;overflow:auto}
+.cpop h5{margin:4px 2px 0;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.cplist{display:flex;flex-direction:column;gap:2px}
+.cplist button{display:flex;justify-content:space-between;gap:12px;align-items:baseline;background:none;border:1px solid transparent;border-radius:5px;padding:5px 8px;text-align:left;cursor:pointer;color:var(--fg)}
+.cplist button span{color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
+.cplist button:hover{background:var(--panel)}
+.cplist button.on{border-color:var(--accent);background:var(--panel)}
+.cplist.lib b{font-weight:500}
+.cptf{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.cptf button{border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:5px 0;cursor:pointer;font-family:var(--f-num);font-size:12px}
+.cptf button.on{border-color:var(--accent);color:var(--accent);font-weight:600}
+.cpown{display:flex;gap:6px}
+.cpown input{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:5px 8px;font-family:var(--f-num)}
+.cpown button{border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:5px;padding:5px 12px;cursor:pointer;font-weight:600;white-space:nowrap}
+.cpop .note{margin:2px;font-size:11.5px;color:var(--muted)}
+.cpop label.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+.cpop label.f select,.cpop label.f input{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:5px 6px;color:var(--fg)}
+.cpop label.chk{display:flex;gap:8px;align-items:center;font-size:12.5px;padding:2px}
+.smtl{list-style:none;margin:0;padding:0 2px;display:flex;flex-direction:column;gap:2px;font-size:12px}
+.smtl span{color:var(--muted);font-family:var(--f-num);font-size:11px;margin-left:6px}
+.xslist{display:flex;flex-direction:column;gap:3px;max-height:140px;overflow:auto;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+.xslist label.chk{display:flex;gap:8px;align-items:center;font-size:12.5px}
+.xslist .k{color:var(--muted);font-size:11px;margin-left:auto}
+html.m .ctabs,html.m .xpane{display:none!important}
 #chart.grab,#chart.grab *{cursor:ns-resize!important}
 #chart.mv,#chart.mv *{cursor:move!important}
 #chart.ew,#chart.ew *{cursor:ew-resize!important}
@@ -1190,6 +1239,7 @@ html.m .optcard button{flex:1;min-height:40px}
         <button id="dUndo" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 20 20"><path d="M7.5 5L4 8.5 7.5 12"/><path d="M4.5 8.5H12a4 4 0 0 1 0 8H9"/></svg><span class="dl">Undo</span></button>
         <button id="dClear" title="Remove all drawings"><svg viewBox="0 0 20 20"><path d="M4.5 6h11M8 6V4h4v2M6 6l1 10.5h6L14 6"/></svg><span class="dl">Clear</span></button>
       </div>
+      <div id="ctabs" class="ctabs" role="tablist" aria-label="Charts"></div>
       <div id="chart"></div>
       <canvas id="draw"></canvas>
       <!-- one-tap trading: market orders straight from the chart, on the one net position -->
@@ -1388,6 +1438,9 @@ html.m .optcard button{flex:1;min-height:40px}
       </div>
       <div class="f"><span>Start replay at <span class="tzl"></span></span>
         <button type="button" id="fStart" class="dtfield" aria-label="Start time"><span></span><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg></button>
+      </div>
+      <div class="f" id="fXsRow" hidden><span>Other instruments, replayed in step with this one (SMT, extra charts, scripts)</span>
+        <div id="fXs" class="xslist"></div>
       </div>
     </section>
     <section class="msec">
@@ -3243,6 +3296,8 @@ const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 /* ---------------- state ---------------- */
 let D = null;          // dataset in replay: {name,n,t,o,h,l,c,v,base,prec,sample}
 let pendingD = null;   // dataset parsed, waiting for the session dialog
+// other instruments loaded with the session, replayed in step with the main one (SMT, extra charts, scripts)
+let XS = [];   // [{ key: 'x1', dsId, name, sym: 'ES', d: { n, t: Float64Array, o, h, l, c, v: Float32Array, base, prec, hasVol } }]
 let TF = null, bucket = null;
 // The trading day starts at resetNY o'clock New York time: 18:00 is when the CME's Globex day opens and when futures
 // prop firms roll their daily loss and day counts (5 PM Chicago).
@@ -4010,6 +4065,7 @@ function initCharts() {
     handleScroll: false, handleScale: false,
   });
   eqS = eqChart.addAreaSeries({ lineColor: C.accent, topColor: hexA(C.accent, 0.28), bottomColor: hexA(C.accent, 0.02), lineWidth: 2, priceFormat: { type: 'price', precision: 2, minMove: 0.01 } });
+  panesInit();
 }
 function applyTheme() {
   applyAppTheme();
@@ -4021,6 +4077,7 @@ function applyTheme() {
                     borderVisible: C.border, borderUpColor: C.wickUp, borderDownColor: C.wickDown });
   syncIndSeries(); piSetAll();
   eqS.applyOptions({ lineColor: C.accent, topColor: hexA(C.accent, 0.28), bottomColor: hexA(C.accent, 0.02) });
+  panesTheme();
   if (E) { R.full = true; R.marks = true; render(); refreshLines(); }
 }
 
@@ -4231,6 +4288,7 @@ function rebuild() {
   if (E.P) aggBar(D.t[E.i], E.P.o, E.P.h, E.P.l, E.P.c, E.P.v);
   E.rebuilding = false;
   R.full = true; R.marks = true;
+  panesReset();
 }
 function processTick() {
   const i = E.i; if (i >= D.n) return;
@@ -5683,11 +5741,13 @@ function drawOverlay() {
   g.save(); g.beginPath(); g.rect(0, 0, pw, ph); g.clip();
   drawSessions(g, pw, ph);
   drawZones(g, pw);
+  drawSmt(g, pw);
   drawScripts(g, pw, ph);
   for (const d of DR.list) drawOne(g, d, pw, ph);
   drawTradeLabels(g);
   drawLive(g, pw);
   g.restore();
+  panesDraw();
 }
 // touch: a ring at the point being placed and its price (or time) just above the finger, which hides the point itself
 function drawLive(g, pw) {
@@ -6416,6 +6476,7 @@ function render() {
     R.eqCount = E.eq.length;
   }
   legend(null);
+  panesRender();
 }
 function renderMarks() {
   const ms = [], first = E.tfCandles.length ? E.tfCandles[0].time : E.F ? E.F.time : 0;
@@ -6430,6 +6491,528 @@ function renderMarks() {
   ms.push(...piMarkers(first));
   ms.sort((a, b) => a.time - b.time);
   cs.setMarkers(ms);
+}
+
+/* ---------------- other instruments, chart tabs and split layouts, SMT divergence ---------------- */
+// Other instruments (XS) load over the same dates as the main data and replay in step with it, by time: a bar of
+// theirs appears once replay time reaches its start, grows along the same open → low → high → close path the main
+// tape uses, and counts as finished only when its whole span has passed. Nothing on them looks ahead.
+let XS_KEEP = false; // set by a caller that loads the other instruments itself right after startSession
+let XSN = 0;
+const xsSym = d => (instrumentOf(d) || {}).root || assetName(d);
+const xsById = id => XS.find(x => x.dsId === id) || null;
+// the dates the main data covers now: what an instrument loads to match it
+function xsWindow(d = D) { return d.window ? { from: d.window.from, to: d.window.to } : { from: d.t[0], to: d.t[d.n - 1] + d.base }; }
+async function xsLoad(dsId, win) {
+  let d = await openDataset(dsId, '');
+  if (d.chunked && !d.t) {
+    const V = d, t0 = Math.max(win.from, V.from), t1 = Math.min(win.to, V.to);
+    if (t1 <= t0) throw new Error(`no bars between ${fmtDT(win.from).slice(0, 10)} and ${fmtDT(win.to).slice(0, 10)}`);
+    d = await loadSection(V, t0, t1);
+  } else if (d.t[d.n - 1] < win.from || d.t[0] > win.to) throw new Error(`no bars between ${fmtDT(win.from).slice(0, 10)} and ${fmtDT(win.to).slice(0, 10)}`);
+  let sym = xsSym(d) || 'X';
+  if (sym === assetName(D) || XS.some(x => x.sym === sym)) sym += ' ' + (XS.length + 2);
+  return { key: 'x' + (++XSN), dsId, name: d.name || d.V?.name || sym, sym, d, V: d.V || null };
+}
+// the session's other instruments: drops the ones not wanted, loads the missing ones, then lays out the charts
+async function xsSet(ids, charts) {
+  const want = [...new Set(ids || [])].filter(id => id && id !== S.dsId && id !== SYNTH_ID), sid = S.sid;
+  XS = XS.filter(x => want.includes(x.dsId));
+  for (const id of want) {
+    if (xsById(id)) continue;
+    try { const x = await xsLoad(id, xsWindow()); if (S.sid !== sid) return; XS.push(x); }
+    catch (e) { toast(`Could not load the other instrument: ${e.message}`, 'err'); }
+  }
+  if (charts) paneRestore(charts);
+  panesSync(true); S.dirty = true;
+}
+async function xsAdd(id) { await xsSet([...XS.map(x => x.dsId), id]); return xsById(id); }
+// a session playing on: the same next month for each other instrument, keeping only what the main data keeps
+async function xsCont(t0, t1) {
+  for (const x of XS.slice()) {
+    if (!x.V) continue; // a whole file is loaded already
+    let part = null;
+    if (t0 <= x.V.to) try { part = await loadSection(x.V, t0, Math.min(t1, x.V.to)); } catch (e) { if (!/no bars/i.test(e.message)) toast(`${x.sym}: ${e.message}`, 'err'); }
+    xsTrim(x);
+    if (part && part.n) contAppend(x.d, part);
+  }
+}
+function xsTrim(x) {
+  const d = x.d, c = lowerBound(d.t, D.t[0] - d.base);
+  if (c <= 0 || c >= d.n) return;
+  for (const k of ['t', 'o', 'h', 'l', 'c', 'v']) { d[k].copyWithin(0, c); d[k] = d[k].subarray(0, d.n - c); }
+  d.n -= c;
+}
+// the part of a bar printed by fraction f of its span, along the open → low → high → close path (high first on a down bar)
+function pathPart(o, h, l, c, f, pow) {
+  if (f >= 1) return { o, h, l, c };
+  const p1 = c >= o ? l : h, p2 = c >= o ? h : l, s0 = Math.abs(p1 - o), s1 = Math.abs(p2 - p1), s2 = Math.abs(c - p2), tot = s0 + s1 + s2;
+  if (!tot || f <= 0) return { o, h: o, l: o, c: o };
+  const dd = f * tot, pts = [o];
+  let px;
+  if (dd <= s0) px = o + (p1 - o) * dd / s0;
+  else if (dd <= s0 + s1) { pts.push(p1); px = p1 + (p2 - p1) * (s1 ? (dd - s0) / s1 : 1); }
+  else { pts.push(p1, p2); px = p2 + (c - p2) * (s2 ? (dd - s0 - s1) / s2 : 1); }
+  px = Math.round(px * pow) / pow; pts.push(px);
+  return { o, h: Math.max(...pts), l: Math.min(...pts), c: px };
+}
+const srcData = key => key === 'main' ? D : xsById(key)?.d || null;
+// what of a source has printed by replay time: the bars finished (indices below done) and the one forming
+function srcView(key) {
+  if (!E || !D) return null;
+  if (key === 'main') return { d: D, done: E.i, part: E.P && E.i < D.n ? { t: D.t[E.i], ...E.P } : null };
+  const d = srcData(key); if (!d || !d.n) return null;
+  const now = E.time, done = lowerBound(d.t, now - d.base + 1e-3);
+  let part = null;
+  if (done < d.n && d.t[done] <= now) {
+    const f = (now - d.t[done]) / d.base;
+    part = { t: d.t[done], ...pathPart(d.o[done], d.h[done], d.l[done], d.c[done], f, 10 ** (d.prec ?? 2)), v: d.v[done] * f };
+  }
+  return { d, done, part };
+}
+// candles of one source on one timeframe, built as replay time moves: list = finished, form = the one forming
+const tfSpan = tf => tf.kind === 's' ? tf.sec : tf.kind === 'W' ? 604800 * tf.n : 2629800 * tf.n;
+const AGG_KEEP = TOUCH ? 6000 : 20000;
+function aggNew(src, tf) { return { src, tf, bucket: makeBucket(tf), list: [], cur: null, form: null, lastT: -Infinity, ver: 0, span: tfSpan(tf) }; }
+function aggBucket(A, t) {
+  const last = A.cur ? A.cur.time : A.list.length ? A.list[A.list.length - 1].time : -Infinity;
+  return Math.max(A.bucket(t), last); // never earlier than the candle before (daylight saving)
+}
+function aggAdvance(A) {
+  const s = srcView(A.src); if (!s) { A.form = null; return; }
+  const d = s.d;
+  let j = A.lastT === -Infinity ? lowerBound(d.t, (s.done ? d.t[s.done - 1] : d.t[0]) - A.span * AGG_KEEP) : lowerBound(d.t, A.lastT + 1e-3);
+  for (; j < s.done; j++) {
+    const t = d.t[j], b = aggBucket(A, t); // times are whole seconds (or ms), so the 1e-3 nudges above are exact
+    if (!A.cur && A.list.length && A.list[A.list.length - 1].time === b) A.cur = A.list.pop(); // finished early, then more of it
+    if (!A.cur || A.cur.time !== b) { if (A.cur) A.list.push(A.cur); A.cur = { time: b, o: d.o[j], h: d.h[j], l: d.l[j], c: d.c[j], v: d.v[j] }; }
+    else { const c = A.cur; if (d.h[j] > c.h) c.h = d.h[j]; if (d.l[j] < c.l) c.l = d.l[j]; c.c = d.c[j]; c.v += d.v[j]; }
+    A.lastT = t;
+  }
+  if (A.list.length > AGG_KEEP + 2000) { A.list.splice(0, A.list.length - AGG_KEEP); A.ver++; }
+  const p = s.part;
+  if (!p) { A.form = A.cur; return; }
+  const b = aggBucket(A, p.t);
+  if (A.cur && A.cur.time === b) { const c = A.cur; A.form = { time: b, o: c.o, h: Math.max(c.h, p.h), l: Math.min(c.l, p.l), c: p.c, v: c.v + p.v }; }
+  else { if (A.cur) { A.list.push(A.cur); A.cur = null; } A.form = { time: b, o: p.o, h: p.h, l: p.l, c: p.c, v: p.v }; } // a new candle started: the last one is finished
+}
+
+/* chart panes: PN.list[0] is the trading chart (#chart); the others are extra charts of any instrument and timeframe */
+const PN = { list: [], active: 0, layout: 'tabs', gen: 0, nid: 1, sync: false, tabsHtml: '' };
+const LAYOUTS = [['tabs', 'Tabs', 'One chart at a time'], ['cols', 'Side by side', 'All charts in a row'], ['rows', 'Stacked', 'All charts one above another'],
+  ['grid', 'Grid', 'Two columns'], ['main', 'Main + side', 'The trading chart large, the others beside it']];
+const chartOpts = () => ({
+  autoSize: true,
+  layout: { background: { type: 'solid', color: C.bg }, textColor: C.muted, fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 11 },
+  grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
+  rightPriceScale: { borderColor: C.line, scaleMargins: { top: 0.08, bottom: 0.2 } },
+  timeScale: { borderColor: C.line, timeVisible: true, secondsVisible: false, rightOffset: 12, shiftVisibleRangeOnNewBar: true, tickMarkFormatter: t => tickLabel(t) },
+  localization: { timeFormatter: t => crossLabel(t) },
+  crosshair: { mode: 0 },
+});
+function panesInit() {
+  PN.list = [{ id: 0, main: true, vis: true }];
+  PN.layout = (PREFS.ui && PREFS.ui.chartLayout) || 'tabs';
+  chart.subscribeCrosshairMove(prm => paneCross(0, prm));
+  $('#chart').addEventListener('pointerdown', () => paneFocus(0), { passive: true });
+  $('#ctabs').addEventListener('click', tabsClick);
+  new ResizeObserver(() => paneLayout()).observe($('#chartWrap'));
+  paneLayout();
+}
+const paneById = id => PN.list.find(p => p.id === id) || null;
+const paneTF = p => p.main ? TF : p.A ? p.A.tf : parseTF(p.tfStr);
+function paneName(p) {
+  if (p.main || p.src === 'main') return [D ? assetName(D) : '—', p.main ? (TF ? tfLabel(TF) : '') : p.tfStr];
+  const x = xsById(p.src); return [x ? x.sym : 'not loaded', p.tfStr];
+}
+function paneAdd(src, tfStr, quiet) {
+  if (PN.list.length >= 4) { toast('Up to four charts at once.', 'err'); return null; }
+  const p = { id: PN.nid++, src, tfStr, count: 0, ver: -1, full: true, vis: false, lgHtml: '' };
+  p.el = document.createElement('div'); p.el.className = 'xpane';
+  p.el.innerHTML = '<div class="xchart"></div><canvas class="xdraw"></canvas><div class="xlegend"></div>';
+  $('#chartWrap').appendChild(p.el);
+  p.cv = p.el.querySelector('.xdraw'); p.lg = p.el.querySelector('.xlegend');
+  p.chart = LW.createChart(p.el.querySelector('.xchart'), chartOpts());
+  p.cs = p.chart.addCandlestickSeries({ upColor: C.up, downColor: C.down, wickUpColor: C.wickUp, wickDownColor: C.wickDown, borderVisible: C.border, borderUpColor: C.wickUp, borderDownColor: C.wickDown });
+  p.vs = p.chart.addHistogramSeries({ priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false });
+  p.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
+  p.chart.subscribeCrosshairMove(prm => { paneLegend(p, prm && prm.time != null ? prm.time : null); paneCross(p.id, prm); });
+  p.chart.timeScale().subscribeVisibleLogicalRangeChange(() => { OV.dirty = true; });
+  p.el.addEventListener('pointerdown', () => paneFocus(p.id), { passive: true });
+  PN.list.push(p);
+  paneReset(p);
+  if (!quiet) { PN.active = p.id; paneLayout(); panesTabs(); S.dirty = true; }
+  return p;
+}
+function paneClose(id) {
+  const p = paneById(id); if (!p || p.main) return;
+  p.chart.remove(); p.el.remove();
+  PN.list = PN.list.filter(q => q !== p);
+  if (PN.active === id) PN.active = 0;
+  paneLayout(); panesTabs(); S.dirty = true;
+}
+// a pane's candles start over: new session, new timeframe or instrument, the chart zone changed
+function paneReset(p) {
+  if (p.main) return;
+  const d = srcData(p.src);
+  let tf = parseTF(p.tfStr);
+  if (d && (!tf || !tfValid(tf, d.base))) { tf = { kind: 's', sec: d.base }; p.tfStr = tfLabel(tf); }
+  if (!tf) tf = { kind: 's', sec: 60 };
+  p.A = aggNew(p.src, tf); p.full = true; p.count = 0; p.first = true;
+  const prec = p.src === 'main' ? PREC : d?.prec ?? 2, secs = tf.kind === 's' ? tf.sec : 86400;
+  p.cs.applyOptions({ priceFormat: { type: 'price', precision: prec, minMove: 1 / 10 ** prec } });
+  p.chart.applyOptions({ timeScale: { timeVisible: secs < 86400, secondsVisible: secs < 60 } });
+  if (!d) { p.cs.setData([]); p.vs.setData([]); }
+}
+function panesReset() { PN.gen++; SM.key = ''; for (const p of PN.list) paneReset(p); panesTabs(); }
+// after a new session or a change of instruments: drop charts of instruments no longer loaded (when told to), start over
+function panesSync(drop) {
+  if (!PN.inited) { PN.inited = true; PN.layout = (PREFS.ui && PREFS.ui.chartLayout) || PN.layout; }
+  if (drop) for (const p of PN.list.slice()) if (!p.main && p.src !== 'main' && !xsById(p.src)) paneClose(p.id);
+  panesReset(); paneLayout(); panesRender(true);
+}
+function paneSave() { return { layout: PN.layout, active: Math.max(0, PN.list.findIndex(p => p.id === PN.active)), panes: PN.list.filter(p => !p.main).map(p => ({ src: p.src, tf: p.tfStr })) }; }
+function paneRestore(c) {
+  for (const p of PN.list.slice()) if (!p.main) paneClose(p.id);
+  if (!c) return;
+  if (LAYOUTS.some(l => l[0] === c.layout)) PN.layout = c.layout;
+  for (const q of c.panes || []) if (q.src === 'main' || xsById(q.src)) paneAdd(q.src, q.tf, true);
+  PN.active = (PN.list[c.active] || PN.list[0]).id;
+  paneLayout(); panesTabs();
+}
+function paneFocus(id) { if (PN.active === id) return; PN.active = id; if (PN.list.length > 1 && PN.layout !== 'tabs') { panesTabs(); paneLayout(); } }
+function paneShow(id) { PN.active = id; paneLayout(); panesTabs(); panesRender(true); OV.dirty = true; }
+// where each chart goes: the tab strip on top, then one chart (tabs) or all of them in the chosen layout
+function layCells(lay, n, a) {
+  const cell = (x, y, w, h) => ({ x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) }), rg = k => Array.from({ length: k }, (_, i) => i);
+  if (n === 1) return [a];
+  if (lay === 'cols') return rg(n).map(i => cell(a.x + a.w * i / n, a.y, a.w / n, a.h));
+  if (lay === 'rows') return rg(n).map(i => cell(a.x, a.y + a.h * i / n, a.w, a.h / n));
+  if (lay === 'main') { const mw = a.w * 0.62; return [cell(a.x, a.y, mw, a.h), ...rg(n - 1).map(i => cell(a.x + mw, a.y + a.h * i / (n - 1), a.w - mw, a.h / (n - 1)))]; }
+  const rows = Math.ceil(n / 2);
+  return rg(n).map(i => { const r = Math.floor(i / 2), c = i % 2, wide = i === n - 1 && n % 2; return cell(a.x + (wide ? 0 : a.w * c / 2), a.y + a.h * r / rows, wide ? a.w : a.w / 2, a.h / rows); });
+}
+const TABS_H = 28;
+function paneLayout() {
+  const wrap = $('#chartWrap'); if (!wrap || !PN.list.length) return;
+  const phone = document.documentElement.classList.contains('m'), main = $('#chart'), draw = $('#draw'), lg = $('#legend');
+  const clear = () => { for (const el of [main, draw]) for (const k of ['left', 'top', 'width', 'height', 'right', 'bottom']) el.style[k] = ''; lg.style.left = lg.style.top = lg.style.maxWidth = ''; };
+  if (phone) { // phones keep the one trading chart
+    wrap.classList.remove('tb', 'mainoff'); clear();
+    for (const p of PN.list) { p.vis = !!p.main; if (p.el) p.el.classList.remove('vis'); }
+    PN.active = 0; return;
+  }
+  wrap.classList.add('tb');
+  const n = PN.list.length, lay = n > 1 ? PN.layout : 'tabs', act = paneById(PN.active) || PN.list[0];
+  const off = lay === 'tabs' && !act.main;
+  wrap.classList.toggle('mainoff', off);
+  wrap.classList.toggle('split', lay !== 'tabs');
+  const dtw = off ? 0 : $('#dtools').offsetWidth, W = wrap.clientWidth, H = wrap.clientHeight;
+  $('#ctabs').style.left = dtw + 'px';
+  const area = { x: dtw, y: TABS_H, w: W - dtw, h: H - TABS_H }, cells = layCells(lay, n, area);
+  PN.list.forEach((p, i) => {
+    const r = lay === 'tabs' ? (p === act ? area : null) : cells[i];
+    if (p.main) {
+      p.vis = !!r;
+      if (!r || lay === 'tabs') { clear(); return; }
+      for (const el of [main, draw]) Object.assign(el.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px', right: 'auto', bottom: 'auto' });
+      Object.assign(lg.style, { left: r.x + 10 + 'px', top: r.y + 8 + 'px', maxWidth: r.w - 60 + 'px' });
+      return;
+    }
+    const was = p.vis; p.vis = !!r;
+    p.el.classList.toggle('vis', p.vis);
+    p.el.classList.toggle('focus', lay !== 'tabs' && p.id === PN.active);
+    if (r) { Object.assign(p.el.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' }); if (!was) { p.full = true; paneRender(p); } }
+  });
+  OV.dirty = true;
+}
+function panesTabs() {
+  const el = $('#ctabs'); if (!el) return;
+  const lay = PN.list.length > 1 ? PN.layout : 'tabs', smt = smtPrefs().on;
+  const h = PN.list.map(p => {
+    const on = p.id === PN.active, [sym, tf] = paneName(p);
+    return `<button class="ctab${on ? ' on' : ''}" role="tab" aria-selected="${on}" data-p="${p.id}" title="${p.main ? 'The trading chart: orders, drawings and indicators' : 'Click again to change its instrument or timeframe'}"><b>${esc(sym)}</b><span>${esc(tf || '')}</span>${p.main ? '' : `<i class="cx" data-x="${p.id}" title="Close this chart" aria-label="Close chart">×</i>`}</button>`;
+  }).join('') +
+    `<button class="ctadd" data-a="add" title="Open another chart: another instrument, or the same one on another timeframe"${PN.list.length >= 4 ? ' disabled' : ''}>+ Chart</button><span class="ctsp"></span>` +
+    `<button data-a="smt" aria-pressed="${smt}" title="SMT divergence: where this instrument and another one disagree at a swing high or low">SMT${smt && SM.divs.length ? ` <span class="num">${SM.divs.length}</span>` : ''}</button>` +
+    `<button data-a="lay" title="How the charts are laid out"${PN.list.length > 1 ? '' : ' disabled'}>${esc(LAYOUTS.find(l => l[0] === lay)[1])} <svg class="chev" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3"/></svg></button>`;
+  if (h !== PN.tabsHtml) { PN.tabsHtml = h; el.innerHTML = h; }
+}
+function tabsClick(e) {
+  const x = e.target.closest('[data-x]'); if (x) { e.stopPropagation(); return paneClose(+x.dataset.x); }
+  const b = e.target.closest('button'); if (!b || !E) return;
+  if (b.dataset.p != null) {
+    const p = paneById(+b.dataset.p);
+    if (p.id === PN.active && !p.main) return panePop(b, p);
+    return paneShow(p.id);
+  }
+  if (b.dataset.a === 'add') panePop(b, null);
+  else if (b.dataset.a === 'smt') smtPop(b);
+  else if (b.dataset.a === 'lay') layPop(b);
+}
+function layPop(anchor) {
+  if (POP.el && POP.anchor === anchor) return closePop();
+  closePop();
+  const el = document.createElement('div'); el.className = 'pop menu'; el.setAttribute('role', 'menu');
+  el.innerHTML = '<h5>Layout</h5>' + LAYOUTS.map(([k, name, sub]) => `<button role="menuitemradio" aria-checked="${k === PN.layout}" data-l="${k}">${name}<span>${sub}</span></button>`).join('');
+  el.addEventListener('click', e => { const b = e.target.closest('[data-l]'); if (!b) return; PN.layout = b.dataset.l; uiPref('chartLayout', PN.layout); closePop(); paneLayout(); panesTabs(); panesRender(true); S.dirty = true; });
+  placePop(el, anchor);
+}
+// add a chart, or change one: instrument (the main one, one loaded, or one more from the Library) and timeframe
+function panePop(anchor, p) {
+  if (POP.el && POP.anchor === anchor) return closePop();
+  closePop();
+  let src = p ? p.src : XS.length ? XS[0].dsId : 'main', tf = p ? p.tfStr : TF ? tfLabel(TF) : '1m', busy = false;
+  const el = document.createElement('div'); el.className = 'pop cpop'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', p ? 'Change chart' : 'Open a chart');
+  const draw = async () => {
+    const libs = STORE ? (await STORE.listDatasets().catch(() => [])).filter(m => m.id !== S.dsId && m.id !== SYNTH_ID && !xsById(m.id)) : [];
+    const d = srcData(src), base = d ? d.base : 60;
+    const tfs = STD_TF.map(parseTF).filter(t => t && tfValid(t, base)).map(tfLabel);
+    const opt = (id, sym, sub) => `<button type="button" data-s="${esc(id)}" class="${id === src ? 'on' : ''}"><b>${esc(sym)}</b><span>${esc(sub)}</span></button>`;
+    el.innerHTML = `<h5>${p ? 'Chart' : 'New chart'}: instrument</h5><div class="cplist">${opt('main', assetName(D), 'the trading chart\'s')}${XS.map(x => opt(x.dsId, x.sym, x.name)).join('')}</div>` +
+      (libs.length ? `<h5>Load another from your Library</h5><div class="cplist lib">${libs.slice(0, 12).map(m => `<button type="button" data-lib="${esc(m.id)}"${busy ? ' disabled' : ''}><b>${esc(m.name.length > 44 ? m.name.slice(0, 43) + '…' : m.name)}</b><span>${m.bars ? mil(m.bars) + ' bars' : ''}</span></button>`).join('')}</div>` : '') +
+      `<h5>Timeframe</h5><div class="cptf">${tfs.map(t => `<button type="button" data-t="${t}" class="${t === tf ? 'on' : ''}">${t}</button>`).join('')}</div>` +
+      `<div class="cpown"><input value="${esc(tf)}" aria-label="Timeframe" placeholder="e.g. 45m" spellcheck="false"><button type="button" class="primary" data-ok="1">${p ? 'Apply' : 'Open chart'}</button></div>` +
+      (busy ? '<p class="note">Loading the instrument over the session\'s dates…</p>' : '<p class="note">Other instruments load over the same dates and replay in step with this one.</p>');
+    const inp = el.querySelector('input');
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') ok(); if (e.key === 'Escape') closePop(); });
+    inp.addEventListener('input', () => { tf = inp.value.trim(); });
+  };
+  const ok = () => {
+    const t = parseTF(tf), d = srcData(src);
+    if (!t) return toast('Write a timeframe like 5m, 1h or 1D.', 'err');
+    if (d && !tfValid(t, d.base)) return toast(`${tfLabel(t)} is not a whole multiple of that instrument's ${tfLabel({ kind: 's', sec: d.base })} bars.`, 'err');
+    closePop();
+    if (p) { p.src = src; p.tfStr = tfLabel(t); paneReset(p); paneShow(p.id); }
+    else if (paneAdd(src, tfLabel(t))) panesRender(true);
+  };
+  el.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.s) { src = b.dataset.s; draw(); }
+    else if (b.dataset.t) { tf = b.dataset.t; draw(); }
+    else if (b.dataset.ok) ok();
+    else if (b.dataset.lib && !busy) {
+      busy = true; draw();
+      const x = await xsAdd(b.dataset.lib).catch(() => null);
+      busy = false; if (x) src = x.dsId;
+      if (POP.el === el) draw();
+    }
+  });
+  placePop(el, anchor); draw().then(() => { if (POP.el === el) placePop(el, anchor); });
+}
+function paneRender(p) {
+  if (!p.vis || !p.A) return;
+  aggAdvance(p.A);
+  const A = p.A, L = A.list, F = A.form, vol = !!srcData(p.src)?.hasVol;
+  if (p.full || p.ver !== A.ver || L.length < p.count || L.length - p.count > 400) {
+    const cd = L.map(toC), vd = vol ? L.map(toV) : [];
+    if (F && (!L.length || F.time > L[L.length - 1].time)) { cd.push(toC(F)); if (vol) vd.push(toV(F)); }
+    p.cs.setData(cd); p.vs.setData(vd);
+    p.full = false; p.ver = A.ver;
+    if (p.first && cd.length) { p.first = false; p.chart.timeScale().scrollToRealTime(); }
+  } else {
+    for (let j = p.count; j < L.length; j++) { p.cs.update(toC(L[j])); if (vol) p.vs.update(toV(L[j])); }
+    if (F && (!L.length || F.time > L[L.length - 1].time)) { p.cs.update(toC(F)); if (vol) p.vs.update(toV(F)); }
+  }
+  p.count = L.length;
+  paneLegend(p, null);
+}
+// called at the end of each chart repaint
+function panesRender(force) {
+  if (!E || RUN.on) return;
+  for (const p of PN.list) if (!p.main && p.vis) { if (force) p.full = true; paneRender(p); }
+  smtUpdate();
+}
+function panesTheme() {
+  for (const p of PN.list) {
+    if (p.main) continue;
+    p.chart.applyOptions({ layout: { background: { type: 'solid', color: C.bg }, textColor: C.muted }, grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } }, rightPriceScale: { borderColor: C.line }, timeScale: { borderColor: C.line } });
+    p.cs.applyOptions({ upColor: C.up, downColor: C.down, wickUpColor: C.wickUp, wickDownColor: C.wickDown, borderVisible: C.border, borderUpColor: C.wickUp, borderDownColor: C.wickDown });
+    p.full = true;
+  }
+  panesRender();
+}
+function paneLegend(p, time) {
+  const A = p.A; if (!A || !p.lg) return;
+  let b = null;
+  if (time != null) { const L = A.list, j = lowerBoundObj(L, time); b = L[j] && L[j].time === time ? L[j] : A.form && A.form.time === time ? A.form : null; }
+  else b = A.form || A.list[A.list.length - 1] || null;
+  const [sym, tf] = paneName(p), prec = p.src === 'main' ? PREC : srcData(p.src)?.prec ?? 2, f = v => v.toFixed(prec);
+  const ch = b && b.o ? (b.c - b.o) / b.o * 100 : 0;
+  const h = `<b>${esc(sym)}</b><span>${esc(tf)}</span>` + (b ? `<span><span class="k">O</span> ${f(b.o)}</span><span><span class="k">H</span> ${f(b.h)}</span><span><span class="k">L</span> ${f(b.l)}</span><span><span class="k">C</span> ${f(b.c)}</span><span class="${cls(ch)}">${ch >= 0 ? '+' : ''}${ch.toFixed(2)}%</span>`
+    : `<span class="k">${srcData(p.src) ? 'no bars yet at this time' : 'loading…'}</span>`);
+  if (h !== p.lgHtml) { p.lgHtml = h; p.lg.innerHTML = h; }
+}
+// the crosshair follows across the charts on screen, on each chart's own candle for that moment
+function paneCross(from, prm) {
+  if (PN.sync || PN.list.length < 2 || PN.layout === 'tabs') return;
+  PN.sync = true;
+  try {
+    for (const q of PN.list) {
+      if (q.id === from || !q.vis) continue;
+      const ch = q.main ? chart : q.chart, se = q.main ? cs : q.cs;
+      if (!prm || prm.time == null || !prm.point) { ch.clearCrosshairPosition(); continue; }
+      const L = q.main ? E.tfCandles : q.A.list, F = q.main ? E.F : q.A.form, t = q.main ? bucket(prm.time) : q.A.bucket(prm.time);
+      let c = F && F.time === t ? F : null;
+      if (!c) { const j = lowerBoundObj(L, t); c = L[j] && L[j].time === t ? L[j] : L[j - 1] || null; }
+      if (c) ch.setCrosshairPosition(c.c, c.time, se); else ch.clearCrosshairPosition();
+    }
+  } catch (e) {} finally { PN.sync = false; }
+}
+// time to x on an extra chart, between candles too (like t2l on the trading chart)
+function pT2X(p, t) {
+  const L = p.A.list, F = p.A.form, extra = F && (!L.length || F.time > L[L.length - 1].time), n = L.length + (extra ? 1 : 0);
+  if (!n) return null;
+  const bt = i => i < L.length ? L[i].time : F.time, s = p.A.span, t0 = bt(0), tl = bt(n - 1);
+  let l;
+  if (t <= t0) l = (t - t0) / s;
+  else if (t >= tl) l = n - 1 + (t - tl) / s;
+  else { let a = 0, b = n - 1; while (b - a > 1) { const m = (a + b) >> 1; if (bt(m) <= t) a = m; else b = m; } l = a + (t - bt(a)) / (bt(b) - bt(a)); }
+  return p.chart.timeScale().logicalToCoordinate(l);
+}
+function panesDraw() {
+  const z = smtPrefs(), dpr = window.devicePixelRatio || 1;
+  for (const p of PN.list) {
+    if (p.main || !p.vis) continue;
+    const cv = p.cv, W = p.el.clientWidth, H = p.el.clientHeight;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.width = W + 'px'; cv.style.height = H + 'px'; }
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    if (!z.on || !SM.divs.length || !p.A) continue;
+    const useB = p.src !== 'main'; if (useB && (!SM.x || p.src !== SM.x.dsId)) continue;
+    const pw = p.chart.timeScale().width(), ph = H - p.chart.timeScale().height();
+    g.save(); g.beginPath(); g.rect(0, 0, pw, ph); g.clip();
+    smtLines(g, t => pT2X(p, t), v => p.cs.priceToCoordinate(v), pw, useB);
+    g.restore();
+  }
+}
+
+/* SMT divergence: the main instrument against another, on one timeframe. A swing high (or low) is a candle higher
+   (lower) than the N candles each side of it, so it is known only once those N candles have closed. At each swing on
+   either instrument, the other one's extreme over the same candles is taken, and both are compared with the swing
+   before: one makes a higher high while the other does not (bearish), or a lower low while the other does not (bullish). */
+const SM = { key: '', A: null, B: null, pa: null, pb: null, divs: [], quiet: true, x: null, tf: null };
+function smtPrefs() { return { on: false, with: '', tf: 'chart', len: 3, gap: 30, alerts: true, ...(PREFS.smt || {}) }; }
+function smtSet(patch) { PREFS.smt = { ...smtPrefs(), ...patch }; savePrefsSoon(); SM.key = ''; smtUpdate(); panesTabs(); OV.dirty = true; }
+function smtOther() { const z = smtPrefs(); return xsById(z.with) || XS[0] || null; }
+function smtTF(x) {
+  const z = smtPrefs(), ok = t => t && tfValid(t, D.base) && tfValid(t, x.d.base), tf = z.tf === 'chart' ? TF : parseTF(z.tf);
+  if (ok(tf)) return tf;
+  if (ok(TF)) return TF;
+  return { kind: 's', sec: Math.max(D.base, x.d.base) };
+}
+function smtUpdate() {
+  const z = smtPrefs(), x = smtOther();
+  if (!z.on || !x || !E || !TF || RUN.on) { if (SM.divs.length) { SM.divs = []; SM.key = ''; } return; }
+  const tf = smtTF(x), len = clamp(Math.round(z.len) || 3, 1, 30), gap = clamp(Math.round(z.gap) || 30, 2, 500), key = `${x.dsId}|${tfLabel(tf)}|${len}|${gap}|${PN.gen}|${ZONE.id}`;
+  if (SM.key !== key) Object.assign(SM, { key, A: aggNew('main', tf), B: aggNew(x.dsId, tf), pa: { hi: [], lo: [], t: null }, pb: { hi: [], lo: [], t: null }, divs: [], quiet: true, x, tf, len, gap });
+  aggAdvance(SM.A); aggAdvance(SM.B);
+  const n0 = SM.divs.length;
+  smtScan(SM.A.list, SM.B.list, SM.pa, 1);
+  smtScan(SM.B.list, SM.A.list, SM.pb, -1);
+  if (SM.divs.length > n0) {
+    SM.divs.sort((a, b) => a.t2 - b.t2);
+    if (!SM.quiet && z.alerts) {
+      const q = SM.divs[SM.divs.length - 1], hi = q.sig < 0, me = assetName(D), dA = q.a2 > q.a1, dB = q.b2 > q.b1;
+      const word = (up, h) => h ? (up ? 'higher high' : 'lower high') : (up ? 'higher low' : 'lower low');
+      toast(`${hi ? 'Bearish' : 'Bullish'} SMT on ${tfLabel(tf)}: ${me} ${word(dA, hi)}, ${x.sym} ${word(dB, hi)}.`, hi ? 'err' : 'up');
+    }
+    if (SM.divs.length > 400) SM.divs.splice(0, SM.divs.length - 300);
+    OV.dirty = true; panesTabs();
+  }
+  SM.quiet = false;
+}
+function smtScan(L, O, st, who) {
+  const len = SM.len;
+  let k = st.t == null ? len : Math.max(len, lowerBoundObj(L, st.t + 1e-3));
+  for (; k + len < L.length; k++) {
+    const c = L[k]; st.t = c.time;
+    let hi = true, lo = true;
+    for (let i = 1; i <= len && (hi || lo); i++) {
+      if (!(c.h > L[k - i].h && c.h >= L[k + i].h)) hi = false;
+      if (!(c.l < L[k - i].l && c.l <= L[k + i].l)) lo = false;
+    }
+    const w0 = L[k - len].time, w1 = L[k + len].time;
+    if (hi) smtPivot(st.hi, { t: c.time, p: c.h, o: winExt(O, w0, w1, 1) }, 1, who);
+    if (lo) smtPivot(st.lo, { t: c.time, p: c.l, o: winExt(O, w0, w1, -1) }, -1, who);
+  }
+}
+// the other instrument's highest high (or lowest low) between two candle times, and when
+function winExt(O, t0, t1, dir) {
+  let best = null;
+  for (let a = lowerBoundObj(O, t0); a < O.length && O[a].time <= t1; a++) {
+    const v = dir > 0 ? O[a].h : O[a].l;
+    if (!best || (dir > 0 ? v > best.p : v < best.p)) best = { t: O[a].time, p: v };
+  }
+  return best;
+}
+function smtPivot(list, pv, dir, who) {
+  const prev = list[list.length - 1];
+  list.push(pv); if (list.length > 60) list.shift();
+  if (!prev || !prev.o || !pv.o || pv.t - prev.t > SM.gap * SM.A.span) return; // swings too far apart to pair
+  const div = dir > 0 ? (pv.p > prev.p) !== (pv.o.p > prev.o.p) : (pv.p < prev.p) !== (pv.o.p < prev.o.p);
+  if (!div) return;
+  const m = who > 0 ? { t1: prev.t, a1: prev.p, t2: pv.t, a2: pv.p, u1: prev.o.t, b1: prev.o.p, u2: pv.o.t, b2: pv.o.p }
+                    : { t1: prev.o.t, a1: prev.o.p, t2: pv.o.t, a2: pv.o.p, u1: prev.t, b1: prev.p, u2: pv.t, b2: pv.p };
+  const sig = -dir, near = SM.len * SM.A.span;
+  if (SM.divs.some(q => q.sig === sig && Math.abs(q.t2 - m.t2) <= near && Math.abs(q.u2 - m.u2) <= near)) return; // seen from the other instrument's swing already
+  SM.divs.push({ sig, ...m, at: E.time });
+}
+// the divergences as dashed lines between the two swings, on one chart; useB: draw the other instrument's swings
+function smtLines(g, X_, Y_, pw, useB) {
+  g.save(); g.lineWidth = 1.5; g.font = '600 10px "JetBrains Mono", Consolas, monospace'; g.textAlign = 'center';
+  for (const q of SM.divs) {
+    const x1 = X_(useB ? q.u1 : q.t1), x2 = X_(useB ? q.u2 : q.t2), y1 = Y_(useB ? q.b1 : q.a1), y2 = Y_(useB ? q.b2 : q.a2);
+    if (x1 == null || x2 == null || y1 == null || y2 == null || Math.max(x1, x2) < 0 || Math.min(x1, x2) > pw) continue;
+    const col = q.sig > 0 ? C.up : C.down;
+    g.strokeStyle = col; g.setLineDash([5, 3]); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+    g.setLineDash([]); g.fillStyle = col; g.textBaseline = q.sig > 0 ? 'top' : 'bottom';
+    if (x2 > 0 && x2 < pw) g.fillText(`SMT ${q.sig > 0 ? '▲' : '▼'}${useB ? '' : ' ' + SM.x.sym}`, x2, y2 + (q.sig > 0 ? 5 : -5)); // at the newer swing
+  }
+  g.restore();
+}
+// on the trading chart (from drawOverlay)
+function drawSmt(g, pw) { if (smtPrefs().on && SM.divs.length && SM.x) smtLines(g, X, Y, pw, false); }
+function smtPop(anchor) {
+  if (POP.el && POP.anchor === anchor) return closePop();
+  closePop();
+  const el = document.createElement('div'); el.className = 'pop cpop smtpop'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'SMT divergence');
+  const draw = () => {
+    const z = smtPrefs(), x = smtOther(), base = x ? Math.max(D.base, x.d.base) : D.base;
+    const tfs = STD_TF.map(parseTF).filter(t => t && tfValid(t, D.base) && (!x || tfValid(t, x.d.base))).map(tfLabel);
+    const recent = SM.divs.slice(-5).reverse().map(q => `<li class="${q.sig > 0 ? 'pos' : 'neg'}">${q.sig > 0 ? '▲ Bullish' : '▼ Bearish'} <span>${esc(fmtNice(q.t2, false))}</span></li>`).join('');
+    el.innerHTML = `<h5>SMT divergence</h5>` + (!XS.length
+      ? `<p class="note">SMT compares this instrument with another one (for example NQ with ES). Load one first: tick it under Other instruments in Session settings, or open it as a chart.</p><div class="cpown"><button type="button" class="primary" data-open="1">Open another instrument…</button></div>`
+      : `<label class="chk"><input type="checkbox" data-k="on"${z.on ? ' checked' : ''}> Show SMT divergences</label>
+        <label class="f">Compare ${esc(assetName(D))} with<select data-k="with">${XS.map(q => `<option value="${esc(q.dsId)}"${q === x ? ' selected' : ''}>${esc(q.sym)} · ${esc(q.name)}</option>`).join('')}</select></label>
+        <label class="f">Timeframe<select data-k="tf"><option value="chart"${z.tf === 'chart' ? ' selected' : ''}>The trading chart's (${esc(TF ? tfLabel(TF) : '')})</option>${tfs.map(t => `<option${z.tf === t ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
+        <label class="f">Swing strength: candles each side<input type="number" data-k="len" min="1" max="30" step="1" value="${z.len}"></label>
+        <label class="f">Pair swings at most this many candles apart<input type="number" data-k="gap" min="2" max="500" step="1" value="${z.gap}"></label>
+        <label class="chk"><input type="checkbox" data-k="alerts"${z.alerts ? ' checked' : ''}> Tell me when one forms</label>
+        ${z.on && recent ? `<h5>Latest</h5><ul class="smtl">${recent}</ul>` : ''}
+        <p class="note">A swing is known only once that many candles on each side have closed, so nothing looks ahead. Lines show on the trading chart and on charts of ${esc(x ? x.sym : 'the other instrument')}.</p>`);
+  };
+  el.addEventListener('change', e => {
+    const k = e.target.dataset.k; if (!k) return;
+    smtSet({ [k]: e.target.type === 'checkbox' ? e.target.checked : k === 'len' ? clamp(parseInt(e.target.value) || 3, 1, 30) : k === 'gap' ? clamp(parseInt(e.target.value) || 30, 2, 500) : e.target.value });
+    draw();
+  });
+  el.addEventListener('keydown', e => e.stopPropagation());
+  el.addEventListener('click', e => { if (e.target.closest('[data-open]')) { closePop(); panePop(anchor, null); } });
+  draw(); placePop(el, anchor);
+}
+// Session settings: the other instruments to load with the session
+async function xsFillForm(data) {
+  const row = $('#fXsRow'), box = $('#fXs');
+  if (!STORE) { row.hidden = true; return; }
+  const mainId = data.dsId || data.V?.dsId;
+  const list = (await STORE.listDatasets().catch(() => [])).filter(m => m.id !== mainId && m.id !== SYNTH_ID);
+  row.hidden = !list.length;
+  const again = data === D || (D && D.V === data), on = new Set(again ? XS.map(x => x.dsId) : (PREFS.xsPick || []));
+  box.innerHTML = list.map(m => `<label class="chk"><input type="checkbox" value="${esc(m.id)}"${on.has(m.id) ? ' checked' : ''}> ${esc(m.name)}${m.bars ? ` <span class="k">${mil(m.bars)} bars</span>` : ''}</label>`).join('');
+}
+function xsPicked() {
+  const ids = [...document.querySelectorAll('#fXs input:checked')].map(i => i.value);
+  PREFS.xsPick = ids; return ids;
 }
 
 /* ---------------- UI ---------------- */
@@ -6564,7 +7147,7 @@ function worthSaving() { return T.hist.length || T.trades.length || T.orders.len
 function snapshot() {
   return { v: 1, id: S.sid, name: sessName(), datasetId: S.dsId, datasetName: D.name, datasetPick: D.pick || '', datasetWindow: D.window || null, datasetCont: D.cont ? { hist: D.cont.hist, until: D.cont.until ?? null, run: !!D.cont.run } : null, startT: E.startT ?? null, created: S.created, updated: Date.now(),
     status: E.i >= D.n && !contMore() ? 'finished' : 'in progress', cfg: { ...cfg }, tf: tfLabel(TF), start: E.start, pos: E.i, k: E.k, time: E.time,
-    T, eq: E.eq, drawings: DR.list, strategy: S.strategy || null,
+    T, eq: E.eq, drawings: DR.list, xs: XS.map(x => x.dsId), charts: paneSave(), strategy: S.strategy || null,
     summary: { ...computeStats(), from: startT(), to: E.time, bars: E.i - E.start, tf: tfLabel(TF), base: D.base, prop: simLabel() || propLabel() } };
 }
 async function saveSession(force) {
@@ -6600,7 +7183,9 @@ async function resumeSession(id) {
   cfg.prop = { ...PROP_DEF, ...migrateReset(s.cfg.prop, true) };
   cfg.sim = simConfig(s.cfg.sim);
   setPlaying(false);
+  XS_KEEP = true;
   startSession(data, s.start, parseTF(s.tf), s);
+  xsSet(s.xs || [], s.charts || null);
 }
 // a Library data file, read from its cache when one exists. A long built-in series comes back
 // as a description only (chunked); a section of it is loaded once a start date and span are chosen.
@@ -6682,6 +7267,7 @@ function contLoad() {
           if (E.eq.length > 8000) { const last = E.eq[E.eq.length - 1]; E.eq = E.eq.filter((_, k) => k % 2 === 0); if (E.eq[E.eq.length - 1] !== last) E.eq.push(last); E.eqStride *= 2; }
         }
         d.window.to = t1;
+        await xsCont(t0, t1); if (D !== d) return;
         if (part && part.n) break;
       }
       $('#dsSub').textContent = `${fmtDT(d.t[0]).slice(0, 10)} → ${fmtDT(d.t[d.n - 1]).slice(0, 10)} · ${mil(d.n)} bars loaded · to ${fmtDT(d.V.to).slice(0, 10)}`;
@@ -7657,6 +8243,7 @@ function startSession(data, startIdx, tfPref, resume) {
   const keepDrawings = !resume && D && (data === D || (data.dsId && data.dsId === S.dsId));
   DR.list = resume ? (resume.drawings || []) : keepDrawings ? DR.list : [];
   DR.sel = DR.hover = DR.pending = DR.drag = DR.place = DR.live = null; DR.undo = []; syncUndo();
+  if (data !== D) XS = []; // a new session's other instruments load after it starts (xsSet)
   D = data; setPrec(D.prec);
   S.dsId = D.dsId || (D.sample ? 'sample' : null);
   cs.applyOptions({ priceFormat: { type: 'price', precision: PREC, minMove: 1 / POW } });
@@ -7692,6 +8279,7 @@ function startSession(data, startIdx, tfPref, resume) {
   applySpeed();
   refreshLines(); render(); ui(true); updateStyleBar();
   chart.timeScale().scrollToRealTime();
+  panesSync(!XS_KEEP); XS_KEEP = false;
   if (!PREFS.tourDone && !RUN.on) setTimeout(startTour, 500); // the first session: show how things work, once
 }
 // dataset summary and start-time range in the session dialog
@@ -7808,7 +8396,7 @@ function openSetup(data) {
   $('#mTitle').textContent = again ? 'Session settings' : 'New replay session';
   $('#mStart').textContent = again ? 'Start new session' : 'Start session';
   $('#modal .tzl').textContent = `(${zoneName(E ? E.time : Date.now() / 1000).split(' · ')[0]})`;
-  setupData(data);
+  setupData(data); xsFillForm(data);
   // costs: each instrument remembers its own (point value, spread, slippage, commission, size). One not used before
   // starts from its contract (point value and a one-tick spread) or, for anything else, $1 a point and no costs.
   const inst = instrumentOf(data), mem = again ? null : (PREFS.costs || {})[costKey(data)];
@@ -7840,6 +8428,7 @@ function confirmSetup() {
   cfg.pauseFill = $('#fPause').checked; cfg.hedge = $('#fHedge').checked;
   cfg.prop = { ...PROP_DEF }; // plain prop rules are gone from the form; the prop simulation covers them
   cfg.sim = simFromForm();
+  const xsIds = xsPicked();
   PREFS.costs = { ...(PREFS.costs || {}), [costKey(data)]: { pv: cfg.pv, spread: cfg.spread, comm: cfg.comm, mode: cfg.commMode, qty: cfg.qty, slip: cfg.slip } };
   savePrefs();
   if (data.chunked && !data.t) {
@@ -7851,12 +8440,12 @@ function confirmSetup() {
     return loadSection(data, t0, t1).then(d => {
       if (cont) d.cont = { hist };
       $('#modal').hidden = true; pendingD = null;
-      startSession(d, lowerBound(d.t, st), TF);
+      XS_KEEP = true; startSession(d, lowerBound(d.t, st), TF); xsSet(xsIds);
       toast(TOUCH ? 'Session ready. Tap play to start the tape.' : 'Session ready. Press Space or the play button to start the tape.');
     }).catch(e => toast(e.message, 'err')).finally(() => { $('#mStart').disabled = false; });
   }
   $('#modal').hidden = true; pendingD = null;
-  startSession(data, lowerBound(data.t, st), TF);
+  XS_KEEP = true; startSession(data, lowerBound(data.t, st), TF); xsSet(xsIds);
   toast(TOUCH ? 'Session ready. Tap play to start the tape.' : 'Session ready. Press Space or the play button to start the tape.');
   const src = data.src;
   if (STORE && !data.dsId && src && (src.kind === 'picked' || src.kind === 'file')) {
