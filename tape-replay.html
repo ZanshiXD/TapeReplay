@@ -6741,17 +6741,23 @@ async function xsSet(ids, charts) {
   }
   if (charts) paneRestore(charts);
   panesSync(true); S.dirty = true;
+  if (E && PI.inst.length && !RUN.on) { rebuild(); render(); } // Python indicators read the instrument list when they start
 }
 async function xsAdd(id) { await xsSet([...XS.map(x => x.dsId), id]); return xsById(id); }
 // a session playing on: the same next month for each other instrument, keeping only what the main data keeps
-async function xsCont(t0, t1) {
+async function xsContLoad(t0, t1) {
+  const out = [];
   for (const x of XS.slice()) {
     if (!x.V) continue; // a whole file is loaded already
     let part = null;
     if (t0 <= x.V.to) try { part = await loadSection(x.V, t0, Math.min(t1, x.V.to)); } catch (e) { if (!/no bars/i.test(e.message)) toast(`${x.sym}: ${e.message}`, 'err'); }
-    xsTrim(x);
-    if (part && part.n) contAppend(x.d, part);
+    if (part && part.n) out.push([x, part]);
   }
+  return out;
+}
+function xsContAdd(parts) {
+  for (const x of XS) xsTrim(x);
+  for (const [x, part] of parts) if (XS.includes(x) && (!x.d.n || part.t[0] > x.d.t[x.d.n - 1])) contAppend(x.d, part);
 }
 function xsTrim(x) {
   const d = x.d, c = lowerBound(d.t, D.t[0] - d.base);
@@ -7477,13 +7483,14 @@ function contLoad() {
         try { part = await loadSection(d.V, t0, t1); }
         catch (e) { if (!/no bars/i.test(e.message)) throw e; }
         if (D !== d) return;
+        const xp = await xsContLoad(t0, t1); if (D !== d) return; // the other instruments' same month, added in the same step
         if (part && part.n) {
           contTrim(d, part.n); contAppend(d, part);
           // the equity curve keeps about the same number of points however long the replay runs
           if (E.eq.length > 8000) { const last = E.eq[E.eq.length - 1]; E.eq = E.eq.filter((_, k) => k % 2 === 0); if (E.eq[E.eq.length - 1] !== last) E.eq.push(last); E.eqStride *= 2; }
         }
+        xsContAdd(xp);
         d.window.to = t1;
-        await xsCont(t0, t1); if (D !== d) return;
         if (part && part.n) break;
       }
       $('#dsSub').textContent = `${fmtDT(d.t[0]).slice(0, 10)} → ${fmtDT(d.t[d.n - 1]).slice(0, 10)} · ${mil(d.n)} bars loaded · to ${fmtDT(d.V.to).slice(0, 10)}`;
@@ -9379,7 +9386,9 @@ async function runStrategy(opts = {}) {
       stratStatus('Loading the data…');
       const d = await loadSection(sm.V, contDayStart(sm.V, sm.t0 - 86400), Math.min(sm.V.to, contDayEnd(sm.V, Math.min(sm.t1, sm.t0 + CONT_STEP))));
       d.cont = { hist: 1, until: sm.t1, run: true };
-      startSession(d, lowerBound(d.t, sm.t0), TF);
+      const xsIds = XS.map(x => x.dsId);
+      XS_KEEP = true; startSession(d, lowerBound(d.t, sm.t0), TF);
+      if (xsIds.length) { stratStatus('Loading the other instruments…'); await xsSet(xsIds); }
     } else startSession(D, start, TF);
     const runFrom = D.t[E.start], runTo = sm ? sm.t1 : D.t[end - 1];
     S.name = `${name}${overrides ? ` (${optLabel(overrides)})` : ''} · Automated`;
