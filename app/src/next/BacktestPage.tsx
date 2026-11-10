@@ -2,6 +2,7 @@
 // done: the trades, the equity curve and the numbers. Then try many settings at once (Optimize) and check the best
 // ones hold up on dates they were not chosen on (Robustness). A run can open as a replay session, its trades on the
 // chart, to keep replaying from where it stopped.
+import { openGuide } from './guide/Guide';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, LineStyle, type UTCTimestamp } from 'lightweight-charts';
 import { runBacktest, statsRows, tradesCsv, fmtDay, optLabel, yieldTask, type LogLine, type Mode, type RunResult, type Setting } from '../core/backtest';
@@ -249,6 +250,7 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
               : <b className="bt-name" title="Double-click to rename" onDoubleClick={() => setRenaming(true)}>{cur}</b>}
             <span className="tag" style={{ background: 'var(--hover)' }}>{lang === 'py' ? 'Python' : 'JavaScript'}</span>
             <span className="spacer" />
+            <button className="btn sm" title="How to write a strategy, and everything ctx can do" onClick={() => openGuide(lang === 'js' ? 'st-js' : 'st-api')}>Guide</button>
             <button className="btn sm" onClick={() => setRenaming(true)}>Rename</button>
             {confirmDel ? <><button className="btn sm danger" onClick={remove}>Delete it</button><button className="btn sm" onClick={() => setConfirmDel(false)}>Keep it</button></>
               : <button className="ib" aria-label={`Delete ${cur}`} title="Delete this strategy" onClick={() => setConfirmDel(true)}><ITrash width={16} height={16} /></button>}

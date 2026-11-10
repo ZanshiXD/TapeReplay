@@ -1,5 +1,6 @@
 // Settings: the time the app shows, the theme and chart colors, how the replay plays and orders fill, the keyboard
 // shortcuts and the credits. Each change is saved at once (pref) and put in force (applyLook, applyReplayPrefs).
+import { openGuide } from './guide/Guide';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '../core/session';
 import { LOCAL_TZ, tzOffset } from '../core/time';
@@ -29,7 +30,7 @@ export const Credit = ({ style }: { style?: React.CSSProperties }) =>
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
 const KEYS: Array<[string, Array<[string, string]>]> = [
   ['Replay', [['Space', 'Play or pause the replay'], ['→', 'Play to the end of the current bar of data'], ['Shift + →', 'Play to the end of the current candle on the chart'],
-    ['←', 'Go back one candle'], ['.', 'Play one tick (the smallest price move the replay makes)']]],
+    ['←', 'Go back one candle'], ['.', 'Play one tick (the smallest price move the replay makes)'], ['↑ / ↓', 'Faster / slower']]],
   ['Trading', [['B', 'Buy with the order ticket'], ['S', 'Sell with the order ticket'], ['X', 'Close all positions at the market price'],
     ['Drag a line', 'Move an order, a stop loss or a take profit on the chart']]],
   ['Drawing', [['Alt + T', 'Trend line'], ['Alt + H', 'Horizontal line'], ['Alt + J', 'Horizontal ray'], ['Alt + V', 'Vertical line'], ['Alt + C', 'Cross line'],
@@ -37,7 +38,7 @@ const KEYS: Array<[string, Array<[string, string]>]> = [
     [`Hold ${MOD}`, 'Turn the magnet on or off while you place points (it snaps to the candle’s open, high, low or close)'], ['Enter', 'Finish a path'],
     ['Double-click', 'A drawing’s settings'], ['Right-click', 'A drawing’s menu'], ['Delete', 'Delete the selected drawing (Backspace too)'],
     ['Esc', 'Stop drawing, deselect, or go back to the cursor'], [`${MOD} + Z`, 'Undo'], [`${MOD} + Shift + Z`, `Redo (${MOD} + Y too)`], [`${MOD} + C, ${MOD} + V`, 'Copy and paste a drawing']]],
-  ['Anywhere', [['?', 'Show this list'], ['Esc', 'Close this list']]],
+  ['Anywhere', [['Z', 'Show or hide the price zones'], ['?', 'Show this list'], ['Esc', 'Close this list']]],
 ];
 export function KeysList() {
   return <div className="keys">{KEYS.map(([g, ks]) => <section key={g}><h5>{g}</h5>{ks.map(([k, d]) => <div key={g + k} className="krow"><span>{k.split(/( \+ |, )/).map((x, i) => / \+ |, /.test(x) ? <i key={i}>{x.trim()}</i> : <kbd key={i}>{x}</kbd>)}</span><span>{d}</span></div>)}</section>)}</div>;
@@ -194,9 +195,9 @@ export function SettingsPage({ session, onKeys, onToast }: { session: Session | 
 
         <Group id="sAbout" title="About">
           <Row title="Tape Replay" hint={version || ' '}>
-            <a className="btn sm" href={classicHref}>Open the classic view</a>
+            <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button className="btn sm primary" onClick={() => openGuide()}>Open the guide</button><a className="btn sm" href={classicHref}>Open the classic view</a></span>
           </Row>
-          <p className="muted" style={{ margin: 0, fontSize: 12.5 }}>The classic view has everything not moved over yet: Python strategies, the optimizer and the robustness tests. Practice markets are generated, not real market data. Trades are simulated; nothing here is financial advice.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 12.5 }}>The guide explains every part of the app, with the full reference for Python indicators and for strategies. The classic view is the previous version of the app, kept for sessions saved there. Practice markets are generated, not real market data. Trades are simulated; nothing here is financial advice.</p>
           <Credit />
         </Group>
       </div>

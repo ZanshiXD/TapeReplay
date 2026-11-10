@@ -1,6 +1,7 @@
 // The Python indicator editor: the code, its settings (the NAME = value lines at the top, changed here without
 // editing), and a console with what it printed and any error. Apply puts it on the charts (or updates it there);
 // the code is kept in "Your scripts" as you type. Full screen on phones.
+import { openGuide } from '../guide/Guide';
 import { useEffect, useRef, useState } from 'react';
 import { useLive } from '../live';
 import { IClose } from '../icons';
@@ -89,6 +90,7 @@ export function PyEditor({ open, onClose }: { open: PyOpen; onClose: () => void 
           <b className="pyed-t">Python</b>
           <input className="in ui" aria-label="Indicator name" placeholder="Indicator name" maxLength={60} value={name} onChange={e => setName(e.target.value)} onBlur={() => { if (name.trim()) save(code, nm); }} />
           <span className="spacer" />
+          <button className="btn sm" title="How to write an indicator, and everything ctx can do" onClick={() => openGuide('pyind-api')}>Guide</button>
           <button className="ib" aria-label="Close" onClick={onClose}><IClose width={14} height={14} /></button>
         </header>
         <div className="body pyed-body">

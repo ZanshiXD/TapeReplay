@@ -55,6 +55,7 @@ jobs:
           (cd app && npx tsx tests/zones.test.ts)
           (cd app && npx tsx tests/backtest.test.ts)
           (cd app && npx tsx tests/optimizer.test.ts)
+          (cd app && npx tsx tests/guide.test.ts)
           python tests/test_next.py "$RUNNER_TEMP/shots"
           python tests/test_drawings.py "$RUNNER_TEMP/shots"
           python tests/test_library.py "$RUNNER_TEMP/shots"
@@ -64,6 +65,7 @@ jobs:
           python tests/test_settings.py "$RUNNER_TEMP/shots"
           python tests/test_pyind.py "$RUNNER_TEMP/shots"
           python tests/test_mobile.py "$RUNNER_TEMP/shots"
+          python tests/test_guide.py "$RUNNER_TEMP/shots"
 
       - name: Strategies in the browser
         run: |
