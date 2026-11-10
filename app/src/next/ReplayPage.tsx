@@ -1,0 +1,86 @@
+// The Replay screen: one, two or four charts on one clock, the replay bar, the trade panel and the positions.
+import { useState } from 'react';
+import type { Session } from '../core/session';
+import { parseTF, tfLabel, tfValid } from '../core/time';
+import { ChartPane } from './ChartPane';
+import { ReplayBar } from './ReplayBar';
+import { TradePanel } from './TradePanel';
+import { BottomPanel } from './BottomPanel';
+import { IndicatorsPanel } from './IndicatorsPanel';
+import { pref, setPref, useLive } from './live';
+import { IInd, ILayout1, ILayout2, ILayout4, IPlus } from './icons';
+
+const TFS = ['1m', '5m', '15m', '1h', '4h', '1D'];
+export type Layout = 'one' | 'two' | 'four';
+
+export function ReplayPage({ session, available, onAddMarket, onJump, onToast, openJournal }: {
+  session: Session; available: Array<{ sym: string; name: string }>; onAddMarket: (sym: string) => void;
+  onJump: (t: number) => void; onToast: (m: string, k?: string) => void; openJournal: () => void;
+}) {
+  useLive();
+  const [layout, setLayout] = useState<Layout>(() => pref<Layout>('layout', session.feeds.length > 1 ? 'two' : 'one'));
+  const [indOpen, setIndOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [tip, setTip] = useState(() => pref('tipPlay', true));
+  const s = session, slots = layout === 'one' ? 1 : layout === 'two' ? 2 : 4;
+  const shown = layout === 'one' ? [s.activeFeed] : s.feeds.slice(0, slots);
+  const free = slots - shown.length;
+  const grid = layout === 'four' ? { gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' } : layout === 'two' ? { gridTemplateColumns: '1fr 1fr' } : { gridTemplateColumns: '1fr' };
+  const pick = (l: Layout) => { setLayout(l); setPref('layout', l); };
+  const hideTip = () => { setTip(false); setPref('tipPlay', false); };
+  const base = Math.min(...s.feeds.map(f => f.s.base));
+  return (
+    <>
+      <header className="ctx">
+        <span className="title">{s.name}</span>
+        <span className="muted" style={{ fontSize: 12 }}>{s.feeds.map(f => f.s.inst.sym).join(' + ')}</span>
+        <div className="sep" />
+        <div className="seg" role="group" aria-label="Timeframe">
+          {TFS.filter(t => tfValid(parseTF(t)!, base)).map(t => <button key={t} className={tfLabel(s.tf) === t ? 'on' : ''} onClick={() => { s.setTf(parseTF(t)!); setPref('tf', t); }}>{t}</button>)}
+        </div>
+        <button className="btn" onClick={() => setIndOpen(!indOpen)} aria-expanded={indOpen}><IInd /> Indicators</button>
+        <div className="seg" role="group" aria-label="Chart layout">
+          <button className={layout === 'one' ? 'on' : ''} title="One chart" aria-label="One chart" onClick={() => pick('one')}><ILayout1 width={16} height={16} /></button>
+          <button className={layout === 'two' ? 'on' : ''} title="Two charts side by side" aria-label="Two charts" onClick={() => pick('two')}><ILayout2 width={16} height={16} /></button>
+          <button className={layout === 'four' ? 'on' : ''} title="Four charts" aria-label="Four charts" onClick={() => pick('four')}><ILayout4 width={16} height={16} /></button>
+        </div>
+        <div style={{ position: 'relative' }}>
+          <button className="btn sm" disabled={!available.length} title={available.length ? 'Add another market on the same clock, to compare or trade both' : 'Every market that covers these dates is open'} onClick={() => setAddOpen(!addOpen)}><IPlus width={13} height={13} /> Add market</button>
+          {addOpen && (
+            <div className="pop menu" role="menu" style={{ top: 40, left: 0 }} onMouseLeave={() => setAddOpen(false)}>
+              {available.map(m => <button key={m.sym} role="menuitem" onClick={() => { setAddOpen(false); onAddMarket(m.sym); if (layout === 'one') pick('two'); }}>{m.name}<span>{m.sym}</span></button>)}
+            </div>
+          )}
+        </div>
+        <span className="spacer" />
+        {indOpen && <IndicatorsPanel session={s} onClose={() => setIndOpen(false)} />}
+      </header>
+      <div className="work">
+        <div className="col">
+          <div className="charts" style={grid}>
+            {shown.map(f => <ChartPane key={f.s.inst.sym} session={s} feed={f} active={f.s.inst.sym === s.active && shown.length > 1}
+              onToast={onToast} onRemove={s.feeds.length > 1 && layout !== 'one' ? () => s.removeMarket(f.s.inst.sym) : undefined} />)}
+            {Array.from({ length: free }, (_, k) => (
+              <div key={'free' + k} className="pane pane-empty">
+                {available.length ? <button className="btn" onClick={() => setAddOpen(true)}><IPlus width={13} height={13} /> Add a market to compare</button> : <span>Open another market here to compare</span>}
+              </div>
+            ))}
+            {tip && !s.playing && (
+              <div className="tip" role="note">
+                <span className="n">1</span>
+                <span style={{ flex: 1 }}>
+                  <b style={{ fontSize: 13.5 }}>Press play to start the market</b>
+                  <p>Prices move as if it were live. Click <b className="up">Buy</b> if you think the price will rise, <b className="down">Sell</b> if you think it will fall. The stop loss limits what you can lose.</p>
+                  <span className="acts"><button onClick={() => { hideTip(); s.play(); }}>Play</button><button onClick={hideTip}>Don't show this again</button></span>
+                </span>
+              </div>
+            )}
+            <ReplayBar session={s} onJump={onJump} />
+          </div>
+          <BottomPanel session={s} onToast={onToast} openJournal={openJournal} />
+        </div>
+        <TradePanel session={s} onToast={onToast} />
+      </div>
+    </>
+  );
+}

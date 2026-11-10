@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 // Shared memory for the optimizer's workers needs a cross-origin isolated page; the desktop app's server and the
 // iOS app's server send the same headers.
@@ -10,6 +11,7 @@ const isolation = {
 
 export default defineConfig({
   base: './', // relative URLs: the apps serve dist/ from their own folders
+  plugins: [react()],
   server: { headers: isolation },
   preview: { headers: isolation },
   worker: { format: 'es' },
@@ -18,5 +20,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     chunkSizeWarningLimit: 2000,
+    // index.html: the classic app (what the apps ship until the new one has everything); next.html: the new app
+    rollupOptions: { input: { index: 'index.html', next: 'next.html' } },
   },
 });
