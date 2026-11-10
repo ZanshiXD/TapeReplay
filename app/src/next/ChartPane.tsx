@@ -11,6 +11,10 @@ import { crossLabel, tickLabel } from '../core/time';
 import { indLabel } from '../core/indicators';
 import { frameHooks, useLive } from './live';
 import { IClose } from './icons';
+import { DrawLayer } from './draw/overlay';
+import { ds } from './draw/state';
+import { isDrawTool } from './draw/tools';
+import { DrawBar, DrawMenu } from './draw/ui';
 
 const C = { bg: '#10131a', grid: '#161a22', line: '#232833', text: '#8a91a0', up: '#26a69a', down: '#ef5350', accent: '#2962ff', warn: '#f0b54a' };
 const T = (t: number) => t as UTCTimestamp;
@@ -18,9 +22,10 @@ const hexA = (hex: string, a: number) => { const n = parseInt(hex.slice(1), 16);
 
 type Drag = { kind: 'sl' | 'tp' | 'order'; tr?: Trade; o?: Order; line: IPriceLine; price: number };
 
-export function ChartPane({ session, feed, active, onToast, onRemove }: { session: Session; feed: Feed; active: boolean; onToast: (m: string) => void; onRemove?: () => void }) {
+export function ChartPane({ session, feed, active, onToast, onRemove }: { session: Session; feed: Feed; active: boolean; onToast: (m: string, k?: string) => void; onRemove?: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ o: number; h: number; l: number; c: number; v: number } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   useLive();
   const sym = feed.s.inst.sym, prec = feed.s.inst.prec;
 
@@ -44,6 +49,10 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     let ver = -1, count = 0, accVer = -1, labelsAt = 0;
     let lines = new Map<string, IPriceLine>();
     let drag: Drag | null = null;
+    // drawings: a canvas over the candles, and the mouse when a drawing tool is picked or a drawing is clicked
+    const layer = new DrawLayer(el, chart, cs, session, feed);
+    layer.onMenu = (x, y, id) => setMenu({ x, y, id });
+    let grabbed = false;
 
     const syncInds = () => {
       for (const s of ind) chart.removeSeries(s);
@@ -107,6 +116,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       }
       if (session.account.version !== accVer) { accVer = session.account.version; syncLines(); syncMarkers(); labelsAt = now; }
       else if (now - labelsAt > 250) { labelsAt = now; syncLines(); } // open P&L on the entry lines
+      layer.render();
     };
     frameHooks.add(draw);
     draw(performance.now());
@@ -131,35 +141,50 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       return null;
     };
     const yOf = (e: MouseEvent) => e.clientY - el.getBoundingClientRect().top;
-    const onDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-      const d = near(yOf(e)); if (!d) return;
-      drag = d; e.preventDefault(); e.stopPropagation();
+    const take = (e: MouseEvent) => {
+      e.preventDefault(); e.stopPropagation(); grabbed = true;
+      session.setActive(sym); setMenu(null);
       chart.applyOptions({ handleScroll: false, handleScale: false });
+    };
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0 && e.button !== 2) return;
+      // a drawing tool, or a drawing being placed: the click is for the drawing layer
+      if (isDrawTool(ds.tool) || layer.busy || ['eraser', 'measure', 'zoom'].includes(ds.tool)) { if (layer.down(e)) take(e); return; }
+      const d = e.button === 0 ? near(yOf(e)) : null;
+      if (d) { drag = d; take(e); return; }
+      if (layer.down(e)) take(e);
     };
     const onMove = (e: MouseEvent) => {
       const y = yOf(e);
-      if (!drag) { el.style.cursor = near(y) ? 'ns-resize' : ''; return; }
+      if (!drag) { layer.move(e); el.style.cursor = !layer.busy && !layer.hover && !isDrawTool(ds.tool) && near(y) ? 'ns-resize' : ''; return; }
       const p = cs.coordinateToPrice(y); if (p == null) return;
       drag.price = feed.round(p);
       drag.line.applyOptions({ price: drag.price });
     };
-    const onUp = () => {
-      if (!drag) return;
+    const release = () => { if (grabbed) { grabbed = false; chart.applyOptions({ handleScroll: true, handleScale: true }); } };
+    const onUp = (e: MouseEvent) => {
+      if (!drag) { layer.up(e); release(); return; }
       const d = drag; drag = null;
-      chart.applyOptions({ handleScroll: true, handleScale: true });
+      release();
       let err: string | null = null;
       if (d.kind === 'order' && d.o) session.account.moveOrder(d.o, d.price);
       else if (d.tr) err = session.account.setBracket(d.tr, d.kind as 'sl' | 'tp', d.price);
       if (err) onToast(err);
       accVer = -1; session.changed();
     };
+    const onDbl = (e: MouseEvent) => { if (layer.dbl(e)) { e.preventDefault(); e.stopPropagation(); } };
+    const onCtx = (e: MouseEvent) => { if (layer.context(e)) e.preventDefault(); };
     el.addEventListener('mousedown', onDown, true);
+    el.addEventListener('dblclick', onDbl, true);
+    el.addEventListener('contextmenu', onCtx, true);
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => {
       frameHooks.delete(draw);
+      layer.dispose();
       el.removeEventListener('mousedown', onDown, true);
+      el.removeEventListener('dblclick', onDbl, true);
+      el.removeEventListener('contextmenu', onCtx, true);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
       chart.remove();
@@ -167,6 +192,8 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
   }, [session, feed]);
 
   const F = feed.F, b = hover || (F ? { o: F.o, h: F.h, l: F.l, c: F.c, v: F.v } : null);
+  const selD = session.drawings.get(ds.selected), sel = selD && selD.sym === sym ? selD : null;
+  const menuD = menu ? session.drawings.get(menu.id) : null;
   const ch = b && b.o ? (b.c - b.o) / b.o * 100 : 0, n = (x: number) => x.toFixed(prec);
   return (
     <div className={'pane' + (active ? ' active' : '')} onMouseDown={() => session.setActive(sym)}>
@@ -181,6 +208,8 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
         </div>
         {feed.inds.length > 0 && <div className="inds">{feed.inds.map((x, k) => { const v = feed.peek(k); return <span key={x.spec.id} style={{ background: hexA(x.spec.color, 0.14), color: x.spec.color }}>{indLabel(x.spec)}{v != null ? ' · ' + v.toFixed(prec) : ''}</span>; })}</div>}
       </div>
+      {sel && !ds.editing && <DrawBar session={session} d={sel} onToast={onToast} />}
+      {menu && menuD && <DrawMenu session={session} d={menuD} style={{ left: Math.min(menu.x, (box.current?.clientWidth || 400) - 230), top: menu.y }} onClose={() => setMenu(null)} />}
       {onRemove && <button className="ib closebtn" title={`Close the ${sym} chart`} aria-label={`Close the ${sym} chart`} onMouseDown={e => e.stopPropagation()} onClick={onRemove}><IClose width={14} height={14} /></button>}
     </div>
   );

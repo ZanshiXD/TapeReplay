@@ -9,6 +9,22 @@ import { BottomPanel } from './BottomPanel';
 import { IndicatorsPanel } from './IndicatorsPanel';
 import { pref, setPref, useLive } from './live';
 import { IInd, ILayout1, ILayout2, ILayout4, IPlus } from './icons';
+import { DrawRail } from './draw/DrawRail';
+import { DrawSettings } from './draw/DrawSettings';
+import { ObjectTree } from './draw/ObjectTree';
+import { useDrawKeys } from './draw/keys';
+import { ds } from './draw/state';
+import { TOOL, isDrawTool } from './draw/tools';
+
+/** what to do with the tool just picked, in a few words */
+function drawHint(id: string) {
+  if (id === 'measure') return 'Measure: click where to start, then where to end';
+  if (id === 'zoom') return 'Zoom in: drag over the bars you want to see';
+  if (id === 'eraser') return 'Eraser: click a drawing to remove it';
+  const t = TOOL[id]; if (!t || !isDrawTool(id)) return '';
+  const how = t.n === 1 ? 'click on the chart' : t.n === 2 ? 'click two points, or press and drag' : t.n === 'path' ? 'click each point, double-click to finish' : t.n === 'free' ? 'press and drag to draw' : `click ${t.n} points`;
+  return `${t.name}: ${how}`;
+}
 
 const TFS = ['1m', '5m', '15m', '1h', '4h', '1D'];
 export type Layout = 'one' | 'two' | 'four';
@@ -29,6 +45,7 @@ export function ReplayPage({ session, available, onAddMarket, onJump, onToast, o
   const pick = (l: Layout) => { setLayout(l); setPref('layout', l); };
   const hideTip = () => { setTip(false); setPref('tipPlay', false); };
   const base = Math.min(...s.feeds.map(f => f.s.base));
+  useDrawKeys(s, true);
   return (
     <>
       <header className="ctx">
@@ -57,6 +74,8 @@ export function ReplayPage({ session, available, onAddMarket, onJump, onToast, o
       </header>
       <div className="work">
         <div className="col">
+          <div className="chartrow">
+          <DrawRail session={s} />
           <div className="charts" style={grid}>
             {shown.map(f => <ChartPane key={f.s.inst.sym} session={s} feed={f} active={f.s.inst.sym === s.active && shown.length > 1}
               onToast={onToast} onRemove={s.feeds.length > 1 && layout !== 'one' ? () => s.removeMarket(f.s.inst.sym) : undefined} />)}
@@ -76,9 +95,13 @@ export function ReplayPage({ session, available, onAddMarket, onJump, onToast, o
               </div>
             )}
             <ReplayBar session={s} onJump={onJump} />
+            {drawHint(ds.tool) && <div className="drawhint" role="status">{drawHint(ds.tool)}<span>Esc to cancel</span></div>}
           </div>
+          </div>
+          <DrawSettings session={s} onToast={onToast} />
           <BottomPanel session={s} onToast={onToast} openJournal={openJournal} />
         </div>
+        {ds.tree && <ObjectTree session={s} />}
         <TradePanel session={s} onToast={onToast} />
       </div>
     </>

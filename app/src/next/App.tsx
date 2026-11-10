@@ -10,6 +10,9 @@ import { NewSessionPage, type NewSetup } from './NewSessionPage';
 import { JournalPage } from './JournalPage';
 import { bump, frameHooks, pref } from './live';
 import { place, setTicket } from './ticket';
+import { ds, setDs } from './draw/state';
+import { layers } from './draw/overlay';
+import { TOOLS } from './draw/tools';
 import { IBacktest, IClassic, IJournal, ILibrary, IPlus, IReplay, ISettings, Logo } from './icons';
 
 type Page = 'replay' | 'journal' | 'backtest' | 'library' | 'settings' | 'new';
@@ -37,6 +40,7 @@ export function App() {
   // the replay loop: the session moves on every animation frame; charts draw every frame, panels ten times a second
   useEffect(() => {
     if (!session) return;
+    if (import.meta.env.MODE === 'test') (window as unknown as { __next: unknown }).__next = { session, ds, layers, setDs, tools: TOOLS.filter(t => t.group !== 'cursor').map(t => ({ id: t.id, n: t.n })) };
     let last = performance.now(), lastBump = 0, raf = 0, wasPlaying = false;
     const loop = (now: number) => {
       const dt = (now - last) / 1000; last = now;
@@ -63,6 +67,7 @@ export function App() {
       if (!session || page !== 'replay') return;
       const t = e.target as HTMLElement;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector('.modal')) return; // drawing shortcuts and dialogs
       if (e.key === ' ') { e.preventDefault(); session.toggle(); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); if (e.shiftKey) session.stepBar(); else session.stepCandle(); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); session.stepBack(); }
