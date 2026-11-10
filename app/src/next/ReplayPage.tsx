@@ -15,6 +15,7 @@ import { DrawSettings } from './draw/DrawSettings';
 import { ObjectTree } from './draw/ObjectTree';
 import { useDrawKeys } from './draw/keys';
 import { ds } from './draw/state';
+import { Tour, tourDone } from './Tour';
 import { TOOL, isDrawTool } from './draw/tools';
 
 /** what to do with the tool just picked, in a few words */
@@ -44,6 +45,7 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
   const [tfs, setTfs] = useState<string[]>(() => pref('tfs', TFS));
   const [tfAdd, setTfAdd] = useState<string | null>(null);
   const [drawOpen, setDrawOpen] = useState(false);
+  const [touring, setTouring] = useState(false);
   const s = session, slots = layout === 'one' ? 1 : layout === 'two' ? 2 : 4;
   const shown = layout === 'one' ? [s.activeFeed] : s.feeds.slice(0, slots);
   const free = slots - shown.length;
@@ -102,7 +104,7 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
                 <span style={{ flex: 1 }}>
                   <b style={{ fontSize: 13.5 }}>Press play to start the market</b>
                   <p>Prices move as if it were live. Click <b className="up">Buy</b> if you think the price will rise, <b className="down">Sell</b> if you think it will fall. The stop loss limits what you can lose.</p>
-                  <span className="acts"><button onClick={() => { hideTip(); s.play(); }}>Play</button><button onClick={hideTip}>Don't show this again</button></span>
+                  <span className="acts"><button onClick={() => { hideTip(); s.play(); }}>Play</button><button onClick={hideTip}>Don't show this again</button>{!tourDone() && <button onClick={() => { hideTip(); setTouring(true); }}>Show me around</button>}</span>
                 </span>
               </div>
             )}
@@ -111,6 +113,7 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
           </div>
           </div>
           <DrawSettings session={s} onToast={onToast} />
+          {touring && <Tour onEnd={() => setTouring(false)} />}
           <BottomPanel session={s} onToast={onToast} openJournal={openJournal} />
         </div>
         {ds.tree && <ObjectTree session={s} />}

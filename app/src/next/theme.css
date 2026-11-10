@@ -315,6 +315,13 @@ table.t td input.in { height: 26px; width: 96px; font-size: 12.5px; padding: 0 6
 /* ---- updates ---- */
 .updbtn { width: 58px; height: 30px; border-radius: 8px; border: 1px solid rgba(38,166,154,.5); background: var(--up-soft); color: var(--up-fg); font: 600 11px var(--f-ui); cursor: pointer; margin-bottom: 6px; }
 
+/* ---- tour ---- */
+.tour { position: fixed; inset: 0; z-index: 80; pointer-events: none; }
+.tour-ring { position: fixed; border-radius: 12px; box-shadow: 0 0 0 3px var(--accent), 0 0 0 100vmax rgba(5,7,10,.55); transition: all .2s; }
+.tour-card { position: fixed; pointer-events: auto; display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 14px; background: #1d2433; border: 1px solid #2f3a55; box-shadow: var(--shadow); }
+.tour-card b { font-size: 14.5px; } .tour-card p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #b5bccb; }
+.tour-card .acts { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+
 /* ---- library ---- */
 .savestate { font-size: 11.5px; white-space: nowrap; }
 .page .h2 { margin: 6px 0 0; font-size: 16px; font-weight: 600; }
