@@ -9,7 +9,7 @@ import { ReplayPage } from './ReplayPage';
 import { NewSessionPage, type ResumeInfo } from './NewSessionPage';
 import { JournalPage } from './JournalPage';
 import { LibraryPage } from './LibraryPage';
-import { bump, frameHooks, initPrefs, pref } from './live';
+import { bump, frameHooks, initPrefs, pref, setPref } from './live';
 import { place, setTicket } from './ticket';
 import { ds, setDs } from './draw/state';
 import { layers } from './draw/overlay';
@@ -114,6 +114,11 @@ export function App() {
       else if (e.key === 'ArrowRight') { e.preventDefault(); if (e.shiftKey) session.stepCandle(); else session.stepBar(); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); session.stepBack(); }
       else if (e.key === '.') session.stepTick();
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const steps = [1, 2, 5, 10, 30, 60, 120, 300, 600, 1000, 1800, 3600], k = steps.findIndex(v => v >= session.speed);
+        session.speed = steps[Math.max(0, Math.min(steps.length - 1, (k < 0 ? steps.length - 1 : k) + (e.key === 'ArrowUp' ? 1 : -1)))]; setPref('speed', session.speed); session.changed();
+      }
       else if (e.key === 'b' || e.key === 'B') { const err = place(session, 1); if (err) toast(err, 'err'); }
       else if (e.key === 's' || e.key === 'S') { const err = place(session, -1); if (err) toast(err, 'err'); }
       else if (e.key === 'x' || e.key === 'X') { session.account.closeAll(); session.changed(); }

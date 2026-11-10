@@ -278,6 +278,28 @@ table.t tbody tr:hover td { background: rgba(209,212,220,.04); }
 .drawhint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 11; pointer-events: none; display: flex; gap: 10px; align-items: center; padding: 6px 12px; border-radius: 16px; background: rgba(29,36,51,.95); border: 1px solid #2f3a55; font-size: 12.5px; font-weight: 500; white-space: nowrap; box-shadow: var(--shadow); }
 .drawhint span { color: var(--muted); font-size: 11.5px; }
 
+/* ---- trading on the chart ---- */
+.ctrade { position: absolute; inset: 0; z-index: 4; }
+.ttag { position: absolute; right: 142px; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 2px 0 8px; border-radius: 5px; font: 600 11.5px var(--f-num); background: rgba(16,19,26,.94); border: 1px solid var(--line2); pointer-events: auto; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.ttag.long { border-color: var(--up); } .ttag.short { border-color: var(--down); } .ttag.order { border-color: var(--accent); color: var(--accent-fg); }
+.ttag.small { right: 78px; padding-left: 6px; font-size: 10.5px; } .ttag.small.sl { border-color: var(--down); color: var(--down-fg); } .ttag.small.tp { border-color: var(--up); color: var(--up-fg); }
+.ttag .q { color: var(--muted); font-weight: 600; }
+.ttag button { border: 0; background: none; color: var(--muted); cursor: pointer; font: 700 10.5px var(--f-ui); height: 18px; padding: 0 5px; border-radius: 4px; touch-action: none; }
+.ttag button:hover { background: var(--hover); color: var(--fg); }
+.ttag .th.tp { color: var(--up-fg); border: 1px dashed rgba(38,166,154,.6); cursor: ns-resize; } .ttag .th.sl { color: var(--down-fg); border: 1px dashed rgba(239,83,80,.6); cursor: ns-resize; }
+.ttag .tx { font-size: 14px; line-height: 1; }
+.dragline { position: absolute; left: 0; right: 70px; height: 0; border-top: 1px dashed var(--accent); pointer-events: none; }
+.dragline.sl { border-color: var(--down); } .dragline.tp { border-color: var(--up); }
+.dragline span { position: absolute; right: 12px; top: -11px; font: 600 11px var(--f-num); padding: 2px 6px; border-radius: 4px; background: var(--raise); }
+.chartmenu { min-width: 250px; }
+.eqchart { height: 150px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.perf { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 420px); gap: 16px; padding: 12px 14px; }
+.perf .sgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px 14px; font-size: 12.5px; }
+.perf .sgrid > div { display: flex; flex-direction: column; gap: 1px; padding: 4px 0; border-bottom: 1px solid #1a1e27; }
+.perf .sgrid span { color: var(--muted); font-size: 11.5px; }
+.perf .sgrid b { font: 600 13px var(--f-num); }
+table.t td input.in { height: 26px; width: 96px; font-size: 12.5px; padding: 0 6px; }
+
 /* ---- prop challenge ---- */
 .propcard .pill { font-size: 11px; padding: 2px 8px; }
 .propcard .pill.neg { background: var(--down-soft); color: var(--down-fg); } .propcard .pill.pos { background: var(--up-soft); color: var(--up-fg); } .propcard .pill.warn { background: var(--warn-soft); color: var(--warn); }

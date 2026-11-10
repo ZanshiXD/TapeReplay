@@ -1,7 +1,8 @@
 // The Replay screen: one, two or four charts on one clock, the replay bar, the trade panel and the positions.
 import { useState } from 'react';
 import type { Session } from '../core/session';
-import { parseTF, tfLabel, tfValid } from '../core/time';
+import { parseTF, tfLabel, tfValid, tfSeconds } from '../core/time';
+const tfSec = (t: string) => tfSeconds(parseTF(t)!);
 import { ChartPane } from './ChartPane';
 import { ReplayBar } from './ReplayBar';
 import { TradePanel } from './TradePanel';
@@ -38,6 +39,8 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
   const [indOpen, setIndOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [tip, setTip] = useState(() => pref('tipPlay', true));
+  const [tfs, setTfs] = useState<string[]>(() => pref('tfs', TFS));
+  const [tfAdd, setTfAdd] = useState<string | null>(null);
   const s = session, slots = layout === 'one' ? 1 : layout === 'two' ? 2 : 4;
   const shown = layout === 'one' ? [s.activeFeed] : s.feeds.slice(0, slots);
   const free = slots - shown.length;
@@ -53,7 +56,11 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
         <span className="muted" style={{ fontSize: 12 }}>{s.feeds.map(f => f.s.inst.sym).join(' + ')}</span>
         <div className="sep" />
         <div className="seg" role="group" aria-label="Timeframe">
-          {TFS.filter(t => tfValid(parseTF(t)!, base)).map(t => <button key={t} className={tfLabel(s.tf) === t ? 'on' : ''} onClick={() => { s.setTf(parseTF(t)!); setPref('tf', t); }}>{t}</button>)}
+          {tfs.filter(t => parseTF(t) && tfValid(parseTF(t)!, base)).map(t => <button key={t} className={tfLabel(s.tf) === t ? 'on' : ''} title={TFS.includes(t) ? undefined : 'Right-click to remove'} onContextMenu={e => { if (TFS.includes(t)) return; e.preventDefault(); const l = tfs.filter(x => x !== t); setTfs(l); setPref('tfs', l); }} onClick={() => { s.setTf(parseTF(t)!); setPref('tf', t); }}>{t}</button>)}
+          {tfAdd == null ? <button title="Another timeframe (like 2m, 45m, 2h, 1W, 15s)" aria-label="Add a timeframe" onClick={() => setTfAdd('')}>+</button>
+            : <input className="in" autoFocus style={{ height: 26, width: 64, fontSize: 12 }} placeholder="e.g. 2h" aria-label="New timeframe" value={tfAdd} onChange={e => setTfAdd(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Escape') setTfAdd(null); if (e.key !== 'Enter') return; const tf = parseTF(tfAdd.trim()); if (!tf) return onToast('Write a timeframe like 2m, 45m, 2h, 1D, 1W or 15s.', 'err'); if (!tfValid(tf, base)) return onToast('That is shorter than the bars in this data.', 'err'); const lbl = tfLabel(tf); const l = tfs.includes(lbl) ? tfs : [...tfs, lbl].sort((a, b) => (parseTF(a) ? tfSec(a) : 0) - (parseTF(b) ? tfSec(b) : 0)); setTfs(l); setPref('tfs', l); setTfAdd(null); s.setTf(tf); setPref('tf', lbl); }}
+              onBlur={() => setTfAdd(null)} />}
         </div>
         <button className="btn" onClick={() => setIndOpen(!indOpen)} aria-expanded={indOpen}><IInd /> Indicators</button>
         <div className="seg" role="group" aria-label="Chart layout">

@@ -82,7 +82,7 @@ async def main():
                 break
             await pg.wait_for_timeout(500)
         await pg.keyboard.press("Space")
-        jn = await pg.evaluate("() => document.querySelector('.tabs button:nth-child(4)').textContent")
+        jn = await pg.evaluate("() => [...document.querySelectorAll('.dock .tabs button')].find(b => b.textContent.startsWith('Journal')).textContent")
         check("Journal (" in jn and not jn.endswith("(0)"), f"closed trades went to the journal: {jn}")
         await pg.click("button.item:has-text('Journal')")
         await pg.wait_for_selector(".snap svg")

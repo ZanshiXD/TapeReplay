@@ -15,6 +15,7 @@ import { DrawLayer } from './draw/overlay';
 import { ds } from './draw/state';
 import { isDrawTool } from './draw/tools';
 import { DrawBar, DrawMenu } from './draw/ui';
+import { ChartTrade, type ChartGeom } from './ChartTrade';
 
 const C = { bg: '#10131a', grid: '#161a22', line: '#232833', text: '#8a91a0', up: '#26a69a', down: '#ef5350', accent: '#2962ff', warn: '#f0b54a' };
 const T = (t: number) => t as UTCTimestamp;
@@ -26,6 +27,8 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
   const box = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ o: number; h: number; l: number; c: number; v: number } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [orderMenu, setOrderMenu] = useState<{ x: number; y: number } | null>(null);
+  const [geom, setGeom] = useState<ChartGeom | null>(null);
   useLive();
   const sym = feed.s.inst.sym, prec = feed.s.inst.prec;
 
@@ -51,7 +54,8 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     let drag: Drag | null = null;
     // drawings: a canvas over the candles, and the mouse when a drawing tool is picked or a drawing is clicked
     const layer = new DrawLayer(el, chart, cs, session, feed);
-    layer.onMenu = (x, y, id) => setMenu({ x, y, id });
+    layer.onMenu = (x, y, id) => { setOrderMenu(null); setMenu({ x, y, id }); };
+    setGeom({ y: p => cs.priceToCoordinate(p), p: y => cs.coordinateToPrice(y), round: p => feed.round(p), paneW: () => chart.paneSize().width, paneH: () => chart.paneSize().height });
     let grabbed = false;
 
     const syncInds = () => {
@@ -74,8 +78,10 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     };
     const lineFor = (key: string, price: number, color: string, title: string, style: LineStyle, width: 1 | 2 = 1) => {
       let l = lines.get(key);
-      if (!l) { l = cs.createPriceLine({ price, color, lineWidth: width, lineStyle: style, axisLabelVisible: true, title }); lines.set(key, l); }
-      else if (!drag || drag.line !== l) l.applyOptions({ price, title });
+      // the tags on the chart (ChartTrade) carry the words; the line keeps its price on the axis
+      void title;
+      if (!l) { l = cs.createPriceLine({ price, color, lineWidth: width, lineStyle: style, axisLabelVisible: true, title: '' }); lines.set(key, l); }
+      else if (!drag || drag.line !== l) l.applyOptions({ price });
       return l;
     };
     const syncLines = () => {
@@ -94,8 +100,8 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       for (const m of session.account.marks) {
         if (m.sym !== sym) continue;
         const time = feed.bucket(m.t); if (time < first) continue;
-        if (m.kind === 'in') ms.push({ time: T(time), position: m.side > 0 ? 'belowBar' : 'aboveBar', color: m.side > 0 ? C.up : C.down, shape: m.side > 0 ? 'arrowUp' : 'arrowDown', text: m.side > 0 ? 'Buy' : 'Sell' });
-        else ms.push({ time: T(time), position: m.side > 0 ? 'belowBar' : 'aboveBar', color: C.text, shape: 'circle', text: ({ 'Stop loss': 'SL', 'Take profit': 'TP' } as Record<string, string>)[m.reason || ''] || 'Exit' });
+        if (m.kind === 'in') ms.push({ time: T(time), position: m.side > 0 ? 'belowBar' : 'aboveBar', color: m.side > 0 ? C.up : C.down, shape: m.side > 0 ? 'arrowUp' : 'arrowDown', text: `${m.side > 0 ? 'B' : 'S'}${m.id}` });
+        else if (m.kind === 'out') ms.push({ time: T(time), position: m.side > 0 ? 'belowBar' : 'aboveBar', color: C.text, shape: 'circle', text: `${({ 'Stop loss': 'SL', 'Take profit': 'TP' } as Record<string, string>)[m.reason || ''] || 'X'}${m.id}` });
       }
       ms.sort((a, b) => (a.time as number) - (b.time as number));
       cs.setMarkers(ms);
@@ -173,7 +179,13 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       accVer = -1; session.changed();
     };
     const onDbl = (e: MouseEvent) => { if (layer.dbl(e)) { e.preventDefault(); e.stopPropagation(); } };
-    const onCtx = (e: MouseEvent) => { if (layer.context(e)) e.preventDefault(); };
+    // right-click: a drawing's menu on a drawing, else orders at that price
+    const onCtx = (e: MouseEvent) => {
+      e.preventDefault();
+      if (layer.context(e)) return;
+      const r = el.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ps = chart.paneSize();
+      if (x < ps.width && y < ps.height) { setMenu(null); setOrderMenu({ x, y }); session.setActive(sym); }
+    };
     el.addEventListener('mousedown', onDown, true);
     el.addEventListener('dblclick', onDbl, true);
     el.addEventListener('contextmenu', onCtx, true);
@@ -208,6 +220,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
         </div>
         {feed.inds.length > 0 && <div className="inds">{feed.inds.map((x, k) => { const v = feed.peek(k); return <span key={x.spec.id} style={{ background: hexA(x.spec.color, 0.14), color: x.spec.color }}>{indLabel(x.spec)}{v != null ? ' · ' + v.toFixed(prec) : ''}</span>; })}</div>}
       </div>
+      {geom && <ChartTrade session={session} sym={sym} geom={geom} menuAt={orderMenu} onCloseMenu={() => setOrderMenu(null)} onToast={onToast} />}
       {sel && !ds.editing && <DrawBar session={session} d={sel} onToast={onToast} />}
       {menu && menuD && <DrawMenu session={session} d={menuD} style={{ left: Math.min(menu.x, (box.current?.clientWidth || 400) - 230), top: menu.y }} onClose={() => setMenu(null)} />}
       {onRemove && <button className="ib closebtn" title={`Close the ${sym} chart`} aria-label={`Close the ${sym} chart`} onMouseDown={e => e.stopPropagation()} onClick={onRemove}><IClose width={14} height={14} /></button>}
