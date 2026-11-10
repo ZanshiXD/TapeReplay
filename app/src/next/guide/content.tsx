@@ -180,7 +180,7 @@ export const CHAPTERS: Chapter[] = [
   { id: 'data', title: 'Your sessions and data', sections: [
     { id: 'library', title: 'The Library', body: <>
       <ul>
-        <li><b>Sessions</b> save themselves every 10 seconds, when you pause and when you leave; the chart's header says when it last saved. <b>Back to it</b> reopens one exactly where you left it: the clock, the trades, the orders, the drawings, the indicators and the journal. Rename or delete them here. The New session page also offers to pick up where you left off. Sessions saved in the classic view open there.</li>
+        <li><b>Sessions</b> save themselves every 10 seconds, when you pause and when you leave; the chart's header (Chart options on a phone) says when it last saved. <b>Back to it</b> reopens one exactly where you left it: the clock, the trades, the orders, the drawings, the indicators and the journal. Rename or delete them here. The New session page also offers to pick up where you left off. Sessions saved in the classic view open there.</li>
         <li><b>Data files</b> are your own market data, kept in the app and read only once. <b>New session with it</b> starts a replay on it.</li>
         <li><b>Optimizations</b> are saved automatically when they finish; open one to look at its results again or test its robustness.</li>
       </ul>
@@ -211,7 +211,7 @@ export const CHAPTERS: Chapter[] = [
     { id: 'pyind-start', title: 'Writing an indicator', body: <>
       <p>An indicator is a short Python script that runs once on every closed candle of the chart and draws on it: lines, levels, shaded areas, markers, boxes, lines and labels, or a pane of its own under the chart.</p>
       <Steps items={[
-        <>Open <b>Indicators</b> and press <b>+ New Python indicator</b>, or pick a template.</>,
+        <>Open <b>Indicators</b>, press <b>+ New Python indicator</b> and pick a template (EMA cross, RSI, Bollinger Bands, Opening range box, Swing levels) or Blank.</>,
         <>Write the code (or paste one of the examples below), give it a name and press <b>Add to chart</b> (<kbd>Ctrl</kbd> + <kbd>Enter</kbd>). Python loads the first time, in a few seconds.</>,
         <>Change it and press <b>Apply to chart</b>. The code is kept in <i>Your scripts</i> as you type (<b>Save</b> does it at once), so you can add it again any time from the Indicators list.</>,
       ]} />
@@ -332,17 +332,20 @@ export const CHAPTERS: Chapter[] = [
     { id: 'bt-start', title: 'The Backtest page', body: <>
       <p>A strategy is a script that trades by itself. The Backtest page runs it over the dates you choose, as fast as it can, and shows how it did.</p>
       <ul>
-        <li><b>Strategies</b>: your scripts, saved as you type. <b>New</b> starts one from a template (moving-average cross, opening range breakout, a breakout with a trailing stop, or blank), in Python or JavaScript. Double-click a name to rename it; the bin deletes it.</li>
-        <li><b>Code</b>: the editor. Python strategies can use numpy (and pandas); JavaScript ones run several times faster, which helps long optimizations.</li>
-        <li><b>Run</b>: the market (a practice market or one of your data files), the dates, the candle size the strategy sees, and:
+        <li>On a computer the strategies, the code and the Run panel sit side by side, with Results, Optimize and Robustness as tabs; on a phone each is a tab of its own.</li>
+        <li><b>Strategies</b>: your scripts, saved as you type. <b>New</b> starts one from a template (MA cross, Opening range breakout, Breakout with trailing stop, or Blank in Python; MA cross or Blank in JavaScript). Double-click a name (or <b>Rename</b>) to rename it; the bin deletes it.</li>
+        <li><b>Code</b>: the editor. Python strategies can use numpy (and pandas); JavaScript ones run several times faster, which helps long optimizations. <b>Guide</b> opens this reference beside it.</li>
+        <li><b>Run</b>: the market (a practice market or one of your data files), the dates (from and to), the candle size the strategy sees, and:
           <ul>
             <li><b>The strategy runs</b>: <i>At bar close</i> calls on_bar when each candle closes (fast). <i>Every tick</i> also calls on_tick on every simulated price move, for trailing stops and the like (slower).</li>
             <li><b>Libraries</b>: numpy, or numpy + pandas (pandas takes a few seconds to load).</li>
             <li><b>Starting balance</b>, and the <b>order size</b> used when the strategy gives none.</li>
-            <li><b>Costs and prop challenge</b>: commission, spread and slippage; and a prop challenge the run trades under, buying a new evaluation when one fails if you like.</li>
+            <li><b>Show costs and prop challenge</b>: commission, spread and slippage; and a prop challenge the run trades under, with the same rules as in a session. Tick <i>Buy a new evaluation when one fails</i> to keep going after a failure (at most a number of evaluations, if you set one); the results then show your payouts, the fees and the evaluations bought.</li>
           </ul>
         </li>
-        <li><b>Results</b>: net profit and loss, trades, win rate, profit factor, max drawdown and more, the equity curve and the trades (the latest 500; <b>Copy trades (CSV)</b> has them all). <b>Show on chart</b> opens the run as a replay session with its trades on the chart, to keep replaying from where it ended. The <b>console</b> shows print() output, errors and a summary.</li>
+        <li><b>Run backtest</b> runs it; <b>Stop</b> stops it part way. The <b>console</b> shows print() output, errors (with the line of your code that failed) and a summary.</li>
+        <li><b>Results</b>: net P&amp;L, trades, win rate, profit factor, max drawdown, average trade and more, the equity curve and the trades (the latest 500; <b>Copy trades (CSV)</b> has them all). <b>Edit and run again</b> goes back to the code.</li>
+        <li><b>Show on chart</b> opens the run as a new replay session (its name ends in "Automated"): the same market, its trades on the chart and in the account, the tape at the point where the run ended, so you can see what it did and keep replaying from there.</li>
       </ul>
     </> },
     { id: 'st-write', title: 'Writing a strategy', body: <>
@@ -352,7 +355,7 @@ export const CHAPTERS: Chapter[] = [
         ['init(ctx)', 'Once, before the first candle.'],
         ['on_bar(ctx, bar)', 'When each candle closes: bar.time (its open, in the chart\'s time zone), open, high, low, close, volume, index.'],
         ['on_tick(ctx, tick)', 'On every price move, with Every tick only: tick.time, tick.price. on_bar still runs at each close.'],
-        ['on_fill(ctx, fill)', 'When an order fills: fill.side ("buy" or "sell"), qty, price, time, kind ("entry" or "exit"), reason ("Market", "Stop loss", "Take profit", …), trade_id, and pnl on exits (after costs).'],
+        ['on_fill(ctx, fill)', 'When an order fills: fill.side ("buy" or "sell"), qty, price, time, kind ("entry" or "exit"), reason ("Market", "Limit fill" or "Stop fill" for entries; "Stop loss", "Take profit" or "Strategy close" for exits), trade_id, and pnl on exits (after costs).'],
         ['on_end(ctx)', 'Once, after the last candle.'],
       ]} />
       <p>Keep what changes on <C>ctx</C> (<C>ctx.count = 0</C> in init); read settings as plain names. <C>print()</C> writes to the console (it is silent during optimizations).</p>
@@ -389,9 +392,10 @@ export const CHAPTERS: Chapter[] = [
       <h4>How a run fills orders</h4>
       <ul>
         <li>Market orders and <C>close()</C> fill on the next tick: from on_bar, at the <b>next candle's open</b>. Size a market entry from <C>ctx.ask</C> (buys) or <C>ctx.bid</C> (sells).</li>
-        <li>Each bar of data is replayed as open → low → high → close (rising) or open → high → low → close (falling), with the number of ticks per bar in Settings; limits, stops and brackets fill when touched. Costs come from the Run panel.</li>
+        <li>Each bar of data is replayed as 20 ticks: open → low → high → close (rising) or open → high → low → close (falling); limits, stops and brackets fill when touched, a stop loss before a take profit on the same tick. Costs come from the Run panel, filled as in a session (see <i>How orders fill</i>).</li>
         <li>One position at a time (netting): to reverse, <C>ctx.close()</C> then enter the other way.</li>
-        <li>Prop rules, when the run has a challenge, are applied by the app; the strategy doesn't code them.</li>
+        <li>Prop rules, when the run has a challenge, are applied by the app (an order over the size limit is rejected, a broken max loss ends the account); the strategy doesn't code them.</li>
+        <li>Positions still open at the end stay open: the summary says how many.</li>
       </ul>
     </> },
     { id: 'st-risk', title: 'Sizing by risk, times and daily limits', body: <>
@@ -415,7 +419,7 @@ export const CHAPTERS: Chapter[] = [
         <li>Options go in an object: <C>ctx.buy({'{'} qty: 2, sl: 99.5, tp: 101 {'}'})</C>, <C>ctx.buy_stop(price, {'{'} sl {'}'})</C>, <C>ctx.set_bracket({'{'} sl {'}'})</C>. Positional arguments work too, in Python's order: <C>ctx.buy(2, 99.5, 101)</C>.</li>
         <li>Candle arrays are <C>Float64Array</C>s: <C>c[c.length - 1]</C> is the last close; <C>c.subarray(a, b)</C> takes part of one.</li>
         <li>Times are not Python datetimes: <C>bar.time.date()</C> gives <C>"YYYY-MM-DD"</C> text to spot a new day, <C>bar.time.time()</C> the seconds since midnight to compare with <C>ctx.at("09:30")</C> (also seconds), and <C>bar.time.hour</C>, <C>.minute</C>, <C>.weekday()</C> (Monday 0), <C>.timestamp()</C> and <C>.tz(offsetSeconds)</C>.</li>
-        <li><C>ctx.df()</C> needs pandas, so it is Python only. <C>print()</C> writes to the console.</li>
+        <li><C>ctx.df()</C> needs pandas, so it is Python only. <C>print()</C> writes to the console. Errors show the line of your code, as in Python.</li>
       </ul>
       <p>For Central Time in JavaScript:</p>
       <Code lang="javascript" code={JS_TO_CT} />
@@ -424,12 +428,12 @@ export const CHAPTERS: Chapter[] = [
     { id: 'optimize', title: 'The optimizer', body: <>
       <p>The optimizer runs a strategy many times with different settings, on the market and dates of the Run panel, and ranks the results.</p>
       <Steps items={[
-        <>Tick the settings to try and say which values: a range like <C>5..30</C>, with a step (<C>15..60 step 5</C>), or a list (<C>9, 14, 21</C>). <b>Narrow</b>, <b>Normal</b> and <b>Wide</b> fill in ranges around the current values. Settings that set money or size (names with RISK, USD, QTY, SIZE, CONTRACTS and the like) are marked and left unticked.</>,
-        <>Choose <b>how to search</b>: <i>Smart</i> finds a near-best in about a tenth of the runs (a coarse look over the whole range, then closer looks around the best); <i>All combinations</i> tries every one; <i>Random sample</i> tries as many as you say.</>,
-        <>Optionally add <b>rules</b> combinations must meet, one per line, in Python over the ticked settings: <C>FAST &lt; SLOW</C>.</>,
-        <>Pick the <b>goal</b> (net ÷ max drawdown prefers steady gains over lucky ones; or net profit, or profit factor) and the <b>minimum trades</b> a combination needs to be ranked.</>,
+        <>Tick the settings to try and say which values: a range (<C>5..30</C>), a range with a step (<C>15..60 step 5</C>, or <C>15..60/5</C>), or a list (<C>9, 14, 21</C>); True/False and text settings list their choices. <b>Narrow</b>, <b>Normal</b> and <b>Wide</b> fill in ranges around the current values. Settings that set money or size (names with RISK, USD, DOLLAR, CASH, BALANCE, ACCOUNT, QTY, SIZE, LOTS, CONTRACTS, or ending in STEP) are marked <i>size</i> and left unticked.</>,
+        <>Choose <b>how to search</b>: <i>Smart</i> finds a near-best in about a tenth of the runs (a coarse look over the whole range, then closer looks around the best); <i>All combinations</i> tries every one (up to 20,000); <i>Random sample</i> tries as many as you say.</>,
+        <>Optionally add <b>rules</b> combinations must meet, one per line, written like Python over the ticked settings (<C>FAST &lt; SLOW</C>, <C>abs(A - B) &gt;= 2</C>); combinations that fail one are not run. This works for JavaScript strategies too.</>,
+        <>Pick the <b>goal</b> (net ÷ max drawdown prefers steady gains over lucky ones; or net P&amp;L, profit factor, or payouts − fees when the run has a prop challenge) and the <b>minimum trades</b> a combination needs to be ranked.</>,
         <><b>Check on the last</b> 20–40% keeps the end of the dates out of the ranking and shows how each combination did there (the Check columns): a guard against settings that only fit the past.</>,
-        <>Run it. On a computer with several cores it runs several combinations at once. Click a row to select it: <b>Use in code</b> writes its values into the strategy, <b>Show on chart</b> replays it. <b>Copy results (CSV)</b> exports the table.</>,
+        <>Run it. On a computer with several cores it runs several combinations at once, and shows the best so far as it goes. Click a column to sort by it; click a row to select it: <b>Use in code</b> writes its values into the strategy, <b>Show on chart</b> opens it as a replay session. <b>Copy results (CSV)</b> exports the table; <b>Test robustness</b> checks the best ones.</>,
       ]} />
       <p>How the code tells the optimizer about settings:</p>
       <ul>
@@ -438,16 +442,16 @@ export const CHAPTERS: Chapter[] = [
         <li><C># 0 = off</C> in the comment makes 0 one of the values always tried.</li>
         <li>For an exact range: <C>LOOKBACK = param(20, 10, 40, step=5)</C> or <C>MODE = param("break", values=["break", "retest"])</C> (in JavaScript, <C>param(20, 10, 40, 5)</C> and <C>param("break", {'{'} values: […] {'}'})</C>). In a normal run, param() is just its first value.</li>
       </ul>
-      <p>Each optimization saves itself to Library › Optimizations when it finishes.</p>
+      <p>Each optimization saves itself to Library › Optimizations when it finishes; open it there to see its results again.</p>
     </> },
     { id: 'robust', title: 'Robustness tests', body: <>
       <p>Good results on the dates the settings were picked on can be luck. <b>Test robustness</b> (or the Robustness tab) takes the best combinations of an optimization and checks them on other dates and other orders of their trades:</p>
       <ul>
-        <li><b>Test the best</b>: how many of the ranked combinations to test, as a percentage.</li>
-        <li><b>Out of sample</b>: each candidate on dates the optimization did not rank on (the holdout), with its trades, net, profit factor and drawdown there, and how that compares with the ranked dates.</li>
-        <li><b>Walk-forward</b>: the ranked dates cut into windows; the best settings on each window's first part trade its next part. Rolling windows move along; anchored ones always start at the beginning.</li>
-        <li><b>Monte Carlo</b>: each candidate's trades redrawn many times (resampled, or shuffled), optionally skipping some, to see how bad the drawdown could have been, how often it stayed in profit, and how often it hit a ruin level you set.</li>
-        <li><b>Passed</b> counts the tests each candidate passed. Prefer settings that pass them all to the one with the biggest backtest.</li>
+        <li><b>Test the best</b>: what share of the ranked combinations to test (up to 200 of them).</li>
+        <li><b>Out of sample</b>: each candidate on dates the optimization did not rank on (the holdout, From and To; the Check period by default), with its trades, net, profit factor and drawdown there, and how that compares with the ranked dates. It passes when it made money there with a profit factor of at least 1.</li>
+        <li><b>Walk-forward</b>: the ranked dates cut into windows (how many, and the in-sample share of each); the best settings on each window's first part trade its next part. Rolling windows move along; anchored ones always start at the beginning. A candidate passes when at least half its windows made money.</li>
+        <li><b>Monte Carlo</b>: each candidate's trades redrawn many times (Simulations; resampled, or shuffled), optionally skipping some, to see how bad the drawdown could have been and how often it stayed in profit; with <i>Ruin at a drawdown of</i>, how often a drawdown reached that many dollars. It passes when at least 70% of the draws end in profit and at most 5% are ruined.</li>
+        <li><b>Passed</b> counts the tests each candidate passed, of the ones it took. Prefer settings that pass them all to the one with the biggest backtest. Changing the windows or the Monte Carlo settings updates the table without running anything again.</li>
       </ul>
     </> },
   ] },
@@ -455,7 +459,7 @@ export const CHAPTERS: Chapter[] = [
   { id: 'more', title: 'More', sections: [
     { id: 'phone', title: 'Phones and tablets', body: <>
       <ul>
-        <li>The tab bar at the bottom has the <b>Chart</b>, the <b>Trade</b> ticket, your <b>Positions</b>, the <b>Journal</b>, and <b>More</b> (new session, Library, Backtest, Settings and this guide).</li>
+        <li>The tab bar at the bottom has the <b>Chart</b>, the <b>Trade</b> ticket, your <b>Positions</b>, the <b>Journal</b>, and <b>More</b> (new session, Library, Backtest, this guide, Settings and the classic view).</li>
         <li>The chart's header has the timeframe, indicators, drawing tools and chart options (one or two charts, adding a market, which market to trade).</li>
         <li>The replay bar sits under the chart: back, play, forward, the clock, the speed and Jump. Drag the thin timeline along its top to move in time.</li>
         <li>Buy and sell from the row under the chart. Hold a finger on the chart for an order at that price. Pinch to zoom, drag to scroll.</li>
@@ -472,6 +476,7 @@ export const CHAPTERS: Chapter[] = [
       <Keys rows={[['Alt + T', 'Trend line'], ['Alt + H', 'Horizontal line'], ['Alt + J', 'Horizontal ray'], ['Alt + V', 'Vertical line'], ['Alt + C', 'Cross line'], ['Alt + F', 'Fibonacci retracement'], ['Alt + Shift + R', 'Rectangle'], ['Shift + drag', 'Keep a line flat, upright or at 45°'], ['Shift + click', 'Measure a move'], ['Ctrl', 'Hold to flip the magnet'], ['Enter', 'Finish a path'], ['Delete', 'Delete the selected drawing'], ['Esc', 'Stop drawing, deselect'], ['Ctrl + Z', 'Undo'], ['Ctrl + Shift + Z', 'Redo (Ctrl + Y too)'], ['Ctrl + C', 'Copy a drawing (Ctrl + V pastes)']]} />
       <h4>Anywhere</h4>
       <Keys rows={[['Z', 'Show or hide price zones'], ['?', 'The list of shortcuts']]} />
+      <p>On a Mac, use <kbd>⌘</kbd> where this says <kbd>Ctrl</kbd>. The replay and trading keys work on the chart screen, not while you type in a box.</p>
     </> },
     { id: 'trouble', title: 'When something goes wrong', body: <>
       <Api items={[
