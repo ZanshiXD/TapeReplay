@@ -1,4 +1,4 @@
-"""The new app's Backtest page (app/next.html) in Chromium: the MA cross template (Python) and its JavaScript version on
+"""The new app's Backtest page (app/index.html) in Chromium: the MA cross template (Python) and its JavaScript version on
 practice NQ, a syntax error in the console, Show on chart (the run as a replay session with its trades), a smart
 optimization of two settings and Use in code, robustness tests, and the phone layout. Builds the page and copies it
 to desktop/web first (set TAPE_SKIP_BUILD=1 to use the copy already there); the server sends the desktop app's
@@ -62,7 +62,7 @@ def serve():
 
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/next.html"
+    return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
 
 
 CONSOLE = "() => [...document.querySelectorAll('.bt-code .bt-lines > div')].map(d => d.textContent)"

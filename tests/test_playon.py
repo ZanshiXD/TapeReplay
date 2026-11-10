@@ -32,7 +32,7 @@ def serve():
         os.makedirs(d, exist_ok=True)
     srv = app.ExclusiveServer(("127.0.0.1", 0), app.Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/index.html?t={app.TOKEN}"
+    return f"http://127.0.0.1:{srv.server_address[1]}/classic.html?t={app.TOKEN}"
 
 
 URL = serve()

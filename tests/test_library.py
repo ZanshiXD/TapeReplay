@@ -1,4 +1,4 @@
-"""The new app's Library (app/next.html), in Chromium, two ways: through the desktop app's own server (as in the
+"""The new app's Library (app/index.html), in Chromium, two ways: through the desktop app's own server (as in the
 Windows app) and in a plain browser (IndexedDB). A CSV is added to the Library, a session made from it, a trade and a
 drawing made, the page closed and opened again: the session continues exactly where it was. Then rename and delete.
 Build the page first (desktop/web, see test_browser.py), then:
@@ -37,7 +37,7 @@ def app_server():
         os.makedirs(d, exist_ok=True)
     srv = app.ExclusiveServer(("127.0.0.1", 0), app.Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/next.html?t={app.TOKEN}"
+    return f"http://127.0.0.1:{srv.server_address[1]}/index.html?t={app.TOKEN}"
 
 
 def plain_server():
@@ -46,7 +46,7 @@ def plain_server():
             pass
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(H, directory=WEB))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/next.html"
+    return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
 
 
 def make_csv():

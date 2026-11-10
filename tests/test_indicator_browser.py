@@ -27,7 +27,7 @@ def serve():
     handler.log_message = lambda *a: None
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
+    return f"http://127.0.0.1:{srv.server_address[1]}/classic.html"
 
 
 URL = serve()

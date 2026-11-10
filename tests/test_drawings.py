@@ -1,4 +1,4 @@
-"""Drawings in the new app (app/next.html), in Chromium, used the way TradingView's are: pick a tool, click the points
+"""Drawings in the new app (app/index.html), in Chromium, used the way TradingView's are: pick a tool, click the points
 (or press and drag), the tool goes back to the cursor, select, drag handles and bodies, undo and redo, the magnet,
 Shift+click to measure, the settings dialog, lock, clone, the eraser, removing, a position turned into an order, every
 tool in the catalog, and the replay staying smooth with all of them on the chart.
@@ -46,7 +46,7 @@ def serve(web):
             pass
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(H, directory=web))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/next.html"
+    return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
 
 
 URL = serve(build())

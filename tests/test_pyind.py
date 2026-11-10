@@ -1,4 +1,4 @@
-"""Python indicators in the new app (app/next.html), in Chromium with Pyodide in a worker: a template added from
+"""Python indicators in the new app (app/index.html), in Chromium with Pyodide in a worker: a template added from
 Indicators, its plot series, levels, markers and boxes drawn on both charts (the Python layer notes what it drew on
 its canvas), a lower pane, the legend, print() and a runtime error with its traceback in the console, a setting
 changed and applied, a script deleted, and the replay staying smooth at 300x with indicators on. Builds the page and
@@ -54,7 +54,7 @@ def serve():
             pass
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(H, directory=WEB))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/next.html"
+    return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
 
 
 build()

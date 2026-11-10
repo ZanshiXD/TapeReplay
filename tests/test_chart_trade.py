@@ -1,4 +1,4 @@
-"""Trading on the chart in the new app (app/next.html), in Chromium: right-click for an order at a price, the order's
+"""Trading on the chart in the new app (app/index.html), in Chromium: right-click for an order at a price, the order's
 tag and its × to cancel, a position's TP handle dragged out onto the chart, the stop typed into the positions table,
 then the Performance tab (stats, equity curve) and Copy trades. Build the page first (desktop/web), then:
     python tests/test_chart_trade.py [folder for screenshots]
@@ -32,7 +32,7 @@ def serve():
             pass
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(H, directory=os.path.join(ROOT, "desktop", "web")))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/next.html"
+    return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
 
 
 async def main():

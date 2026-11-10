@@ -1,4 +1,4 @@
-"""The new app (app/next.html) in Chromium: a two-market session, smooth playback, trading both markets, the journal,
+"""The new app (app/index.html) in Chromium: a two-market session, smooth playback, trading both markets, the journal,
 stepping back and jumping. Build the page first (see test_browser.py), then:
     python tests/test_next.py [folder for screenshots]
 """
@@ -32,7 +32,7 @@ def serve():
     h.log_message = lambda *a: None
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), h)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/next.html"
+    return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
 
 
 URL = serve()

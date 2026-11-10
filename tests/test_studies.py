@@ -1,4 +1,4 @@
-"""Chart studies in the new app (app/next.html), in Chromium: price zones and session lines added from Indicators, drawn
+"""Chart studies in the new app (app/index.html), in Chromium: price zones and session lines added from Indicators, drawn
 on each chart's study layer, Z to show and hide the zones, their settings, kept after a reload, taken off again, and
 the replay staying smooth at 300x with both on. Builds the page and copies it to desktop/web first (set
 TAPE_SKIP_BUILD=1 to use the copy already there):
@@ -47,7 +47,7 @@ def serve():
             pass
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(H, directory=WEB))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/next.html"
+    return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
 
 
 build()

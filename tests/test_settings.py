@@ -1,4 +1,4 @@
-"""Settings in the new app (app/next.html), in Chromium: the time zone moves the clock, a light theme changes the page
+"""Settings in the new app (app/index.html), in Chromium: the time zone moves the clock, a light theme changes the page
 and the chart, "Match my system" follows the system as it changes, "?" opens the shortcuts, the credit line shows,
 and everything is still set after a reload. Build the page first (desktop/web), then:
     python tests/test_settings.py [folder for screenshots]
@@ -33,7 +33,7 @@ def serve():
             pass
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(H, directory=os.path.join(ROOT, "desktop", "web")))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/next.html"
+    return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
 
 
 CLOCK = "() => document.querySelector('.rbar .lbl .num').textContent"

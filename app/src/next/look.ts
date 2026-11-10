@@ -98,7 +98,7 @@ export function applyLook() {
     const up = css('up'), down = css('down');
     Object.assign(C, { bg: th.chartBg || css('panel'), grid: th.grid || css('grid'), line: css('line'), text: css('muted'), fg: css('fg'), up, down, wickUp: th.wickUp || up, wickDown: th.wickDown || down, border: th.border,
       accent: css('accent'), accentFg: css('accent-fg'), onAccent: css('on-accent'), warn: css('warn'), upFg: css('up-fg'), downFg: css('down-fg'), field: css('field'), light: p.kind === 'light' });
-    // remembered for the next start, so a light theme does not open with a flash of the dark one (see next.html)
+    // remembered for the next start, so a light theme does not open with a flash of the dark one (see index.html)
     try {
       const one = (q: Palette) => ({ kind: q.kind, v: vars(th, q) });
       localStorage.setItem('tr-next-look', JSON.stringify(th.mode === 'system' ? { sys: true, dark: one(palOf(th.dark) || p), light: one(palOf(th.light) || p) } : { dark: one(p), light: one(p) }));

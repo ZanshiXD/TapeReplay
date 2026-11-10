@@ -1,4 +1,4 @@
-"""A prop firm challenge in the new app (app/next.html), in Chromium: set up in New session, followed by the card beside
+"""A prop firm challenge in the new app (app/index.html), in Chromium: set up in New session, followed by the card beside
 the chart, a size limit rejecting an order, and a trade big enough to break the max loss failing the evaluation;
 then a new evaluation. Build the page first (desktop/web), then:
     python tests/test_prop_ui.py [folder for screenshots]
@@ -32,7 +32,7 @@ def serve():
             pass
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(H, directory=os.path.join(ROOT, "desktop", "web")))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/next.html"
+    return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
 
 
 async def main():
