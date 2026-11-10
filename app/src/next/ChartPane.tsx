@@ -7,16 +7,21 @@ import type { Session } from '../core/session';
 import type { Feed } from '../core/feed';
 import type { Trade, Order } from '../core/account';
 import { smoney } from '../core/account';
-import { crossLabel, tickLabel } from '../core/time';
+import { crossLabel, tickLabel, tfSeconds } from '../core/time';
+/** the time left in a candle, as 4:05 or 1:02:30 */
+const closesIn = (s: number) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
 import { indLabel } from '../core/indicators';
 import { frameHooks, useLive } from './live';
 import { IClose } from './icons';
 import { DrawLayer } from './draw/overlay';
+import { StudyLayer } from './studies/layer';
+import { PyLayer } from './py/layer';
 import { ds } from './draw/state';
 import { isDrawTool } from './draw/tools';
 import { DrawBar, DrawMenu } from './draw/ui';
+import { ChartTrade, type ChartGeom } from './ChartTrade';
+import { C, candleColors, onLook } from './look';
 
-const C = { bg: '#10131a', grid: '#161a22', line: '#232833', text: '#8a91a0', up: '#26a69a', down: '#ef5350', accent: '#2962ff', warn: '#f0b54a' };
 const T = (t: number) => t as UTCTimestamp;
 const hexA = (hex: string, a: number) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
 
@@ -24,8 +29,11 @@ type Drag = { kind: 'sl' | 'tp' | 'order'; tr?: Trade; o?: Order; line: IPriceLi
 
 export function ChartPane({ session, feed, active, onToast, onRemove }: { session: Session; feed: Feed; active: boolean; onToast: (m: string, k?: string) => void; onRemove?: () => void }) {
   const box = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState<{ o: number; h: number; l: number; c: number; v: number } | null>(null);
+  const [hover, setHover] = useState<{ o: number; h: number; l: number; c: number; v: number; t: number } | null>(null);
+  const pyL = useRef<PyLayer | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [orderMenu, setOrderMenu] = useState<{ x: number; y: number } | null>(null);
+  const [geom, setGeom] = useState<ChartGeom | null>(null);
   useLive();
   const sym = feed.s.inst.sym, prec = feed.s.inst.prec;
 
@@ -40,7 +48,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       localization: { timeFormatter: (t: Time) => crossLabel(t as number), priceFormatter: (p: number) => p.toFixed(prec) },
       crosshair: { mode: 0 },
     });
-    const cs = chart.addCandlestickSeries({ upColor: C.up, downColor: C.down, wickUpColor: C.up, wickDownColor: C.down, borderVisible: false, priceFormat: { type: 'price', precision: prec, minMove: feed.s.inst.tick } });
+    const cs = chart.addCandlestickSeries({ ...candleColors(), priceFormat: { type: 'price', precision: prec, minMove: feed.s.inst.tick } });
     const vs = chart.addHistogramSeries({ priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false });
     chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.86, bottom: 0 } });
     let ind: ISeriesApi<'Line'>[] = [];
@@ -51,7 +59,10 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     let drag: Drag | null = null;
     // drawings: a canvas over the candles, and the mouse when a drawing tool is picked or a drawing is clicked
     const layer = new DrawLayer(el, chart, cs, session, feed);
-    layer.onMenu = (x, y, id) => setMenu({ x, y, id });
+    layer.onMenu = (x, y, id) => { setOrderMenu(null); setMenu({ x, y, id }); };
+    setGeom({ y: p => cs.priceToCoordinate(p), p: y => cs.coordinateToPrice(y), round: p => feed.round(p), paneW: () => chart.paneSize().width, paneH: () => chart.paneSize().height });
+    const studies = new StudyLayer(el, chart, cs, feed, layer, onToast); // price zones and session lines, under the drawings
+    const py = pyL.current = new PyLayer(el, chart, cs, feed, layer, onToast); // Python indicators: series, a lower pane, a canvas over the studies
     let grabbed = false;
 
     const syncInds = () => {
@@ -74,8 +85,10 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     };
     const lineFor = (key: string, price: number, color: string, title: string, style: LineStyle, width: 1 | 2 = 1) => {
       let l = lines.get(key);
-      if (!l) { l = cs.createPriceLine({ price, color, lineWidth: width, lineStyle: style, axisLabelVisible: true, title }); lines.set(key, l); }
-      else if (!drag || drag.line !== l) l.applyOptions({ price, title });
+      // the tags on the chart (ChartTrade) carry the words; the line keeps its price on the axis
+      void title;
+      if (!l) { l = cs.createPriceLine({ price, color, lineWidth: width, lineStyle: style, axisLabelVisible: true, title: '' }); lines.set(key, l); }
+      else if (!drag || drag.line !== l) l.applyOptions({ price });
       return l;
     };
     const syncLines = () => {
@@ -94,9 +107,10 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       for (const m of session.account.marks) {
         if (m.sym !== sym) continue;
         const time = feed.bucket(m.t); if (time < first) continue;
-        if (m.kind === 'in') ms.push({ time: T(time), position: m.side > 0 ? 'belowBar' : 'aboveBar', color: m.side > 0 ? C.up : C.down, shape: m.side > 0 ? 'arrowUp' : 'arrowDown', text: m.side > 0 ? 'Buy' : 'Sell' });
-        else ms.push({ time: T(time), position: m.side > 0 ? 'belowBar' : 'aboveBar', color: C.text, shape: 'circle', text: ({ 'Stop loss': 'SL', 'Take profit': 'TP' } as Record<string, string>)[m.reason || ''] || 'Exit' });
+        if (m.kind === 'in') ms.push({ time: T(time), position: m.side > 0 ? 'belowBar' : 'aboveBar', color: m.side > 0 ? C.up : C.down, shape: m.side > 0 ? 'arrowUp' : 'arrowDown', text: `${m.side > 0 ? 'B' : 'S'}${m.id}` });
+        else if (m.kind === 'out') ms.push({ time: T(time), position: m.side > 0 ? 'belowBar' : 'aboveBar', color: C.text, shape: 'circle', text: `${({ 'Stop loss': 'SL', 'Take profit': 'TP' } as Record<string, string>)[m.reason || ''] || 'X'}${m.id}` });
       }
+      ms.push(...py.markers(first));
       ms.sort((a, b) => (a.time as number) - (b.time as number));
       cs.setMarkers(ms);
     };
@@ -116,27 +130,38 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       }
       if (session.account.version !== accVer) { accVer = session.account.version; syncLines(); syncMarkers(); labelsAt = now; }
       else if (now - labelsAt > 250) { labelsAt = now; syncLines(); } // open P&L on the entry lines
-      layer.render();
+      layer.render(); studies.render(); py.render();
+      if (py.marksChanged()) syncMarkers();
     };
     frameHooks.add(draw);
     draw(performance.now());
     chart.timeScale().scrollToRealTime();
     chart.subscribeCrosshairMove(p => {
       const d = p.time != null ? p.seriesData.get(cs) as { open: number; high: number; low: number; close: number } | undefined : undefined;
-      setHover(d ? { o: d.open, h: d.high, l: d.low, c: d.close, v: 0 } : null);
+      const vd = p.time != null ? p.seriesData.get(vs) as { value: number } | undefined : undefined;
+      setHover(d ? { o: d.open, h: d.high, l: d.low, c: d.close, v: vd?.value || 0, t: p.time as number } : null);
+    });
+    // a new theme or time zone (Settings): the colors and time labels again, and the lines, markers and volume redrawn
+    const offLook = onLook(() => {
+      chart.applyOptions({ layout: { background: { color: C.bg }, textColor: C.text }, grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } }, rightPriceScale: { borderColor: C.line },
+        timeScale: { borderColor: C.line, tickMarkFormatter: (t: Time) => tickLabel(t as number) }, localization: { timeFormatter: (t: Time) => crossLabel(t as number), priceFormatter: (p: number) => p.toFixed(prec) } });
+      cs.applyOptions(candleColors());
+      if (!drag) { for (const l of lines.values()) cs.removePriceLine(l); lines.clear(); }
+      ver = -1; accVer = -1; layer.invalidate(); py.relook();
     });
 
-    // dragging a stop, a target or an order
+    // dragging a stop, a target or an order (a finger gets a wider line to grab)
+    let tol = 6;
     const near = (y: number): Drag | null => {
       const acc = session.account;
       for (const tr of acc.trades) if (tr.sym === sym) for (const kind of ['sl', 'tp'] as const) {
         const p = tr[kind]; if (p == null) continue;
         const c = cs.priceToCoordinate(p); const l = lines.get((kind === 'sl' ? 's' : 't') + tr.id);
-        if (c != null && l && Math.abs(c - y) < 6) return { kind, tr, line: l, price: p };
+        if (c != null && l && Math.abs(c - y) < tol) return { kind, tr, line: l, price: p };
       }
       for (const o of acc.orders) if (o.sym === sym) {
         const c = cs.priceToCoordinate(o.price), l = lines.get('o' + o.id);
-        if (c != null && l && Math.abs(c - y) < 6) return { kind: 'order', o, line: l, price: o.price };
+        if (c != null && l && Math.abs(c - y) < tol) return { kind: 'order', o, line: l, price: o.price };
       }
       return null;
     };
@@ -146,15 +171,25 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       session.setActive(sym); setMenu(null);
       chart.applyOptions({ handleScroll: false, handleScale: false });
     };
-    const onDown = (e: MouseEvent) => {
+    // a finger held still for a moment: the menu a right-click opens
+    let hold = 0, holdAt: { x: number; y: number } | null = null;
+    const cancelHold = () => { clearTimeout(hold); holdAt = null; };
+    const onDown = (e: PointerEvent) => {
       if (e.button !== 0 && e.button !== 2) return;
-      // a drawing tool, or a drawing being placed: the click is for the drawing layer
+      const touch = e.pointerType !== 'mouse';
+      tol = touch ? 16 : 6; layer.coarse = touch;
+      // a drawing tool, or a drawing being placed: the press is for the drawing layer
       if (isDrawTool(ds.tool) || layer.busy || ['eraser', 'measure', 'zoom'].includes(ds.tool)) { if (layer.down(e)) take(e); return; }
       const d = e.button === 0 ? near(yOf(e)) : null;
       if (d) { drag = d; take(e); return; }
-      if (layer.down(e)) take(e);
+      if (layer.down(e)) { take(e); if (!touch) return; }
+      if (touch) {
+        holdAt = { x: e.clientX, y: e.clientY };
+        hold = window.setTimeout(() => { if (!holdAt) return; const at = holdAt; cancelHold(); layer.cancel(); onCtx(new MouseEvent('contextmenu', { clientX: at.x, clientY: at.y })); }, 550);
+      }
     };
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
+      if (holdAt && Math.hypot(e.clientX - holdAt.x, e.clientY - holdAt.y) > 9) cancelHold();
       const y = yOf(e);
       if (!drag) { layer.move(e); el.style.cursor = !layer.busy && !layer.hover && !isDrawTool(ds.tool) && near(y) ? 'ns-resize' : ''; return; }
       const p = cs.coordinateToPrice(y); if (p == null) return;
@@ -162,7 +197,8 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       drag.line.applyOptions({ price: drag.price });
     };
     const release = () => { if (grabbed) { grabbed = false; chart.applyOptions({ handleScroll: true, handleScale: true }); } };
-    const onUp = (e: MouseEvent) => {
+    const onUp = (e: PointerEvent) => {
+      cancelHold();
       if (!drag) { layer.up(e); release(); return; }
       const d = drag; drag = null;
       release();
@@ -173,20 +209,30 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       accVer = -1; session.changed();
     };
     const onDbl = (e: MouseEvent) => { if (layer.dbl(e)) { e.preventDefault(); e.stopPropagation(); } };
-    const onCtx = (e: MouseEvent) => { if (layer.context(e)) e.preventDefault(); };
-    el.addEventListener('mousedown', onDown, true);
+    // right-click: a drawing's menu on a drawing, else orders at that price
+    function onCtx(e: MouseEvent) {
+      e.preventDefault();
+      if (layer.context(e)) return;
+      const r = el.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ps = chart.paneSize();
+      if (x < ps.width && y < ps.height) { setMenu(null); setOrderMenu({ x, y }); session.setActive(sym); }
+    }
+    el.addEventListener('pointerdown', onDown, true);
     el.addEventListener('dblclick', onDbl, true);
     el.addEventListener('contextmenu', onCtx, true);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
     return () => {
+      offLook();
       frameHooks.delete(draw);
-      layer.dispose();
-      el.removeEventListener('mousedown', onDown, true);
+      layer.dispose(); studies.dispose(); py.dispose(); pyL.current = null;
+      cancelHold();
+      el.removeEventListener('pointerdown', onDown, true);
       el.removeEventListener('dblclick', onDbl, true);
       el.removeEventListener('contextmenu', onCtx, true);
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
       chart.remove();
     };
   }, [session, feed]);
@@ -195,6 +241,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
   const selD = session.drawings.get(ds.selected), sel = selD && selD.sym === sym ? selD : null;
   const menuD = menu ? session.drawings.get(menu.id) : null;
   const ch = b && b.o ? (b.c - b.o) / b.o * 100 : 0, n = (x: number) => x.toFixed(prec);
+  const pyLeg = pyL.current?.legend(hover && hover.t !== F?.time ? hover.t : null) || [];
   return (
     <div className={'pane' + (active ? ' active' : '')} onMouseDown={() => session.setActive(sym)}>
       <div className="lw" ref={box} />
@@ -203,11 +250,15 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
           <span className={'badge' + (sym === 'ES' ? ' b1' : '')}>{sym}</span>
           <b>{feed.s.inst.name}</b>
           {b && <><span><span className="k">O</span> {n(b.o)}</span><span><span className="k">H</span> {n(b.h)}</span><span><span className="k">L</span> {n(b.l)}</span><span><span className="k">C</span> {n(b.c)}</span>
-            <span className={ch >= 0 ? 'up' : 'down'}>{ch >= 0 ? '+' : ''}{ch.toFixed(2)}%</span></>}
+            <span className={ch >= 0 ? 'up' : 'down'}>{ch >= 0 ? '+' : ''}{ch.toFixed(2)}%</span>
+            {feed.s.hasVol && b.v > 0 && <span><span className="k">V</span> {b.v >= 1e6 ? (b.v / 1e6).toFixed(2) + 'M' : b.v >= 1e4 ? (b.v / 1e3).toFixed(1) + 'K' : Math.round(b.v)}</span>}
+            {!hover && F && <span className="k" title="Time left in this candle">{closesIn(F.time + tfSeconds(feed.tf) - feed.time)}</span>}</>}
           {active && session.feeds.length > 1 && <span className="trading">Trading this chart</span>}
         </div>
-        {feed.inds.length > 0 && <div className="inds">{feed.inds.map((x, k) => { const v = feed.peek(k); return <span key={x.spec.id} style={{ background: hexA(x.spec.color, 0.14), color: x.spec.color }}>{indLabel(x.spec)}{v != null ? ' · ' + v.toFixed(prec) : ''}</span>; })}</div>}
+        {(feed.inds.length > 0 || pyLeg.length > 0) && <div className="inds">{feed.inds.map((x, k) => { const v = feed.peek(k); return <span key={x.spec.id} style={{ background: hexA(x.spec.color, 0.14), color: x.spec.color }}>{indLabel(x.spec)}{v != null ? ' · ' + v.toFixed(prec) : ''}</span>; })}
+          {pyLeg.map(x => <span key={x.key} data-py={x.title} style={{ background: hexA(x.color, 0.14), color: x.color }}>{x.title} · {x.text}</span>)}</div>}
       </div>
+      {geom && <ChartTrade session={session} sym={sym} geom={geom} menuAt={orderMenu} onCloseMenu={() => setOrderMenu(null)} onToast={onToast} />}
       {sel && !ds.editing && <DrawBar session={session} d={sel} onToast={onToast} />}
       {menu && menuD && <DrawMenu session={session} d={menuD} style={{ left: Math.min(menu.x, (box.current?.clientWidth || 400) - 230), top: menu.y }} onClose={() => setMenu(null)} />}
       {onRemove && <button className="ib closebtn" title={`Close the ${sym} chart`} aria-label={`Close the ${sym} chart`} onMouseDown={e => e.stopPropagation()} onClick={onRemove}><IClose width={14} height={14} /></button>}

@@ -21,6 +21,8 @@ window.TAPE_IOS = true;
     let meta = document.querySelector('meta[name=viewport]');
     if (!meta) { meta = document.createElement('meta'); meta.name = 'viewport'; document.head.appendChild(meta); }
     meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+    // the new app (one React root) handles safe areas, touch and its own layout itself; these are for the classic page
+    if (document.getElementById('root') && !document.getElementById('chart')) { document.documentElement.classList.add('ios'); return; }
     const style = document.createElement('style');
     style.textContent = CSS;
     document.head.appendChild(style);

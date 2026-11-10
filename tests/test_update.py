@@ -48,7 +48,7 @@ def fake_install():
 app.install_update = fake_install
 srv = app.ExclusiveServer(("127.0.0.1", 0), app.Handler)
 threading.Thread(target=srv.serve_forever, daemon=True).start()
-URL = f"http://127.0.0.1:{srv.server_address[1]}/index.html?t={app.TOKEN}"
+URL = f"http://127.0.0.1:{srv.server_address[1]}/classic.html?t={app.TOKEN}"
 
 
 async def main():

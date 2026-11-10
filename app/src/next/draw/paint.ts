@@ -1,6 +1,7 @@
 // What every drawing tool draws with. The painter draws on the overlay canvas and, at the same time, records simple
 // shapes (segments, filled areas, boxes) so a click can be tested against exactly what was drawn.
 import type { Candle } from '../../core/series';
+import { C } from '../look';
 
 export interface XY { x: number; y: number }
 export interface Stroke { color: string; width: number; dash: number }
@@ -178,7 +179,7 @@ export class Painter {
       if (o.bg) { c.fillStyle = o.bg; c.fill(); }
       if (o.border) { c.setLineDash([]); c.strokeStyle = o.border; c.lineWidth = 1; c.stroke(); }
     }
-    c.fillStyle = o.color || '#d1d4dc'; c.textBaseline = 'top'; c.textAlign = 'left';
+    c.fillStyle = o.color || C.fg; c.textBaseline = 'top'; c.textAlign = 'left';
     lines.forEach((l, i) => c.fillText(l, bx + pad, by + pad + i * lh + (lh - size) / 2));
     const box = { x: bx, y: by, w: bw, h: bh };
     if (hit) this.prims.push({ k: 'box', ...box });

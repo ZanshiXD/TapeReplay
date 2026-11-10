@@ -1,0 +1,35 @@
+/* The Python indicator editor and the Python rows of the Indicators popover. */
+.modal-back.pyback { z-index: 80; } /* over the Indicators sheet on phones */
+.modal.pyed { width: min(1080px, calc(100vw - 32px)); height: min(720px, calc(100vh - 60px)); }
+.pyed > header .in { height: 32px; max-width: 280px; }
+.pyed-t { color: var(--py); }
+.modal.pyed > .pyed-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; flex-direction: unset; }
+.pycode { width: 100%; height: 100%; min-height: 0; resize: none; font-family: "JetBrains Mono", Consolas, monospace; font-size: 13px; line-height: 1.55; tab-size: 4; white-space: pre; overflow: auto;
+  color: var(--fg); background: var(--field); border: 1px solid var(--line2); border-radius: var(--r); padding: 10px 12px; outline: none; }
+.pycode:focus { border-color: var(--accent); }
+.pyside { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.pyside > section { display: flex; flex-direction: column; gap: 8px; }
+.pyside > section.grow { flex: 1; min-height: 140px; }
+.pyside .note { font-size: 12.5px; margin: 0; }
+.pysets { display: flex; flex-direction: column; gap: 6px; }
+.pysets label { display: grid; grid-template-columns: minmax(0, 1fr) 120px; align-items: center; gap: 10px; font: 500 12px "JetBrains Mono", Consolas, monospace; }
+.pysets label span { overflow: hidden; text-overflow: ellipsis; }
+.pysets .in { height: 30px; font-size: 13px; padding: 0 8px; }
+.pysets input[type=checkbox] { justify-self: start; width: 16px; height: 16px; }
+.pycons { flex: 1; min-height: 0; overflow: auto; background: var(--field); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px;
+  font-family: "JetBrains Mono", Consolas, monospace; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+/* code reads as typed: no ligatures (JetBrains Mono turns != into one sign) */
+.pycode, .pycons { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+.pycons .er { color: var(--down-fg, var(--down)); }
+.pystat { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pystat.bad { color: var(--down); }
+.pyrow { display: flex; align-items: center; gap: 8px; padding: 6px 16px; }
+.pyrow .nm { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pyrow .err { font: 600 10.5px var(--f-ui); color: var(--down); background: var(--down-soft); border-radius: 5px; padding: 1px 6px; }
+.pyrow .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--py); flex: none; }
+.pyrow.ask { background: var(--down-soft); }
+.pytpl { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 7px 16px 7px 28px; background: none; border: 0; cursor: pointer; }
+.pytpl:hover { background: var(--hover); }
+html.m .modal.pyed > .pyed-body { grid-template-columns: 1fr; grid-template-rows: minmax(220px, 1fr) auto; overflow: auto; }
+html.m .pyside > section.grow { min-height: 160px; }
+html.m .pyed > header .in { max-width: none; flex: 1; }

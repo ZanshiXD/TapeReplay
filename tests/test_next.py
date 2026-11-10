@@ -1,4 +1,4 @@
-"""The new app (app/next.html) in Chromium: a two-market session, smooth playback, trading both markets, the journal,
+"""The new app (app/index.html) in Chromium: a two-market session, smooth playback, trading both markets, the journal,
 stepping back and jumping. Build the page first (see test_browser.py), then:
     python tests/test_next.py [folder for screenshots]
 """
@@ -32,7 +32,7 @@ def serve():
     h.log_message = lambda *a: None
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), h)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{srv.server_address[1]}/next.html"
+    return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
 
 
 URL = serve()
@@ -82,7 +82,7 @@ async def main():
                 break
             await pg.wait_for_timeout(500)
         await pg.keyboard.press("Space")
-        jn = await pg.evaluate("() => document.querySelector('.tabs button:nth-child(4)').textContent")
+        jn = await pg.evaluate("() => [...document.querySelectorAll('.dock .tabs button')].find(b => b.textContent.startsWith('Journal')).textContent")
         check("Journal (" in jn and not jn.endswith("(0)"), f"closed trades went to the journal: {jn}")
         await pg.click("button.item:has-text('Journal')")
         await pg.wait_for_selector(".snap svg")

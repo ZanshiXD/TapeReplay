@@ -2,7 +2,8 @@
 // drive it with play/pause and the step buttons, and call frame() on every animation frame while playing.
 import { Account, type AccountEvent, type AccountState, type Quote, type Side } from './account';
 import { Feed, type FeedSnap } from './feed';
-import { DrawStore } from './drawings';
+import { DrawStore, type Drawing } from './drawings';
+import { startProp, type PropConfig, type PropState, type RulesConfig, type RulesState, type PropSim, type PropRules } from './prop';
 import type { IndSpec } from './indicators';
 import { journalEntry, type JournalEntry } from './journal';
 import type { Series } from './series';
@@ -17,9 +18,20 @@ export interface SessionSetup {
   balance: number;
   ticksPerBar?: number;
   inds?: IndSpec[];
+  /** prop firm rules: the simulation (evaluation, funded, live) or the plain rules of older sessions */
+  prop?: PropSetup | null;
 }
-export interface SessionEvent extends AccountEvent { at: number }
-interface Snapshot { time: number; feeds: FeedSnap[]; account: AccountState; journal: number }
+export interface PropSetup { sim?: Partial<PropConfig> | null; prop?: Partial<RulesConfig> | null }
+export interface SessionEvent extends Omit<AccountEvent, 'kind'> { kind: AccountEvent['kind'] | 'prop'; at: number }
+/** everything needed to reopen a session where it was left, given the same markets */
+export interface SessionState {
+  v: 2; simTime: number; active: string; speed: number; tf: TF; inds: IndSpec[];
+  /** each market's place: the time of the next bar to play (null at the end) */
+  feeds: Array<{ sym: string; at: number | null }>;
+  account: AccountState; journal: JournalEntry[]; drawings: Drawing[];
+  prop?: { setup: PropSetup; state: PropState | RulesState } | null;
+}
+interface Snapshot { time: number; feeds: FeedSnap[]; account: AccountState; journal: number; prop: PropState | RulesState | null }
 
 /** a quiet stretch this long (the daily break, nights, weekends) is jumped over rather than played in real time */
 const CLOSED_GAP = 600;
@@ -59,7 +71,19 @@ export class Session {
     this.account = new Account(x.balance);
     this.account.quote = sym => this.quote(sym);
     this.account.onEvent = e => this.onAccount(e);
+    this.propSetup = x.prop || null;
+    this.startProp();
     this.takeSnap();
+  }
+  /** the prop rules in effect (null when none) */
+  prop: PropSim | PropRules | null = null;
+  propSetup: PropSetup | null = null;
+  private startProp(state?: PropState | RulesState) {
+    this.prop = this.propSetup ? startProp(this.propSetup, this.account, { state }) : null;
+    if (this.prop) this.prop.onEvent = e => {
+      if (e.pause) { this.stop = true; this.playing = false; }
+      this.emit({ kind: 'prop', text: e.text, up: e.up ?? (e.kind === 'pass' || e.kind === 'payout' || e.kind === 'live'), at: this.now } as SessionEvent);
+    };
   }
   private makeFeed(s: Series, t: number) {
     let j = 0, b = s.n;
@@ -100,7 +124,7 @@ export class Session {
   private tickOne(f: Feed) {
     if (f.s.inst.sym === this.active && f.atCandleStart) this.takeSnap();
     const m = f.step();
-    if (m) this.account.onTick(f.s.inst.sym, m.from, m.to, m.jump);
+    if (m) { this.account.onTick(f.s.inst.sym, m.from, m.to, m.jump); this.prop?.onTick(f.time); }
   }
   /** plays every tick up to time `target`, on all markets in time order */
   advanceTo(target: number) {
@@ -153,12 +177,13 @@ export class Session {
   private takeSnap() {
     const last = this.snaps[this.snaps.length - 1], t = this.activeFeed.nextTickTime();
     if (last && last.time >= t) return;
-    this.snaps.push({ time: isFinite(t) ? t : this.now, feeds: this.feeds.map(f => f.snap()), account: this.account.state(), journal: this.journal.length });
+    this.snaps.push({ time: isFinite(t) ? t : this.now, feeds: this.feeds.map(f => f.snap()), account: this.account.state(), journal: this.journal.length, prop: this.prop ? this.prop.state() : null });
     if (this.snaps.length > 3000) this.snaps.splice(1, 500); // keep the very first (the session start)
   }
   private restore(x: Snapshot) {
     this.feeds.forEach((f, k) => f.restore(x.feeds[k]));
     this.account.load(x.account);
+    if (this.prop && x.prop) (this.prop.load as (s: PropState | RulesState) => void)(x.prop);
     this.journal.length = Math.min(this.journal.length, x.journal);
     this.simTime = x.time;
   }
@@ -192,7 +217,7 @@ export class Session {
         const [g, tg] = this.next(); if (!g || tg > t) break;
         const sym = g.s.inst.sym;
         // nothing can fill on this market: play its bar in one step
-        if (g.k === 0 && !this.account.trades.some(x => x.sym === sym) && !this.account.orders.some(x => x.sym === sym) && g.s.t[g.i] + g.s.base <= t) {
+        if (g.k === 0 && !this.account.trades.some(x => x.sym === sym) && !this.account.orders.some(x => x.sym === sym) && g.s.t[g.i] + g.s.base <= t && (!this.prop || this.prop.canSkipBar(g.s.t[g.i] + g.s.base))) {
           if (sym === this.active && g.atCandleStart) this.takeSnap();
           g.skipBar();
         } else this.tickOne(g);
@@ -207,9 +232,48 @@ export class Session {
 
   /* ---- trading ---- */
   order(side: Side, type: 'market' | 'limit' | 'stop', price: number, sl: number | null, tp: number | null, qty: number, sym = this.active) {
+    const rule = this.prop?.check(sym, side, qty);
+    if (rule) { this.emit({ kind: 'error', text: rule, at: this.now }); return rule; }
     const err = this.account.submit(sym, side, type, price, sl, tp, qty);
     this.changed();
     return err;
+  }
+
+  /* ---- saving and reopening ---- */
+  state(): SessionState {
+    return {
+      v: 2, simTime: this.simTime, active: this.active, speed: this.speed, tf: this.tf, inds: this.inds,
+      feeds: this.feeds.map(f => ({ sym: f.s.inst.sym, at: f.i < f.s.n ? f.s.t[f.i] : null })),
+      account: this.account.state(), journal: this.journal, drawings: this.drawings.state(),
+      prop: this.prop && this.propSetup ? { setup: this.propSetup, state: this.prop.state() } : null,
+    };
+  }
+  /** puts a session back where state() left it (its markets already loaded the same way) */
+  load(x: SessionState) {
+    this.tf = x.tf; this.inds = x.inds; this.speed = x.speed || this.speed;
+    for (const f of this.feeds) {
+      const p = x.feeds.find(q => q.sym === f.s.inst.sym);
+      f.configure(x.tf, x.inds);
+      f.seek(p ? (p.at == null ? Infinity : p.at) : f.time);
+    }
+    if (this.feeds.some(f => f.s.inst.sym === x.active)) this.active = x.active;
+    this.account.load(x.account);
+    if (x.prop) { this.propSetup = x.prop.setup; this.startProp(x.prop.state); } else { this.propSetup = null; this.prop = null; }
+    this.journal = x.journal || [];
+    this.drawings.load(x.drawings || []);
+    this.simTime = Math.max(x.simTime, ...this.feeds.map(f => f.time));
+    this.snaps = []; this.takeSnap();
+    this.changed();
+  }
+  /** more bars for a market that plays on past what was loaded (a long series, a month at a time) */
+  extend(sym: string, more: { t: Float64Array; o: ArrayLike<number>; h: ArrayLike<number>; l: ArrayLike<number>; c: ArrayLike<number>; v: ArrayLike<number>; n: number }) {
+    const f = this.feeds.find(x => x.s.inst.sym === sym); if (!f || !more.n) return;
+    f.append(more);
+  }
+  /** lets go of a market's bars before time t (memory stays level however long the replay plays) */
+  trim(sym: string, t: number) {
+    const f = this.feeds.find(x => x.s.inst.sym === sym); if (!f) return;
+    if (f.dropBefore(t) > 0) { this.snaps = []; this.takeSnap(); }
   }
 
   /* ---- what the charts show ---- */

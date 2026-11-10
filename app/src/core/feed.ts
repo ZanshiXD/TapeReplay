@@ -7,7 +7,9 @@ import { makeBucket, tfSeconds, type TF } from './time';
 import { makeInd, type Ind, type IndSpec } from './indicators';
 
 /** the chart keeps the most recent candles only (indicators still see all of history) */
-const MAX_CANDLES = 40000, CANDLE_SLACK = 5000;
+let MAX_CANDLES = 40000, CANDLE_SLACK = 5000;
+/** fewer candles kept on phones and tablets, which have less memory and slower drawing */
+export function setCandleCap(max: number, slack: number) { MAX_CANDLES = max; CANDLE_SLACK = slack; }
 
 export interface TickMove { from: number; to: number; jump: boolean }
 export interface FeedSnap { i: number }
@@ -30,10 +32,12 @@ export class Feed {
   inds: Array<{ spec: IndSpec; ind: Ind; vals: Array<number | null> }> = [];
   private indSpecs: IndSpec[] = [];
   /** the first bar of the replay: what is before it is history, shown but not traded */
-  readonly start: number;
+  start: number;
+  /** false: no chart candles kept (backtests aggregate their own), so nothing is built from the history either */
+  readonly chart: boolean;
 
-  constructor(s: Series, startIdx: number, tf: TF, ticksPerBar = 20, inds: IndSpec[] = []) {
-    this.s = s; this.tf = tf; this.bucket = makeBucket(tf); this.ticksPerBar = ticksPerBar;
+  constructor(s: Series, startIdx: number, tf: TF, ticksPerBar = 20, inds: IndSpec[] = [], chart = true) {
+    this.s = s; this.tf = tf; this.bucket = makeBucket(tf); this.ticksPerBar = ticksPerBar; this.chart = chart;
     this.start = this.i = Math.max(0, Math.min(startIdx, s.n));
     const prevT = this.i > 0 ? s.t[this.i - 1] : s.t[0] - s.base;
     this.price = this.prevClose = this.i > 0 ? s.c[this.i - 1] : null;
@@ -44,7 +48,8 @@ export class Feed {
 
   get done() { return this.i >= this.s.n; }
   get tick() { return this.s.inst.tick; }
-  round(x: number) { const tk = this.s.inst.tick; return +(Math.round(x / tk) * tk).toFixed(this.s.inst.prec); }
+  // to the tick grid, then to the decimals shown (as toFixed would, without making text: this runs for every tick)
+  round(x: number) { const tk = this.s.inst.tick, m = 10 ** this.s.inst.prec; return Math.round(Math.round(x / tk) * tk * m) / m; }
 
   /** the ticks of bar i (open, then the near extreme, the far one, the close), written to F and P; returns how many */
   private buildTicks(i: number): number {
@@ -116,6 +121,7 @@ export class Feed {
     else { if (h > F.h) F.h = h; if (l < F.l) F.l = l; F.c = c; F.v += v; }
   }
   private completeForming() {
+    if (!this.chart) return;
     const F = this.F!; this.candles.push(F);
     for (const x of this.inds) x.vals.push(x.ind.push(F));
     if (this.candles.length > MAX_CANDLES + CANDLE_SLACK) {
@@ -130,11 +136,13 @@ export class Feed {
     this.candles = []; this.F = null;
     const daily = tfSeconds(this.tf) >= 86400;
     this.inds = this.indSpecs.filter(x => x.on).map(spec => ({ spec, ind: makeInd(spec, { daily, hasVol: s.hasVol }), vals: [] }));
-    for (let j = 0; j < this.i; j++) this.aggBar(s.t[j], s.o[j], s.h[j], s.l[j], s.c[j], s.v[j]);
+    if (this.chart) for (let j = 0; j < this.i; j++) this.aggBar(s.t[j], s.o[j], s.h[j], s.l[j], s.c[j], s.v[j]);
     if (this.P) this.aggBar(s.t[this.i], this.P.o, this.P.h, this.P.l, this.P.c, this.P.v);
     this.version++;
   }
   setTf(tf: TF) { this.tf = tf; this.bucket = makeBucket(tf); this.rebuild(); }
+  /** timeframe and indicators at once, without building the candles (a seek follows) */
+  configure(tf: TF, specs: IndSpec[]) { this.tf = tf; this.bucket = makeBucket(tf); this.indSpecs = specs; }
   setInds(specs: IndSpec[]) { this.indSpecs = specs; this.rebuild(); }
   /** an indicator's value on the forming candle */
   peek(k: number): number | null { const x = this.inds[k]; return x && this.F ? x.ind.peek(this.F) : null; }
@@ -154,6 +162,13 @@ export class Feed {
   skipBar() {
     const s = this.s, i = this.i; if (i >= s.n) return;
     if (this.k) { while (this.k && this.i === i) this.step(); return; }
+    if (!this.chart) { // no candles to keep: only where the bar ends (its last tick is the close, rounded unless flat)
+      const o = s.o[i], h = s.h[i], l = s.l[i], c = s.c[i], up = c >= o;
+      const flat = Math.abs((up ? l : h) - o) + Math.abs(h - l) + Math.abs(c - (up ? h : l)) === 0;
+      this.barTime = s.t[i]; this.time = s.t[i] + s.base;
+      this.price = this.prevClose = flat ? c : this.round(c); this.i++; this.k = 0; this.nt = 0; this.P = null;
+      return;
+    }
     const n = this.nt || this.buildTicks(i), f = this.tkF, P = this.tkP, v = s.v[i], p0 = P[0];
     this.barTime = s.t[i];
     const b = this.F ? Math.max(this.bucket(s.t[i]), this.F.time) : this.bucket(s.t[i]);
@@ -164,6 +179,26 @@ export class Feed {
     const p = P[n - 1];
     this.time = s.t[i] + f[n - 1] * s.base;
     this.price = p; this.prevClose = p; this.i++; this.k = 0; this.nt = 0; this.P = null;
+  }
+  /** more bars after the last one (a long series loaded a month at a time) */
+  append(m: { t: Float64Array; o: ArrayLike<number>; h: ArrayLike<number>; l: ArrayLike<number>; c: ArrayLike<number>; v: ArrayLike<number>; n: number }) {
+    const s = this.s as { -readonly [K in keyof Series]: Series[K] }, n = s.n, last = n ? s.t[n - 1] : -Infinity;
+    let a = 0; while (a < m.n && m.t[a] <= last) a++;
+    const k = m.n - a; if (k <= 0) return;
+    const grow = (x: ArrayLike<number>, y: ArrayLike<number>, T: Float64ArrayConstructor | Float32ArrayConstructor) => { const z = new T(n + k); z.set(x as ArrayLike<number>); for (let j = 0; j < k; j++) z[n + j] = y[a + j]; return z; };
+    s.t = grow(s.t, m.t, Float64Array) as Float64Array; s.o = grow(s.o, m.o, Float32Array); s.h = grow(s.h, m.h, Float32Array); s.l = grow(s.l, m.l, Float32Array); s.c = grow(s.c, m.c, Float32Array); s.v = grow(s.v, m.v, Float32Array);
+    s.n = n + k;
+  }
+  /** lets go of bars before time t (never the bar playing); returns how many went. The candles already on the
+   * chart stay. */
+  dropBefore(t: number) {
+    const s = this.s as { -readonly [K in keyof Series]: Series[K] };
+    let c = 0; while (c < this.i - 1 && s.t[c] < t) c++;
+    if (c <= 0) return 0;
+    const cut = <A extends ArrayLike<number> & { subarray(a: number): A }>(x: A) => x.subarray(c);
+    s.t = cut(s.t); s.o = cut(s.o as Float32Array); s.h = cut(s.h as Float32Array); s.l = cut(s.l as Float32Array); s.c = cut(s.c as Float32Array); s.v = cut(s.v as Float32Array);
+    s.n -= c; this.i -= c; this.start = Math.max(0, this.start - c);
+    return c;
   }
   /** jump the cursor (forward or back) to the first bar at or after t, without playing the bars in between */
   seek(t: number) {

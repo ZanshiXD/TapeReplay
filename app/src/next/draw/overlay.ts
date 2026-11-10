@@ -14,6 +14,7 @@ import { Painter, dist, hitPrims, type Geo, type Prim, type XY } from './paint';
 import { MEASURE, TOOL, isDrawTool, styleFor, type ToolDef } from './tools';
 import { cursorTool, ds, setDs, templates } from './state';
 import { ticket } from '../ticket';
+import { C, hexA } from '../look';
 
 /** every chart's layer, so the keyboard can reach whichever is drawing */
 export const layers = new Set<DrawLayer>();
@@ -41,6 +42,8 @@ export class DrawLayer {
   private crossFor = '';
   private w = 0; private h = 0;
   private finishedAt = 0;
+  /** a finger rather than a mouse: bigger targets */
+  coarse = false;
   /** a right-click on a drawing: the chart shows its menu */
   onMenu: ((x: number, y: number, id: string) => void) | null = null;
 
@@ -145,36 +148,36 @@ export class DrawLayer {
     // the drawing being placed, the measure, the zoom box
     if (this.placing) { const { tool, d } = this.placing, g = this.geo(true), P = new Painter(c, this.w, this.h); try { tool.draw(P, d, this.xyOf(d, g), g); } catch { /* not enough points yet */ } axis.push(...P.axis); for (const p of this.xyOf(d, g).slice(0, this.placing.fixed)) this.handle(p, d.style.color, false, false); }
     if (this.measure && this.measure.pts.length > 1) { const g = this.geo(true), md = { id: 'measure', tool: 'measure', sym: this.sym, pts: this.measure.pts, style: styleFor('dprange'), locked: false, hidden: false, tfs: [], created: 0 } as Drawing; MEASURE.draw(new Painter(c, this.w, this.h), md, this.xyOf(md, g), g); }
-    if (this.zoomBox) { const { a, b } = this.zoomBox; c.fillStyle = 'rgba(41,98,255,.12)'; c.strokeStyle = 'rgba(41,98,255,.7)'; c.setLineDash([4, 3]); c.lineWidth = 1; c.fillRect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y)); c.strokeRect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y)); c.setLineDash([]); }
+    if (this.zoomBox) { const { a, b } = this.zoomBox; c.fillStyle = hexA(C.accent, 0.12); c.strokeStyle = hexA(C.accent, 0.7); c.setLineDash([4, 3]); c.lineWidth = 1; c.fillRect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y)); c.strokeRect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y)); c.setLineDash([]); }
     // handles of the selected and the hovered drawing
     for (const id of [this.hover, ds.selected]) {
       const d = this.store.get(id); if (!d || d.sym !== this.sym || d.hidden || ds.hideAll) continue;
       const hs = this.handlesOf.get(d.id) || [];
-      hs.forEach((p, k) => this.handle(p, d.locked ? '#787b86' : '#2962ff', id === ds.selected && k === this.hoverH && this.hover === d.id, id !== ds.selected));
+      hs.forEach((p, k) => this.handle(p, d.locked ? '#787b86' : C.accent, id === ds.selected && k === this.hoverH && this.hover === d.id, id !== ds.selected));
     }
-    if (ds.tool === 'dot' && this.mouse && !this.busy) { c.beginPath(); c.arc(this.mouse.x, this.mouse.y, 2.5, 0, Math.PI * 2); c.fillStyle = '#d1d4dc'; c.fill(); }
+    if (ds.tool === 'dot' && this.mouse && !this.busy) { c.beginPath(); c.arc(this.mouse.x, this.mouse.y, 2.5, 0, Math.PI * 2); c.fillStyle = C.fg; c.fill(); }
     c.restore();
     // axis labels: the ones tools asked for, then the selected drawing's range on both axes
     if (sel && sel.sym === this.sym && !sel.hidden && !TOOL[sel.tool]?.screen) {
       const g = this.geo(), hs = this.handlesOf.get(sel.id) || this.xyOf(sel, g);
       if (hs.length) {
         const ys = hs.map(p => p.y).filter(isFinite), xs = hs.map(p => p.x).filter(isFinite);
-        c.fillStyle = 'rgba(41,98,255,.18)';
+        c.fillStyle = hexA(C.accent, 0.18);
         if (ys.length) c.fillRect(this.w, Math.min(...ys), cw - this.w, Math.max(1, Math.max(...ys) - Math.min(...ys)));
         if (xs.length) c.fillRect(Math.min(...xs), this.h, Math.max(1, Math.max(...xs) - Math.min(...xs)), ch - this.h);
-        for (const p of sel.pts) { axis.push({ k: 'p', at: g.y(p.p), text: g.fp(p.p), color: '#2962ff' }); axis.push({ k: 't', at: g.x(p.t), text: g.ft(p.t), color: '#2962ff' }); }
+        for (const p of sel.pts) { axis.push({ k: 'p', at: g.y(p.p), text: g.fp(p.p), color: C.accent }); axis.push({ k: 't', at: g.x(p.t), text: g.ft(p.t), color: C.accent }); }
       }
     }
     c.font = '500 11px Inter, system-ui, sans-serif'; c.textBaseline = 'middle';
     for (const a of axis) {
-      if (a.k === 'p') { if (a.at < 0 || a.at > this.h) continue; c.fillStyle = a.color; c.fillRect(this.w, a.at - 9, cw - this.w, 18); c.fillStyle = '#fff'; c.textAlign = 'left'; c.fillText(a.text, this.w + 6, a.at); }
-      else { if (a.at < 0 || a.at > this.w) continue; const tw = c.measureText(a.text).width + 12; c.fillStyle = a.color; c.fillRect(a.at - tw / 2, this.h, tw, ch - this.h); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(a.text, a.at, this.h + (ch - this.h) / 2); }
+      if (a.k === 'p') { if (a.at < 0 || a.at > this.h) continue; c.fillStyle = a.color; c.fillRect(this.w, a.at - 9, cw - this.w, 18); c.fillStyle = a.color === C.accent ? C.onAccent : '#fff'; c.textAlign = 'left'; c.fillText(a.text, this.w + 6, a.at); }
+      else { if (a.at < 0 || a.at > this.w) continue; const tw = c.measureText(a.text).width + 12; c.fillStyle = a.color; c.fillRect(a.at - tw / 2, this.h, tw, ch - this.h); c.fillStyle = a.color === C.accent ? C.onAccent : '#fff'; c.textAlign = 'center'; c.fillText(a.text, a.at, this.h + (ch - this.h) / 2); }
     }
   }
   private handle(p: XY, color: string, big: boolean, faint: boolean) {
     if (!isFinite(p.x) || !isFinite(p.y)) return;
     const c = this.ctx; c.setLineDash([]); c.beginPath(); c.arc(p.x, p.y, big ? HANDLE_R + 1.5 : HANDLE_R, 0, Math.PI * 2);
-    c.fillStyle = faint ? 'rgba(16,19,26,.85)' : '#10131a'; c.fill(); c.lineWidth = faint ? 1 : 1.6; c.strokeStyle = faint ? 'rgba(41,98,255,.6)' : color; c.stroke();
+    c.fillStyle = faint ? hexA(C.bg, 0.85) : C.bg; c.fill(); c.lineWidth = faint ? 1 : 1.6; c.strokeStyle = faint ? hexA(C.accent, 0.6) : color; c.stroke();
   }
   private applyCursorMode() {
     const mode = ds.tool === 'dot' || ds.tool === 'arrow' ? ds.tool : 'cross';
@@ -189,13 +192,13 @@ export class DrawLayer {
   private inPane(p: XY) { return p.x >= 0 && p.y >= 0 && p.x < this.w && p.y < this.h; }
   hitTest(p: XY): string | null {
     const items = this.store.items;
-    for (let i = items.length - 1; i >= 0; i--) { const d = items[i], pr = this.hits.get(d.id); if (pr && hitPrims(pr, p)) return d.id; }
+    for (let i = items.length - 1; i >= 0; i--) { const d = items[i], pr = this.hits.get(d.id); if (pr && hitPrims(pr, p, this.coarse ? 14 : 5)) return d.id; }
     return null;
   }
   private handleAt(p: XY): { id: string; k: number } | null {
     for (const id of [ds.selected, this.hover]) {
       const hs = id && this.handlesOf.get(id); if (!hs) continue;
-      for (let k = hs.length - 1; k >= 0; k--) if (dist(hs[k], p) <= HANDLE_R + 3) return { id, k };
+      for (let k = hs.length - 1; k >= 0; k--) if (dist(hs[k], p) <= HANDLE_R + (this.coarse ? 14 : 3)) return { id, k };
     }
     return null;
   }
