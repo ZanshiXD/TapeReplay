@@ -132,17 +132,18 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       setHover(d ? { o: d.open, h: d.high, l: d.low, c: d.close, v: 0 } : null);
     });
 
-    // dragging a stop, a target or an order
+    // dragging a stop, a target or an order (a finger gets a wider line to grab)
+    let tol = 6;
     const near = (y: number): Drag | null => {
       const acc = session.account;
       for (const tr of acc.trades) if (tr.sym === sym) for (const kind of ['sl', 'tp'] as const) {
         const p = tr[kind]; if (p == null) continue;
         const c = cs.priceToCoordinate(p); const l = lines.get((kind === 'sl' ? 's' : 't') + tr.id);
-        if (c != null && l && Math.abs(c - y) < 6) return { kind, tr, line: l, price: p };
+        if (c != null && l && Math.abs(c - y) < tol) return { kind, tr, line: l, price: p };
       }
       for (const o of acc.orders) if (o.sym === sym) {
         const c = cs.priceToCoordinate(o.price), l = lines.get('o' + o.id);
-        if (c != null && l && Math.abs(c - y) < 6) return { kind: 'order', o, line: l, price: o.price };
+        if (c != null && l && Math.abs(c - y) < tol) return { kind: 'order', o, line: l, price: o.price };
       }
       return null;
     };
@@ -152,15 +153,25 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       session.setActive(sym); setMenu(null);
       chart.applyOptions({ handleScroll: false, handleScale: false });
     };
-    const onDown = (e: MouseEvent) => {
+    // a finger held still for a moment: the menu a right-click opens
+    let hold = 0, holdAt: { x: number; y: number } | null = null;
+    const cancelHold = () => { clearTimeout(hold); holdAt = null; };
+    const onDown = (e: PointerEvent) => {
       if (e.button !== 0 && e.button !== 2) return;
-      // a drawing tool, or a drawing being placed: the click is for the drawing layer
+      const touch = e.pointerType !== 'mouse';
+      tol = touch ? 16 : 6; layer.coarse = touch;
+      // a drawing tool, or a drawing being placed: the press is for the drawing layer
       if (isDrawTool(ds.tool) || layer.busy || ['eraser', 'measure', 'zoom'].includes(ds.tool)) { if (layer.down(e)) take(e); return; }
       const d = e.button === 0 ? near(yOf(e)) : null;
       if (d) { drag = d; take(e); return; }
-      if (layer.down(e)) take(e);
+      if (layer.down(e)) { take(e); if (!touch) return; }
+      if (touch) {
+        holdAt = { x: e.clientX, y: e.clientY };
+        hold = window.setTimeout(() => { if (!holdAt) return; const at = holdAt; cancelHold(); layer.cancel(); onCtx(new MouseEvent('contextmenu', { clientX: at.x, clientY: at.y })); }, 550);
+      }
     };
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
+      if (holdAt && Math.hypot(e.clientX - holdAt.x, e.clientY - holdAt.y) > 9) cancelHold();
       const y = yOf(e);
       if (!drag) { layer.move(e); el.style.cursor = !layer.busy && !layer.hover && !isDrawTool(ds.tool) && near(y) ? 'ns-resize' : ''; return; }
       const p = cs.coordinateToPrice(y); if (p == null) return;
@@ -168,7 +179,8 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       drag.line.applyOptions({ price: drag.price });
     };
     const release = () => { if (grabbed) { grabbed = false; chart.applyOptions({ handleScroll: true, handleScale: true }); } };
-    const onUp = (e: MouseEvent) => {
+    const onUp = (e: PointerEvent) => {
+      cancelHold();
       if (!drag) { layer.up(e); release(); return; }
       const d = drag; drag = null;
       release();
@@ -180,25 +192,28 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     };
     const onDbl = (e: MouseEvent) => { if (layer.dbl(e)) { e.preventDefault(); e.stopPropagation(); } };
     // right-click: a drawing's menu on a drawing, else orders at that price
-    const onCtx = (e: MouseEvent) => {
+    function onCtx(e: MouseEvent) {
       e.preventDefault();
       if (layer.context(e)) return;
       const r = el.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ps = chart.paneSize();
       if (x < ps.width && y < ps.height) { setMenu(null); setOrderMenu({ x, y }); session.setActive(sym); }
-    };
-    el.addEventListener('mousedown', onDown, true);
+    }
+    el.addEventListener('pointerdown', onDown, true);
     el.addEventListener('dblclick', onDbl, true);
     el.addEventListener('contextmenu', onCtx, true);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
     return () => {
       frameHooks.delete(draw);
       layer.dispose();
-      el.removeEventListener('mousedown', onDown, true);
+      cancelHold();
+      el.removeEventListener('pointerdown', onDown, true);
       el.removeEventListener('dblclick', onDbl, true);
       el.removeEventListener('contextmenu', onCtx, true);
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
       chart.remove();
     };
   }, [session, feed]);

@@ -55,7 +55,12 @@ export interface Store {
   deleteOptim(id: string): Promise<void>;
   /** keeps the phone's screen on during a long run */
   awake(on: boolean): void;
+  /** the Windows app's own updates: what it found at launch (null in a browser or on iOS) */
+  update(): Promise<UpdateInfo | null>;
+  /** downloads, checks and installs the update, then the app restarts */
+  installUpdate(): Promise<void>;
 }
+export interface UpdateInfo { current: string; state: 'checking' | 'none' | 'available' | 'downloading' | 'installing' | 'failed' | string; version?: string; notes?: string; progress?: number; error?: string; page?: string }
 
 /* ---- the Windows and iOS apps' server ---- */
 function appStore(token: string): Store {
@@ -116,6 +121,8 @@ function appStore(token: string): Store {
     saveOptim: (id, doc) => call('PUT', 'optims/' + id, JSON.stringify(doc), json),
     deleteOptim: id => call('DELETE', 'optims/' + id),
     awake: on => { call('POST', 'awake', JSON.stringify({ on }), json).catch(() => {}); },
+    update: () => call('GET', 'update').catch(() => null),
+    installUpdate: () => call('POST', 'update').then(() => {}),
   };
 }
 
@@ -199,6 +206,8 @@ function browserStore(): Store {
     },
     async deleteOptim(id) { await del('optims', id); await del('optimMeta', id); },
     awake: () => {},
+    update: async () => null,
+    installUpdate: async () => { throw new Error('Updates come with the app.'); },
   };
   return self;
 }

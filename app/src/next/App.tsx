@@ -5,7 +5,7 @@ import { PRACTICE } from '../core/practice';
 import type { IndSpec } from '../core/indicators';
 import type { DatasetMeta } from '../core/store';
 import { openDataset } from '../core/library';
-import { ReplayPage } from './ReplayPage';
+import { ReplayPage, type MView } from './ReplayPage';
 import { NewSessionPage, type ResumeInfo } from './NewSessionPage';
 import { JournalPage } from './JournalPage';
 import { LibraryPage } from './LibraryPage';
@@ -16,6 +16,7 @@ import { layers } from './draw/overlay';
 import { TOOLS } from './draw/tools';
 import { store, classicHref } from './appstore';
 import { contAhead, datasetInstrument, loadMarket, openLive, practiceSource, reopen, sessionDoc, type Live, type MarketSource, type Opening, type SessionDoc } from './sessions';
+import { UpdateButton } from './Update';
 import { IBacktest, IClassic, IJournal, ILibrary, IPlus, IReplay, ISettings, Logo } from './icons';
 
 type Page = 'replay' | 'journal' | 'backtest' | 'library' | 'settings' | 'new';
@@ -29,12 +30,16 @@ export function App() {
   const [ready, setReady] = useState(false);
   const [page, setPage] = useState<Page>('new');
   const [live, setLive] = useState<Live | null>(null);
-  const [busy, setBusy] = useState<{ text: string; p: number } | null>(null);
+  const [busy, setBusyS] = useState<{ text: string; p: number } | null>(null);
+  const busyT0 = useRef(0), busyOn = useRef(false);
+  const setBusy = (b: { text: string; p: number } | null) => { if (b && !busyOn.current) busyT0.current = performance.now(); busyOn.current = !!b; setBusyS(b); };
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [withData, setWithData] = useState<DatasetMeta | null>(null);
   const [resume, setResume] = useState<ResumeInfo | null>(null);
   const [saveState, setSaveState] = useState('');
   const [libList, setLibList] = useState<DatasetMeta[]>([]);
+  const [mview, setMview] = useState<MView>('chart');
+  const [more, setMore] = useState(false);
   const tid = useRef(0);
   const session = live?.session || null;
 
@@ -203,21 +208,59 @@ export function App() {
         <button className="logo" aria-label="Tape Replay" onClick={() => setPage(session ? 'replay' : 'new')}><Logo /></button>
         {nav.map(([k, l, ic]) => <button key={k} className={'item' + (page === k ? ' on' : '')} aria-current={page === k ? 'page' : undefined} disabled={!session && (k === 'replay' || k === 'journal')} onClick={() => setPage(k)}>{ic}{l}</button>)}
         <span className="spacer" />
+        <UpdateButton beforeInstall={async () => { if (live) { live.session.pause(); await store.saveSession(live.id, sessionDoc(live)); } }} />
         <a className="item" href={classicHref} title="The classic Tape Replay, with everything not moved over yet" style={{ textDecoration: 'none' }}><IClassic />Classic</a>
         <button className="new" aria-label="New session" title="New session" onClick={() => { setWithData(null); setPage('new'); }}><IPlus /></button>
       </nav>
       <div className="main">
         {page === 'new' && <NewSessionPage key={withData?.id || 'new'} onStart={start} onCancel={() => setPage(session ? 'replay' : 'library')} canCancel={!!session} onBusy={setBusy} onToast={toast}
           withData={withData} resume={session ? null : resume} onResume={open} inds={pref('inds', DEFAULT_INDS)} />}
-        {page === 'replay' && live && <ReplayPage session={live.session} saveState={saveState} available={available()} onAddMarket={addMarket} onRemoveMarket={removeMarket} onJump={jump} onToast={toast} openJournal={() => setPage('journal')} />}
+        {page === 'replay' && live && <ReplayPage mview={mview} session={live.session} saveState={saveState} available={available()} onAddMarket={addMarket} onRemoveMarket={removeMarket} onJump={jump} onToast={toast} openJournal={() => setPage('journal')} />}
         {page === 'journal' && session && <JournalPage session={session} onReplay={() => setPage('replay')} />}
         {page === 'library' && <LibraryPage current={live?.id || null} onOpen={open} onNewWith={d => { setWithData(d); setPage('new'); }} onBusy={setBusy} onToast={toast} />}
         {(page === 'backtest' || page === 'settings') && <Classic page={page} />}
       </div>
-      {busy && <div className="busy" role="status"><div className="box"><b>{busy.text}</b><div className="bar"><i style={{ width: `${Math.round(busy.p * 100)}%` }} /></div></div></div>}
+      <PhoneNav page={page} mview={mview} hasSession={!!session} badge={session ? session.account.trades.length + session.account.orders.length : 0}
+        go={(p, v) => { setMore(false); setPage(p); if (v) setMview(v); }} more={more} setMore={setMore} />
+      {busy && <div className="busy" role="status"><div className="box"><b>{busy.text}</b><div className="bar"><i style={{ width: `${Math.round(busy.p * 100)}%` }} /></div><span className="muted" style={{ fontSize: 12 }}>{timeLeft(busy.p, (performance.now() - busyT0.current) / 1000)}</span></div></div>}
       <div className="toasts" aria-live="polite">{toasts.map(t => <div key={t.id} className={'toast ' + t.kind}>{t.text}</div>)}</div>
     </div>
   );
+}
+
+/** phones: a tab bar instead of the sidebar, the replay screen one part at a time, the rest under More */
+function PhoneNav({ page, mview, hasSession, badge, go, more, setMore }: { page: Page; mview: MView; hasSession: boolean; badge: number; go: (p: Page, v?: MView) => void; more: boolean; setMore: (b: boolean) => void }) {
+  const on = (p: Page, v?: MView) => !more && page === p && (!v || mview === v) ? ' on' : '';
+  return <>
+    {more && <div className="msheet-back" onClick={() => setMore(false)}><div className="pop menu msheet" onClick={e => e.stopPropagation()}>
+      <h5>Go to</h5>
+      <button onClick={() => go('new')}>New session</button>
+      <button onClick={() => go('library')}>Library: sessions and data</button>
+      {hasSession && <button onClick={() => go('journal')}>Journal</button>}
+      <button onClick={() => go('backtest')}>Backtest</button>
+      <button onClick={() => go('settings')}>Settings</button>
+      <a className="btn" style={{ margin: '6px 10px' }} href={classicHref}>Open the classic view</a>
+    </div></div>}
+    <nav className="mnav" aria-label="Main">
+      {hasSession ? <>
+        <button className={on('replay', 'chart')} onClick={() => go('replay', 'chart')}><IReplay />Chart</button>
+        <button className={on('replay', 'trade')} onClick={() => go('replay', 'trade')}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M7 17V7M4 10l3-3 3 3M17 7v10M14 14l3 3 3-3" /></svg>Trade</button>
+        <button className={on('replay', 'pos')} onClick={() => go('replay', 'pos')}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h10" /></svg>Positions{badge > 0 && <i className="mbadge">{badge}</i>}</button>
+        <button className={on('journal')} onClick={() => go('journal')}><IJournal />Journal</button>
+      </> : <>
+        <button className={on('new')} onClick={() => go('new')}><IPlus />New</button>
+        <button className={on('library')} onClick={() => go('library')}><ILibrary />Library</button>
+      </>}
+      <button className={more ? ' on' : ''} onClick={() => setMore(!more)}><ISettings />More</button>
+    </nav>
+  </>;
+}
+
+/** a long job's time left, from its pace so far */
+function timeLeft(f: number, el: number) {
+  if (f >= 1 || el < 2 || f < 0.02) return f > 0 ? `${Math.floor(f * 100)}%` : '';
+  const s = el * (1 - f) / f;
+  return `${Math.floor(f * 100)}% · ${s < 50 ? `about ${Math.max(5, Math.round(s / 5) * 5)} s left` : s < 90 ? 'about a minute left' : s < 3600 ? `about ${Math.round(s / 60)} min left` : `about ${(s / 3600).toFixed(1)} h left`}`;
 }
 
 const CLASSIC: Record<string, [string, string]> = {

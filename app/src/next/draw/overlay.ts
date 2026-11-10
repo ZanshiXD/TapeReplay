@@ -41,6 +41,8 @@ export class DrawLayer {
   private crossFor = '';
   private w = 0; private h = 0;
   private finishedAt = 0;
+  /** a finger rather than a mouse: bigger targets */
+  coarse = false;
   /** a right-click on a drawing: the chart shows its menu */
   onMenu: ((x: number, y: number, id: string) => void) | null = null;
 
@@ -189,13 +191,13 @@ export class DrawLayer {
   private inPane(p: XY) { return p.x >= 0 && p.y >= 0 && p.x < this.w && p.y < this.h; }
   hitTest(p: XY): string | null {
     const items = this.store.items;
-    for (let i = items.length - 1; i >= 0; i--) { const d = items[i], pr = this.hits.get(d.id); if (pr && hitPrims(pr, p)) return d.id; }
+    for (let i = items.length - 1; i >= 0; i--) { const d = items[i], pr = this.hits.get(d.id); if (pr && hitPrims(pr, p, this.coarse ? 14 : 5)) return d.id; }
     return null;
   }
   private handleAt(p: XY): { id: string; k: number } | null {
     for (const id of [ds.selected, this.hover]) {
       const hs = id && this.handlesOf.get(id); if (!hs) continue;
-      for (let k = hs.length - 1; k >= 0; k--) if (dist(hs[k], p) <= HANDLE_R + 3) return { id, k };
+      for (let k = hs.length - 1; k >= 0; k--) if (dist(hs[k], p) <= HANDLE_R + (this.coarse ? 14 : 3)) return { id, k };
     }
     return null;
   }

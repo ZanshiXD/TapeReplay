@@ -30,7 +30,9 @@ function drawHint(id: string) {
 const TFS = ['1m', '5m', '15m', '1h', '4h', '1D'];
 export type Layout = 'one' | 'two' | 'four';
 
-export function ReplayPage({ session, saveState, available, onAddMarket, onRemoveMarket, onJump, onToast, openJournal }: {
+export type MView = 'chart' | 'trade' | 'pos';
+export function ReplayPage({ session, saveState, available, onAddMarket, onRemoveMarket, onJump, onToast, openJournal, mview = 'chart' }: {
+  mview?: MView;
   session: Session; saveState: string; available: Array<{ key: string; sym: string; name: string }>; onAddMarket: (key: string) => void; onRemoveMarket: (sym: string) => void;
   onJump: (t: number) => void; onToast: (m: string, k?: string) => void; openJournal: () => void;
 }) {
@@ -41,6 +43,7 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
   const [tip, setTip] = useState(() => pref('tipPlay', true));
   const [tfs, setTfs] = useState<string[]>(() => pref('tfs', TFS));
   const [tfAdd, setTfAdd] = useState<string | null>(null);
+  const [drawOpen, setDrawOpen] = useState(false);
   const s = session, slots = layout === 'one' ? 1 : layout === 'two' ? 2 : 4;
   const shown = layout === 'one' ? [s.activeFeed] : s.feeds.slice(0, slots);
   const free = slots - shown.length;
@@ -80,9 +83,10 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
         {saveState && <span className="muted savestate" title="Sessions save themselves to the Library">{saveState}</span>}
         {indOpen && <IndicatorsPanel session={s} onClose={() => setIndOpen(false)} />}
       </header>
-      <div className="work">
+      <div className="work" data-mview={mview}>
         <div className="col">
-          <div className="chartrow">
+          <div className={'chartrow' + (drawOpen ? ' drawing' : '')}>
+          <button className="pencil" aria-label={drawOpen ? 'Hide the drawing tools' : 'Drawing tools'} aria-pressed={drawOpen} onClick={() => setDrawOpen(!drawOpen)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16zM14 6l3 3" /></svg></button>
           <DrawRail session={s} />
           <div className="charts" style={grid}>
             {shown.map(f => <ChartPane key={f.s.inst.sym} session={s} feed={f} active={f.s.inst.sym === s.active && shown.length > 1}

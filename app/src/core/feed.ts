@@ -7,7 +7,9 @@ import { makeBucket, tfSeconds, type TF } from './time';
 import { makeInd, type Ind, type IndSpec } from './indicators';
 
 /** the chart keeps the most recent candles only (indicators still see all of history) */
-const MAX_CANDLES = 40000, CANDLE_SLACK = 5000;
+let MAX_CANDLES = 40000, CANDLE_SLACK = 5000;
+/** fewer candles kept on phones and tablets, which have less memory and slower drawing */
+export function setCandleCap(max: number, slack: number) { MAX_CANDLES = max; CANDLE_SLACK = slack; }
 
 export interface TickMove { from: number; to: number; jump: boolean }
 export interface FeedSnap { i: number }
