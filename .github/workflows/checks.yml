@@ -53,12 +53,15 @@ jobs:
           (cd app && npx tsx tests/core.test.ts)
           (cd app && npx tsx tests/prop.test.ts)
           (cd app && npx tsx tests/zones.test.ts)
+          (cd app && npx tsx tests/backtest.test.ts)
+          (cd app && npx tsx tests/optimizer.test.ts)
           python tests/test_next.py "$RUNNER_TEMP/shots"
           python tests/test_drawings.py "$RUNNER_TEMP/shots"
           python tests/test_library.py "$RUNNER_TEMP/shots"
           python tests/test_prop_ui.py "$RUNNER_TEMP/shots"
           python tests/test_chart_trade.py "$RUNNER_TEMP/shots"
           TAPE_SKIP_BUILD=1 python tests/test_studies.py "$RUNNER_TEMP/shots"
+          python tests/test_settings.py "$RUNNER_TEMP/shots"
 
       - name: Strategies in the browser
         run: python tests/test_browser.py "$RUNNER_TEMP/shots"
