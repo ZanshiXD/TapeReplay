@@ -1,8 +1,10 @@
-// The indicators on the charts: add one, change its length or color, hide it, or take it off.
+// The indicators on the charts: add one, change its length or color, hide it, or take it off. The chart studies
+// (price zones, session lines) are listed and added here too.
 import { useState } from 'react';
 import type { Session } from '../core/session';
 import { IND_COLORS, indLabel, type IndSpec, type IndType } from '../core/indicators';
-import { setPref } from './live';
+import { setPref, useLive } from './live';
+import { STUDY_CATALOG, StudyRows, addStudy, studyAdded } from './studies/StudySettings';
 import { IClose, ISearch } from './icons';
 
 const CATALOG: Array<{ type: IndType; len: number; name: string; what: string }> = [
@@ -14,11 +16,14 @@ const CATALOG: Array<{ type: IndType; len: number; name: string; what: string }>
 export function IndicatorsPanel({ session, onClose }: { session: Session; onClose: () => void }) {
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState<string | null>(null);
+  useLive();
   const list = session.inds;
   const save = (next: IndSpec[]) => { session.setInds(next); setPref('inds', next); };
   const add = (type: IndType, len: number) => save([...list, { id: Math.random().toString(36).slice(2, 8), type, len, color: IND_COLORS[list.length % IND_COLORS.length], on: true }]);
   const upd = (id: string, p: Partial<IndSpec>) => save(list.map(x => x.id === id ? { ...x, ...p } : x));
-  const shown = CATALOG.filter(c => !q || (c.name + c.what).toLowerCase().includes(q.toLowerCase()));
+  const match = (c: { name: string; what: string }) => !q || (c.name + c.what).toLowerCase().includes(q.toLowerCase());
+  const shown = CATALOG.filter(match), studiesShown = STUDY_CATALOG.filter(c => !studyAdded(c.id) && match(c));
+  const none = !list.length && !STUDY_CATALOG.some(c => studyAdded(c.id));
   return (
     <div className="pop" role="dialog" aria-label="Indicators" style={{ top: 48, left: 300, width: 400, padding: 0, maxHeight: 'calc(100vh - 120px)', overflow: 'auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 10px' }}>
@@ -32,7 +37,7 @@ export function IndicatorsPanel({ session, onClose }: { session: Session; onClos
         </label>
       </div>
       <div className="cap" style={{ padding: '0 16px 6px' }}>On the charts</div>
-      {!list.length && <div className="muted" style={{ padding: '4px 16px 10px', fontSize: 12.5 }}>None yet. Add one below.</div>}
+      {none && <div className="muted" style={{ padding: '4px 16px 10px', fontSize: 12.5 }}>None yet. Add one below.</div>}
       {list.map(x => (
         <div key={x.id}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 16px', opacity: x.on ? 1 : 0.5 }}>
@@ -50,10 +55,16 @@ export function IndicatorsPanel({ session, onClose }: { session: Session; onClos
           )}
         </div>
       ))}
+      <StudyRows session={session} edit={edit} setEdit={setEdit} />
       <div style={{ height: 1, background: 'var(--line2)', margin: '8px 0' }} />
       <div className="cap" style={{ padding: '4px 16px 6px' }}>Add</div>
       {shown.map(c => (
         <button key={c.type} onClick={() => add(c.type, c.len)} style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', textAlign: 'left', padding: '8px 16px', background: 'none', border: 0, cursor: 'pointer' }}>
+          <b>+ {c.name}</b><span className="muted" style={{ fontSize: 12 }}>{c.what}</span>
+        </button>
+      ))}
+      {studiesShown.map(c => (
+        <button key={c.id} onClick={() => { addStudy(c.id); setEdit(null); }} style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', textAlign: 'left', padding: '8px 16px', background: 'none', border: 0, cursor: 'pointer' }}>
           <b>+ {c.name}</b><span className="muted" style={{ fontSize: 12 }}>{c.what}</span>
         </button>
       ))}
