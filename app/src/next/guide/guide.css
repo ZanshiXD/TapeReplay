@@ -61,3 +61,4 @@ html.m .gtocpop .gtoc { width: auto; border: 0; background: none; padding: 0 0 8
 html.m .gtocpop .gtoc button { padding: 10px 12px; font-size: 14px; }
 html.m .gkeys { grid-template-columns: 1fr; }
 html.m .gcode pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+html.m .gcode pre { padding-top: 34px; }
