@@ -516,6 +516,7 @@ export class OptPool {
   private idle() { this.pause(); if (this.idleMs > 0 && isFinite(this.idleMs)) this.idleT = setTimeout(() => this.close(), this.idleMs); }
   /** runs tasks on n workers (a worker that has this job already is not sent it again) */
   async exec(job: OptJob, tasks: Task[], n: number, onResult: (idx: number, res: OptRes) => void): Promise<{ firstErr: string; t0: number }> {
+    if (!tasks.length) return { firstErr: '', t0: 0 };
     this.pause(); this.stopFlag = false;
     const pool = this.grow(Math.max(1, Math.min(n, tasks.length)));
     let next = 0, firstErr = '', t0 = 0;

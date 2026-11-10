@@ -91,10 +91,10 @@ class _FCtx(Context):
     """Context with lazy time, state pulled from JS only when its version changed, and batch syncing."""
 
     def __init__(self, api, info):
-        self._t, self._off, self._tm = None, 0, None
+        self._tk, self._tm = None, None    # ctx.time: the bar or tick being handled (its time, built when read), or set
         self._want, self._have = 0, -1     # the account version JS last announced / the one held here
         self._batch, self._i, self._acted = False, 0, False
-        self._eqpx = None                  # the price equity and open P&L are worked out at
+        self._eqpx = None                  # the price equity and open P&L are worked out at (else ctx.price)
         self._pos, self._avg, self._bal, self._nh, self._trs, self._ods = 0.0, None, 0.0, 0, (), ()
         super().__init__(api, info)
         self._bal = info.get("balance", 0.0)
@@ -103,13 +103,12 @@ class _FCtx(Context):
     # ---- time, built when read
     @property
     def time(self):
-        if self._tm is None and self._t is not None:
-            self._tm = _dt(self._t, self._off)
-        return self._tm
+        tk = self._tk
+        return self._tm if tk is None else tk.time
 
     @time.setter
     def time(self, v):
-        self._tm, self._t = v, None
+        self._tm, self._tk = v, None
 
     # ---- the account, pulled when its version changed
     def _pull(self):
@@ -148,7 +147,7 @@ class _FCtx(Context):
         pass
 
     def _unreal(self, side, qty, entry):
-        p = self._eqpx
+        p = self.price if self._eqpx is None else self._eqpx
         return 0 if p is None else ((p if side > 0 else p + self.spread) - entry) * side * qty * self._pv + 0.0  # no -0.0
 
     @property
@@ -291,17 +290,17 @@ def _tb_bars(buf, n, ver):
         a[:, :k] = ctx._a[:, :k]
         ctx._a = a
     ctx._a[:, k:k + n] = m[:, :6].T  # beyond _k nothing shows, so a batch cut short leaves no trace
-    ctx._want = ver
+    ctx._want, ctx._eqpx = ver, None
     ctx._batch, ctx._acted = True, False
     try:
         for j, (t, o, h, l, c, v, off) in enumerate(m.tolist()):
             ctx._k += 1
             ctx.bar_index += 1
-            ctx._t, ctx._off, ctx._tm = t, int(off), None
-            ctx.price = ctx._eqpx = c
+            ctx._tk = b = _FBar(t, int(off), o, h, l, c, v, ctx.bar_index)
+            ctx.price = c
             ctx._i = j
             if f is not None:
-                f(ctx, _FBar(t, int(off), o, h, l, c, v, ctx.bar_index))
+                f(ctx, b)
                 if ctx._acted:
                     return j + 1
     except Exception:
@@ -315,14 +314,16 @@ def _tb_ticks(buf, n, ver):
     """Ticks, 3 numbers each (time, price, zone offset). Runs on_tick on each, stopping after the first that acted:
     the number of ticks done, or the error text."""
     ctx, f = _S["ctx"], _S["on_tick"]
-    ctx._want = ver
+    ctx._want, ctx._eqpx = ver, None
     ctx._batch, ctx._acted = True, False
+    a = (buf.to_py() if hasattr(buf, "to_py") else memoryview(buf)).tolist()  # flat: [t, price, off, t, ...]
     try:
-        for j, (t, p, off) in enumerate(_rows(buf, n, 3).tolist()):
-            ctx._t, ctx._off, ctx._tm = t, int(off), None
-            ctx.price = ctx._eqpx = p
+        for j in range(n):
+            p = a[3 * j + 1]
+            ctx._tk = tk = _FTick(a[3 * j], int(a[3 * j + 2]), p)
+            ctx.price = p
             ctx._i = j
-            f(ctx, _FTick(t, int(off), p))
+            f(ctx, tk)
             if ctx._acted:
                 return j + 1
     except Exception:

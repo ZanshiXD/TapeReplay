@@ -26,6 +26,8 @@ export interface Costs { comm: number; spreadTicks: number; slipTicks: number }
 
 /** prop rules and the prop simulation, when they come to the core: checked like the classic app's propTick/simTick */
 export interface RunRules {
+  /** once, before the first bar: the run's account (its quote has the price and time) */
+  start?(account: Account): void;
   /** true when nothing can change for the rules from now to t1 while flat (the fast path's gate) */
   idle(t1: number): boolean;
   /** after each tick's engine fills, before the strategy's queued orders: a message ends the run */
@@ -322,7 +324,10 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
   let buf = new Float64Array(7 * 64);
   const room = (n: number) => { if (buf.length < n) { const b = new Float64Array(Math.max(n, buf.length * 2)); b.set(buf); buf = b; } };
   // quiet bars ahead: the candles that close in them, to the strategy all at once
+  // a batch grows while the strategy lets whole batches pass, and starts small again after it acts (scanning bars
+  // ahead that a strategy acting on the next candle never reaches would cost more than it saves)
   const BATCH_BARS = 20000, BATCH_CANDLES = 512;
+  let want = 2;
   let C: { time: number; o: number; h: number; l: number; c: number; v: number } | null = null;
   const bucketOf = makeBucket(tf);
   const ends: number[] = [];
@@ -334,7 +339,7 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
   const flatBatch = (): string | null => {
     let j = feed.i, nc = 0, c = C ? { ...C } : null;
     ends.length = 0;
-    while (j < end && j - feed.i < BATCH_BARS && nc < BATCH_CANDLES) {
+    while (j < end && j - feed.i < BATCH_BARS && nc < want) {
       if (rules && !rules.idle(s.t[j] + s.base)) break;
       if (j > feed.i) { const pc = s.c[j - 1], rc = feed.round(pc); if (!quiet0(j, Math.min(pc, rc), Math.max(pc, rc))) break; }
       const v = s.v[j] || 0;
@@ -357,6 +362,7 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
       if (typeof r === 'string') return r;
       playBars(r - 1);
       candles += r;
+      want = r === nc ? Math.min(BATCH_CANDLES, want * 2) : 2;
     } finally { batch = null; }
     return null;
   };
@@ -367,7 +373,7 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
       const i = feed.i, mv = feed.step()!; sync();
       account.onTick(sym, mv.from, mv.to, mv.jump);
       if (feed.i !== i) barEnd(i);
-      if (rules) { const m = rules.afterTick(); if (m) ended ||= m; }
+      afterTick();
       b.done++;
     }
   }
@@ -381,7 +387,8 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
   const tickBatch = (m: number): string | null => {
     const i = feed.i, k0 = feed.k, F = feed.tkF, P = feed.tkP, t = s.t[i];
     room(3 * m);
-    for (let k = 0; k < m; k++) { const tt = t + F[k0 + k] * s.base; buf[3 * k] = tt; buf[3 * k + 1] = P[k0 + k]; buf[3 * k + 2] = zoneOff(tt); }
+    const z0 = zoneOff(t), z1 = zoneOff(t + s.base); // one offset for the bar, unless the clocks change inside it
+    for (let k = 0; k < m; k++) { const tt = t + F[k0 + k] * s.base; buf[3 * k] = tt; buf[3 * k + 1] = P[k0 + k]; buf[3 * k + 2] = z0 === z1 ? z0 : zoneOff(tt); }
     batch = { bars: false, ends, done: 0 };
     try {
       const r = bridge.ticks(buf.subarray(0, 3 * m), m, account.version);
@@ -406,10 +413,13 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
 
   /* ---- the run ---- */
   let fail: string | null = null, started = false, stopped = false, ended = '';
+  // the prop rules after a tick's fills: a message ends the run
+  function afterTick() { if (!rules || ended) return; const m = rules.afterTick(); if (m) { ended = m; log(`${fmtDay(feed.time)} ${m}`, 'er'); } }
   const info: StratInfo = { name: cfg.name ?? sym, tf: tfLabel(tf), tick: inst.tick, pv: inst.pv, spread, qty: cfg.qty ?? 1, prec, mode, balance: account.start, quiet, overrides: cfg.overrides || {} };
   const done = () => (feed.i - start) / total;
   const progress = (): Progress => ({ done: done(), time: feed.time, trades: account.hist.length, status: `${fmtDT(feed.time).slice(0, 10)} · ${account.hist.length} trades` });
   try {
+    if (rules && rules.start) rules.start(account);
     const r = bridge.start(api, info);
     started = true;
     if (r.error) fail = r.error;
@@ -425,7 +435,7 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
           if (feed.k === 0 && !queued && !fills.length && !tickMode && (!rules || rules.idle(s.t[i] + s.base)) && quietNow()) {
             // nothing can fill: step over the bars' ticks (the same end state); candles to the strategy in batches
             if (bridge.batch) fail = flatBatch();
-            else { skip(); sync(); fail = addBar(i); }
+            else { skip(); fail = addBar(i); }
           } else {
             let m = 0;
             if (tickMode && bridge.batch && !queued && !fills.length && (!rules || rules.idle(s.t[i] + s.base)) && (m = safeTicks()) > 0) fail = tickBatch(m);
@@ -433,7 +443,7 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
               const mv = feed.step()!; sync();
               account.onTick(sym, mv.from, mv.to, mv.jump);
               if (feed.i !== i) barEnd(i);
-              if (rules) { const msg = rules.afterTick(); if (msg) { ended = msg; log(`${fmtDay(feed.time)} ${msg}`, 'er'); } }
+              afterTick();
               if (queued) execPending();
               if (fills.length) fail = deliverFills(onFill);
               if (!fail && tickMode) {
@@ -444,7 +454,7 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
             }
             if (!fail && feed.i !== i) fail = addBar(i);
           }
-          if ((++n & 63) === 0 && now() > until) break;
+          if (((++n & 63) === 0 || feed.i - i > 16) && now() > until) break;
         }
         emit();
         if (slice && feed.i < end && !fail) await slice(progress());

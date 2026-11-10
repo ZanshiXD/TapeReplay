@@ -2,10 +2,11 @@
 //   npx tsx tests/backtest.test.ts        (Python: public/pyodide, from npm run pyodide)
 import { computeStats, runBacktest, statsRows, tradesCsv, type Bridge, type RunConfig, type RunResult } from '../src/core/backtest';
 import { jsApply, jsCheck, jsParams, jsStrategy } from '../src/core/jsstrategy';
-import { pyClassicStrategy, pyParams, pySetValues, pyStrategy, type PyHost } from '../src/core/pybridge';
+import { pandasErr, pyClassicStrategy, pyParams, pySetValues, pyStrategy, type PyHost } from '../src/core/pybridge';
+import { practiceSeries } from '../src/core/practice';
 import { Feed } from '../src/core/feed';
 import { parseTF, setZone } from '../src/core/time';
-import { INST, check, near, passed, python, series, walk } from './helpers';
+import { APP, INST, check, near, passed, python, readFileSync, series, walk } from './helpers';
 
 setZone('America/New_York');
 const tf = (s: string) => parseTF(s)!;
@@ -294,6 +295,45 @@ def on_bar(ctx, bar):
   const csv = tradesCsv(h).split('\n');
   check(csv[0] === 'id,side,size,entry_time,entry,exit_time,exit,exit_by,stop_loss,take_profit,gross,costs,net' && csv.length === h.length + 1 && /^\d+,(long|short),\d+,2026-\d\d-\d\d \d\d:\d\d:\d\d,/.test(csv[1]), 'trades as CSV, the classic columns');
   check(r.log[r.log.length - 1][0] === `${st.trades} trades, net ${st.net >= 0 ? '+' : '−'}$${Math.abs(st.net).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${st.open ? `, ${st.open} still open` : ''}.`, 'the summary line');
+}
+
+/* ---- the classic app's templates on practice data: the batched runner gives the classic calls' results ---- */
+{
+  const src = readFileSync(APP + 'src/app.ts', 'utf8') as string, tpl = (name: string) => {
+    const m = src.match(new RegExp(`'${name}': \`([\\s\\S]*?)\`,\\n`)); if (!m) throw new Error('no template ' + name); return m[1];
+  };
+  const T0 = Date.UTC(2026, 3, 1, 4) / 1000, [nq] = await practiceSeries(['NQ'], T0, T0 + 2 * 86400);
+  for (const [name, mode, t] of [['MA cross', 'bar', '5m'], ['Opening range breakout', 'bar', '5m'], ['Breakout with trailing stop', 'tick', '5m']] as const) {
+    const code = tpl(name), cfg = { series: nq, mode, tf: tf(t), qty: 2 };
+    const a = await run(cfg, pyStrategy(host, code)), b = await run({ ...cfg, classicPath: true }, pyClassicStrategy(host, code));
+    check(!a.fail && !b.fail && a.account.hist.length >= 2 && sig(a) === sig(b) && lines(a).join('\n') === lines(b).join('\n') && a.account.maxDD === b.account.maxDD,
+      `template "${name}": the same trades, console and drawdown (${a.account.hist.length} trades, ${a.account.hist[0].qty} contracts, ${a.secs.toFixed(2)} s vs ${b.secs.toFixed(2)} s)`);
+  }
+}
+
+/* ---- hooks for prop rules: an order refused, a run ended ---- */
+{
+  let acc: any = null, ticks = 0;
+  const rules = {
+    start(a: any) { acc = a; },
+    idle: () => false,
+    afterTick() { ticks++; return acc.hist.length >= 3 ? 'The account failed, so the run ends here.' : null; },
+    block: (adds: number) => adds > 1 ? 'Rule breach: at most 1 contract.' : null,
+  };
+  const r = await run({ series: walk(3000, 8), rules }, jsStrategy('function on_bar(ctx, bar) { if (!ctx.position) ctx.buy({ qty: bar.index === 0 ? 2 : 1, sl: bar.close - 2, tp: bar.close + 2 }); }'));
+  check(r.ended === 'The account failed, so the run ends here.' && r.account.hist.length === 3 && r.bars < 2999 && ticks > 0, `a rule ends the run (${r.bars} bars)`);
+  check(r.log.some(x => /Order rejected: Rule breach: at most 1 contract\.$/.test(x[0])) && r.log.some(x => x[0].endsWith(' The account failed, so the run ends here.')), 'a rule refuses an order; both in the console');
+}
+
+/* ---- pandas ---- */
+{
+  const code = 'import pandas as pd\ndef on_bar(ctx, bar):\n    if bar.index == 5:\n        d = ctx.df(4)\n        print(list(d.columns), len(d), d.index.tz, isinstance(d, pd.DataFrame))\n';
+  check(pandasErr(code, ['numpy']) === 'This strategy uses pandas: choose "numpy + pandas" under Libraries.' && pandasErr(code, ['numpy', 'pandas']) === null, 'pandas is refused unless chosen');
+  const nop = await run({ series: walk(50) }, pyStrategy(host, 'def on_bar(ctx, bar):\n    ctx.df()\n'));
+  check(nop.fail?.startsWith("RuntimeError: pandas is not loaded: choose 'numpy + pandas' under Libraries, then run again.") === true, 'ctx.df without pandas');
+  await host.need(['pandas']);
+  const r = await run({ series: walk(50) }, pyStrategy(host, code));
+  check(r.log.some(x => x[0] === "['open', 'high', 'low', 'close', 'volume'] 4 UTC-05:00 True"), `ctx.df with pandas (${r.fail || lines(r)[1]})`);
 }
 
 console.log(`backtest: ${passed} checks passed in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
