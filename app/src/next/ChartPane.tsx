@@ -7,7 +7,9 @@ import type { Session } from '../core/session';
 import type { Feed } from '../core/feed';
 import type { Trade, Order } from '../core/account';
 import { smoney } from '../core/account';
-import { crossLabel, tickLabel } from '../core/time';
+import { crossLabel, tickLabel, tfSeconds } from '../core/time';
+/** the time left in a candle, as 4:05 or 1:02:30 */
+const closesIn = (s: number) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
 import { indLabel } from '../core/indicators';
 import { frameHooks, useLive } from './live';
 import { IClose } from './icons';
@@ -131,7 +133,8 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     chart.timeScale().scrollToRealTime();
     chart.subscribeCrosshairMove(p => {
       const d = p.time != null ? p.seriesData.get(cs) as { open: number; high: number; low: number; close: number } | undefined : undefined;
-      setHover(d ? { o: d.open, h: d.high, l: d.low, c: d.close, v: 0 } : null);
+      const vd = p.time != null ? p.seriesData.get(vs) as { value: number } | undefined : undefined;
+      setHover(d ? { o: d.open, h: d.high, l: d.low, c: d.close, v: vd?.value || 0 } : null);
     });
 
     // dragging a stop, a target or an order (a finger gets a wider line to grab)
@@ -232,7 +235,9 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
           <span className={'badge' + (sym === 'ES' ? ' b1' : '')}>{sym}</span>
           <b>{feed.s.inst.name}</b>
           {b && <><span><span className="k">O</span> {n(b.o)}</span><span><span className="k">H</span> {n(b.h)}</span><span><span className="k">L</span> {n(b.l)}</span><span><span className="k">C</span> {n(b.c)}</span>
-            <span className={ch >= 0 ? 'up' : 'down'}>{ch >= 0 ? '+' : ''}{ch.toFixed(2)}%</span></>}
+            <span className={ch >= 0 ? 'up' : 'down'}>{ch >= 0 ? '+' : ''}{ch.toFixed(2)}%</span>
+            {feed.s.hasVol && b.v > 0 && <span><span className="k">V</span> {b.v >= 1e6 ? (b.v / 1e6).toFixed(2) + 'M' : b.v >= 1e4 ? (b.v / 1e3).toFixed(1) + 'K' : Math.round(b.v)}</span>}
+            {!hover && F && <span className="k" title="Time left in this candle">{closesIn(F.time + tfSeconds(feed.tf) - feed.time)}</span>}</>}
           {active && session.feeds.length > 1 && <span className="trading">Trading this chart</span>}
         </div>
         {feed.inds.length > 0 && <div className="inds">{feed.inds.map((x, k) => { const v = feed.peek(k); return <span key={x.spec.id} style={{ background: hexA(x.spec.color, 0.14), color: x.spec.color }}>{indLabel(x.spec)}{v != null ? ' · ' + v.toFixed(prec) : ''}</span>; })}</div>}
