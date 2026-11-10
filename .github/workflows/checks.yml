@@ -64,7 +64,9 @@ jobs:
           python tests/test_settings.py "$RUNNER_TEMP/shots"
 
       - name: Strategies in the browser
-        run: python tests/test_browser.py "$RUNNER_TEMP/shots"
+        run: |
+          python tests/test_browser.py "$RUNNER_TEMP/shots"
+          TAPE_SKIP_BUILD=1 python tests/test_backtest_ui.py "$RUNNER_TEMP/shots"
 
       - name: Python indicators in the browser
         run: python tests/test_indicator_browser.py "$RUNNER_TEMP/shots"
