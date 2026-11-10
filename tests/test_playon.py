@@ -1,11 +1,14 @@
 """Windows app: a session on a long series that plays on to the end of the data. It loads the next month as the
 replay reaches it, lets go of the oldest bars (here sooner than in the app), stops at the real end, and reopens from
 the Library with the same bars. Uses the generated practice data through the desktop app's server.
-Build the page first (see test_browser.py), then:
+Builds its own test copy of the page (vite build --mode test: unminified, with a hook to reach the app's inner
+state), then:
     python tests/test_playon.py [folder for screenshots]
 """
 import asyncio
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -21,6 +24,10 @@ def serve():
     os.environ["APPDATA"] = tempfile.mkdtemp(prefix="tape-appdata-")
     sys.path.insert(0, os.path.join(ROOT, "desktop"))
     import app
+    # the test build (needs app/node_modules and app/public/pyodide, as for desktop/build.py)
+    app_dir = os.path.join(ROOT, "app")
+    subprocess.check_call([shutil.which("npm") or "npm", "run", "build", "--", "--mode", "test", "--outDir", "dist-test"], cwd=app_dir)
+    app.WEB_DIR = os.path.join(app_dir, "dist-test")
     for d in (app.DATASETS, app.SESSIONS):
         os.makedirs(d, exist_ok=True)
     srv = app.ExclusiveServer(("127.0.0.1", 0), app.Handler)
@@ -41,7 +48,7 @@ def on_bar(ctx, bar):
     elif f < s and ctx.position >= 0:
         ctx.close(); ctx.sell(1)
 """
-# the page's inner functions, reached by a line added to the page as it is served (the page itself is unchanged)
+# the page's inner functions, through the test build's __dbg hook
 n = 0
 def check(c, m):
     global n
@@ -52,12 +59,7 @@ async def main():
         b = await p.chromium.launch()
         ctx = await b.new_context(viewport={"width": 1400, "height": 900}, color_scheme="dark")
         pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
-        async def patch(route):
-            r = await route.fetch(); body = await r.text()
-            body = body.replace("\n})();\n</script>", "\nwindow.__dbg = s => eval(s);\n})();\n</script>")
-            body = body.replace("CONT_KEEP = () => MAX_BARS * 0.6", "CONT_KEEP = () => 0.9e6")  # let go of old bars sooner, so the test sees it
-            await route.fulfill(response=r, body=body)
-        await pg.route("**/index.html*", patch)
+        await ctx.add_init_script("window.__TAPE_CONT_KEEP = 0.9e6")  # let go of old bars sooner, so the test sees it
         await pg.goto(URL); await pg.wait_for_selector("#home:not([hidden])")
         await pg.click("#hNew"); await pg.wait_for_selector("#modal:not([hidden])")
         opts = await pg.eval_on_selector_all("#fSpan option", "o => o.map(x => x.textContent)")

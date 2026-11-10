@@ -21,7 +21,7 @@ signs it for the App Store with your API key, and uploads it to App Store Connec
 
 1. **Install Git for Windows** (git-scm.com), and sign in to github.com.
 2. **Create a private repository** on github.com (e.g. `tape-replay`), empty (no README).
-3. **Push this folder** from a terminal opened in this project folder (the one holding `tape-replay.html`):
+3. **Push this folder** from a terminal opened in this project folder (the one holding `app/`, `desktop/` and `ios/`):
 
    ```bash
    git init -b main
@@ -61,8 +61,8 @@ the archive signed with your own Apple Development certificate instead (still wi
    ("Data Not Collected"), age rating, screenshots (6.9-inch iPhone and 13-inch iPad), then pick the build and
    **Submit for Review**.
 
-Build numbers come from the workflow's run number, so every upload is higher than the last. After changing
-`tape-replay.html`, run `python3 ios/sync_web.py` and commit before releasing.
+Build numbers come from the workflow's run number, so every upload is higher than the last. The release workflow
+builds the page (`app/`) itself, so there is nothing to copy or commit first.
 
 ## Before review
 

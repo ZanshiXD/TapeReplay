@@ -1,6 +1,6 @@
 """End to end: Python indicators in the bundled page (desktop/web, as the apps ship it) with real Python, driven
 through the Indicators pop-up and the Indicator panel in Chromium. Build the page and Python first, then run:
-    python -c "import sys; sys.path.insert(0, 'desktop'); import build; build.vendor(); build.page()"
+    python -c "import sys; sys.path.insert(0, 'desktop'); import build; build.web()"
     python tests/test_indicator_browser.py [folder for screenshots]
 Needs playwright (python -m playwright install chromium).
 """

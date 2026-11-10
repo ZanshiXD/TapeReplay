@@ -6,9 +6,14 @@
 desktop/data/
 
 # build output
-# Python for strategies (Pyodide, numpy, pandas): downloaded by desktop/build.py and ios/sync_web.py
-desktop/web/pyodide/
-ios/Sources/TapeReplay/web/pyodide/
+# the page (app/, Vite + TypeScript) builds to app/dist; desktop/build.py and ios/sync_web.py copy it into the apps
+app/node_modules/
+app/dist/
+app/dist-test/
+desktop/web/
+ios/Sources/TapeReplay/web/
+# Python for strategies (Pyodide, numpy, pandas): downloaded by app/scripts/fetch_pyodide.py
+app/public/pyodide/
 desktop/dist*/
 desktop/build/
 desktop/*.spec

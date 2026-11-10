@@ -1,4 +1,4 @@
-"""The Python strategy runtime (the <script id="trRuntime"> block in tape-replay.html), run by CPython with a
+"""The Python strategy runtime (app/src/python/runtime.py), run by CPython with a
 fake page API standing in for Pyodide and the replay engine. Needs numpy and pandas.
     python tests/test_runtime.py
 """
@@ -10,8 +10,8 @@ import sys
 import types
 from contextlib import redirect_stdout
 
-PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tape-replay.html")
-src = re.search(r'<script type="text/x-python" id="trRuntime">\n(.*?)</script>', open(PAGE, encoding="utf-8").read(), re.S).group(1)
+RUNTIME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "src", "python", "runtime.py")
+src = open(RUNTIME, encoding="utf-8").read()
 rt = types.ModuleType("rt")
 exec(compile(src, "trRuntime", "exec"), rt.__dict__)
 

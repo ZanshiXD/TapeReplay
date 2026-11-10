@@ -1,8 +1,7 @@
 """Build TapeReplay.exe.
 
-1. Copies ../tape-replay.html into web/index.html, pointing it at local copies of
-   the chart library and fonts so the app works offline, and puts Python (Pyodide, with numpy and pandas)
-   in web/pyodide/ for strategy backtests. Those downloads happen once and are not kept in git.
+1. Builds the page (../app, Vite + TypeScript, with Python for strategy backtests bundled) and copies it
+   into web/, so the app works offline. Needs Node.js.
 2. Draws the app icon, and writes _version.py from TAPE_VERSION (the release version; 0.0.0-dev otherwise).
 3. Runs PyInstaller to produce a single-file dist/TapeReplay.exe, including .tapepack files from data/
    (build_pack.py), installed into the Library on first launch. .tapeseries files (build_series.py) are
@@ -11,110 +10,28 @@
 Run with the Python that has pyinstaller and pywebview installed:
     python build.py [output folder, default dist]
 """
-import hashlib
-import io
-import json
 import os
-import re
 import shutil
 import struct
 import subprocess
 import sys
-import tarfile
-import urllib.request
 import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WEB = os.path.join(HERE, "web")
-SRC = os.path.join(HERE, "..", "tape-replay.html")
-LW_URL = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"
-FONTS_URL = ("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600;700"
-             "&family=JetBrains+Mono:wght@400;500;600&display=swap")
-# Python for strategy backtests: Pyodide (CPython compiled to WebAssembly). Keep the version in step with
-# PYODIDE_VER in tape-replay.html. The core comes from the GitHub release, the packages from Pyodide's CDN.
-PYODIDE_VERSION = "0.27.7"
-PYODIDE_CORE_URL = f"https://github.com/pyodide/pyodide/releases/download/{PYODIDE_VERSION}/pyodide-core-{PYODIDE_VERSION}.tar.bz2"
-PYODIDE_CDN = f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/"
-PYODIDE_CORE = ["pyodide.js", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json"]
-PYODIDE_PACKAGES = ["numpy", "pandas"]  # plus what they depend on
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+APP = os.path.join(HERE, "..", "app")  # the page's source: a Vite + TypeScript project
 
 
-def fetch(url, timeout=60):
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read()
-
-
-def vendor_pyodide():
-    """web/pyodide/: the Pyodide runtime with numpy and pandas, so strategies run offline."""
-    dest = os.path.join(WEB, "pyodide")
-    stamp = os.path.join(dest, "VERSION")
-    want = PYODIDE_VERSION + " " + " ".join(PYODIDE_PACKAGES)
-    if os.path.isfile(stamp) and open(stamp, encoding="utf-8").read().strip() == want:
-        return
-    print(f"Downloading Python (Pyodide {PYODIDE_VERSION}) for strategy backtests...")
-    shutil.rmtree(dest, ignore_errors=True)
-    os.makedirs(dest)
-    with tarfile.open(fileobj=io.BytesIO(fetch(PYODIDE_CORE_URL, 300)), mode="r:bz2") as tar:
-        for name in PYODIDE_CORE:
-            with open(os.path.join(dest, name), "wb") as f:
-                f.write(tar.extractfile("pyodide/" + name).read())
-    with open(os.path.join(dest, "pyodide-lock.json"), encoding="utf-8") as f:
-        packages = json.load(f)["packages"]
-    need, todo = set(), list(PYODIDE_PACKAGES)
-    while todo:
-        name = todo.pop()
-        if name not in need:
-            need.add(name)
-            todo += packages[name]["depends"]
-    for name in sorted(need):
-        p = packages[name]
-        data = fetch(PYODIDE_CDN + p["file_name"], 300)
-        if hashlib.sha256(data).hexdigest() != p["sha256"]:
-            raise SystemExit(f"{p['file_name']} did not match its checksum in pyodide-lock.json")
-        with open(os.path.join(dest, p["file_name"]), "wb") as f:
-            f.write(data)
-        print("  ", p["file_name"], f"{len(data) / 1e6:.1f} MB")
-    with open(stamp, "w", encoding="utf-8") as f:
-        f.write(want + "\n")
-
-
-def vendor():
-    os.makedirs(os.path.join(WEB, "fonts"), exist_ok=True)
-    lw = os.path.join(WEB, "lw.js")
-    if not os.path.isfile(lw):
-        with open(lw, "wb") as f:
-            f.write(fetch(LW_URL))
-    css_path = os.path.join(WEB, "fonts.css")
-    if not os.path.isfile(css_path):
-        css = fetch(FONTS_URL).decode("utf-8")
-        # keep only the latin subsets; the UI never needs the others
-        blocks = re.findall(r"/\* ([\w-]+) \*/\s*(@font-face \{.*?\})", css, re.S)
-        out = []
-        for i, (subset, block) in enumerate(blocks):
-            if subset != "latin":
-                continue
-            url = re.search(r"url\((https://[^)]+)\)", block).group(1)
-            name = f"f{i}.woff2"
-            with open(os.path.join(WEB, "fonts", name), "wb") as f:
-                f.write(fetch(url))
-            out.append(block.replace(url, "fonts/" + name))
-        with open(css_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(out))
-    vendor_pyodide()
-
-
-def page():
-    with open(SRC, encoding="utf-8") as f:
-        html = f.read()
-    html = re.sub(r'<link rel="preconnect"[^>]*>\n?', "", html)
-    html = re.sub(r'<link rel="stylesheet" href="https://fonts\.googleapis\.com[^"]*">', '<link rel="stylesheet" href="fonts.css">', html)
-    html = html.replace(f'<script src="{LW_URL}"></script>', '<script src="lw.js"></script>')
-    assert 'src="lw.js"' in html, "chart library tag not found in tape-replay.html"
-    head = '<!doctype html>\n<html lang="en">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-    with open(os.path.join(WEB, "index.html"), "w", encoding="utf-8") as f:
-        f.write(head + html)
+def web():
+    """web/: the built page (app/dist), with Python (Pyodide, numpy, pandas) for strategy backtests, so the app
+    works offline. Needs Node.js (npm) and Python; the Pyodide download happens once and is not kept in git."""
+    subprocess.check_call([sys.executable, os.path.join(APP, "scripts", "fetch_pyodide.py")])
+    npm = shutil.which("npm") or "npm"
+    if not os.path.isdir(os.path.join(APP, "node_modules")):
+        subprocess.check_call([npm, "ci"], cwd=APP)
+    subprocess.check_call([npm, "run", "build"], cwd=APP)
+    shutil.rmtree(WEB, ignore_errors=True)
+    shutil.copytree(os.path.join(APP, "dist"), WEB)
 
 
 def png(size, rounded=True, alpha=True):
@@ -162,8 +79,7 @@ def main():
     # the version the app reports and compares with releases (TAPE_VERSION=1.2.0 for a release build)
     with open(os.path.join(HERE, "_version.py"), "w", encoding="utf-8") as f:
         f.write(f'VERSION = "{os.environ.get("TAPE_VERSION") or "0.0.0-dev"}"\n')
-    vendor()
-    page()
+    web()
     ico = os.path.join(HERE, "icon.ico")
     icon(ico)
     extra = []
