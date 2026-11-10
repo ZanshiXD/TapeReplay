@@ -53,6 +53,7 @@ jobs:
           (cd app && npx tsx tests/core.test.ts)
           python tests/test_next.py "$RUNNER_TEMP/shots"
           python tests/test_drawings.py "$RUNNER_TEMP/shots"
+          python tests/test_library.py "$RUNNER_TEMP/shots"
 
       - name: Strategies in the browser
         run: python tests/test_browser.py "$RUNNER_TEMP/shots"

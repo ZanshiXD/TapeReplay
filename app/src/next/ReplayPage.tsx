@@ -29,8 +29,8 @@ function drawHint(id: string) {
 const TFS = ['1m', '5m', '15m', '1h', '4h', '1D'];
 export type Layout = 'one' | 'two' | 'four';
 
-export function ReplayPage({ session, available, onAddMarket, onJump, onToast, openJournal }: {
-  session: Session; available: Array<{ sym: string; name: string }>; onAddMarket: (sym: string) => void;
+export function ReplayPage({ session, saveState, available, onAddMarket, onRemoveMarket, onJump, onToast, openJournal }: {
+  session: Session; saveState: string; available: Array<{ key: string; sym: string; name: string }>; onAddMarket: (key: string) => void; onRemoveMarket: (sym: string) => void;
   onJump: (t: number) => void; onToast: (m: string, k?: string) => void; openJournal: () => void;
 }) {
   useLive();
@@ -65,11 +65,12 @@ export function ReplayPage({ session, available, onAddMarket, onJump, onToast, o
           <button className="btn sm" disabled={!available.length} title={available.length ? 'Add another market on the same clock, to compare or trade both' : 'Every market that covers these dates is open'} onClick={() => setAddOpen(!addOpen)}><IPlus width={13} height={13} /> Add market</button>
           {addOpen && (
             <div className="pop menu" role="menu" style={{ top: 40, left: 0 }} onMouseLeave={() => setAddOpen(false)}>
-              {available.map(m => <button key={m.sym} role="menuitem" onClick={() => { setAddOpen(false); onAddMarket(m.sym); if (layout === 'one') pick('two'); }}>{m.name}<span>{m.sym}</span></button>)}
+              {available.map(m => <button key={m.key} role="menuitem" onClick={() => { setAddOpen(false); onAddMarket(m.key); if (layout === 'one') pick('two'); }}>{m.name}<span>{m.sym}</span></button>)}
             </div>
           )}
         </div>
         <span className="spacer" />
+        {saveState && <span className="muted savestate" title="Sessions save themselves to the Library">{saveState}</span>}
         {indOpen && <IndicatorsPanel session={s} onClose={() => setIndOpen(false)} />}
       </header>
       <div className="work">
@@ -78,7 +79,7 @@ export function ReplayPage({ session, available, onAddMarket, onJump, onToast, o
           <DrawRail session={s} />
           <div className="charts" style={grid}>
             {shown.map(f => <ChartPane key={f.s.inst.sym} session={s} feed={f} active={f.s.inst.sym === s.active && shown.length > 1}
-              onToast={onToast} onRemove={s.feeds.length > 1 && layout !== 'one' ? () => s.removeMarket(f.s.inst.sym) : undefined} />)}
+              onToast={onToast} onRemove={s.feeds.length > 1 && layout !== 'one' ? () => onRemoveMarket(f.s.inst.sym) : undefined} />)}
             {Array.from({ length: free }, (_, k) => (
               <div key={'free' + k} className="pane pane-empty">
                 {available.length ? <button className="btn" onClick={() => setAddOpen(true)}><IPlus width={13} height={13} /> Add a market to compare</button> : <span>Open another market here to compare</span>}

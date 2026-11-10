@@ -2,7 +2,7 @@
 // drive it with play/pause and the step buttons, and call frame() on every animation frame while playing.
 import { Account, type AccountEvent, type AccountState, type Quote, type Side } from './account';
 import { Feed, type FeedSnap } from './feed';
-import { DrawStore } from './drawings';
+import { DrawStore, type Drawing } from './drawings';
 import type { IndSpec } from './indicators';
 import { journalEntry, type JournalEntry } from './journal';
 import type { Series } from './series';
@@ -19,6 +19,13 @@ export interface SessionSetup {
   inds?: IndSpec[];
 }
 export interface SessionEvent extends AccountEvent { at: number }
+/** everything needed to reopen a session where it was left, given the same markets */
+export interface SessionState {
+  v: 2; simTime: number; active: string; speed: number; tf: TF; inds: IndSpec[];
+  /** each market's place: the time of the next bar to play (null at the end) */
+  feeds: Array<{ sym: string; at: number | null }>;
+  account: AccountState; journal: JournalEntry[]; drawings: Drawing[];
+}
 interface Snapshot { time: number; feeds: FeedSnap[]; account: AccountState; journal: number }
 
 /** a quiet stretch this long (the daily break, nights, weekends) is jumped over rather than played in real time */
@@ -210,6 +217,41 @@ export class Session {
     const err = this.account.submit(sym, side, type, price, sl, tp, qty);
     this.changed();
     return err;
+  }
+
+  /* ---- saving and reopening ---- */
+  state(): SessionState {
+    return {
+      v: 2, simTime: this.simTime, active: this.active, speed: this.speed, tf: this.tf, inds: this.inds,
+      feeds: this.feeds.map(f => ({ sym: f.s.inst.sym, at: f.i < f.s.n ? f.s.t[f.i] : null })),
+      account: this.account.state(), journal: this.journal, drawings: this.drawings.state(),
+    };
+  }
+  /** puts a session back where state() left it (its markets already loaded the same way) */
+  load(x: SessionState) {
+    this.tf = x.tf; this.inds = x.inds; this.speed = x.speed || this.speed;
+    for (const f of this.feeds) {
+      const p = x.feeds.find(q => q.sym === f.s.inst.sym);
+      f.configure(x.tf, x.inds);
+      f.seek(p ? (p.at == null ? Infinity : p.at) : f.time);
+    }
+    if (this.feeds.some(f => f.s.inst.sym === x.active)) this.active = x.active;
+    this.account.load(x.account);
+    this.journal = x.journal || [];
+    this.drawings.load(x.drawings || []);
+    this.simTime = Math.max(x.simTime, ...this.feeds.map(f => f.time));
+    this.snaps = []; this.takeSnap();
+    this.changed();
+  }
+  /** more bars for a market that plays on past what was loaded (a long series, a month at a time) */
+  extend(sym: string, more: { t: Float64Array; o: ArrayLike<number>; h: ArrayLike<number>; l: ArrayLike<number>; c: ArrayLike<number>; v: ArrayLike<number>; n: number }) {
+    const f = this.feeds.find(x => x.s.inst.sym === sym); if (!f || !more.n) return;
+    f.append(more);
+  }
+  /** lets go of a market's bars before time t (memory stays level however long the replay plays) */
+  trim(sym: string, t: number) {
+    const f = this.feeds.find(x => x.s.inst.sym === sym); if (!f) return;
+    if (f.dropBefore(t) > 0) { this.snaps = []; this.takeSnap(); }
   }
 
   /* ---- what the charts show ---- */
