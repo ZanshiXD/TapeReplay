@@ -7,6 +7,7 @@ import { IND_COLORS, indLabel, type IndSpec, type IndType } from '../core/indica
 import { setPref, useLive } from './live';
 import { STUDY_CATALOG, StudyRows, addStudy, studyAdded } from './studies/StudySettings';
 import { IClose, ISearch } from './icons';
+import { PySection } from './py/PySection';
 
 const CATALOG: Array<{ type: IndType; len: number; name: string; what: string }> = [
   { type: 'ema', len: 20, name: 'Exponential moving average (EMA)', what: 'The average price, leaning on recent candles. Price above it: an uptrend.' },
@@ -69,6 +70,7 @@ export function IndicatorsPanel({ session, onClose }: { session: Session; onClos
           <b>+ {c.name}</b><span className="muted" style={{ fontSize: 12 }}>{c.what}</span>
         </button>
       ))}
+      <PySection session={session} />
       <div style={{ height: 10 }} />
     </div>
   );

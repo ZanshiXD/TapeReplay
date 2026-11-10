@@ -57,7 +57,7 @@ LAYERS = """() => [...document.querySelectorAll('.pane .lw canvas.studylayer')].
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let px = 0;
     for (let i = 3; i < d.length; i += 4) if (d[i]) px++;
     return { zones: +(c.dataset.zones || 0), sessions: +(c.dataset.sessions || 0), px,
-             under: c.nextElementSibling && c.nextElementSibling.classList.contains('drawlayer') };
+             under: !!c.parentElement.querySelector(':scope > canvas.studylayer ~ canvas.drawlayer') };  // drawn before (under) the drawings
 })"""
 FPS = """() => new Promise(r => { let n = 0, t0 = performance.now(), worst = 0, last = t0;
     const f = now => { n++; worst = Math.max(worst, now - last); last = now; if (now - t0 < 2000) requestAnimationFrame(f); else r({ fps: n / ((now - t0) / 1000), worst }); };

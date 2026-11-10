@@ -15,6 +15,7 @@ import { frameHooks, useLive } from './live';
 import { IClose } from './icons';
 import { DrawLayer } from './draw/overlay';
 import { StudyLayer } from './studies/layer';
+import { PyLayer } from './py/layer';
 import { ds } from './draw/state';
 import { isDrawTool } from './draw/tools';
 import { DrawBar, DrawMenu } from './draw/ui';
@@ -28,7 +29,8 @@ type Drag = { kind: 'sl' | 'tp' | 'order'; tr?: Trade; o?: Order; line: IPriceLi
 
 export function ChartPane({ session, feed, active, onToast, onRemove }: { session: Session; feed: Feed; active: boolean; onToast: (m: string, k?: string) => void; onRemove?: () => void }) {
   const box = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState<{ o: number; h: number; l: number; c: number; v: number } | null>(null);
+  const [hover, setHover] = useState<{ o: number; h: number; l: number; c: number; v: number; t: number } | null>(null);
+  const pyL = useRef<PyLayer | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [orderMenu, setOrderMenu] = useState<{ x: number; y: number } | null>(null);
   const [geom, setGeom] = useState<ChartGeom | null>(null);
@@ -60,6 +62,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     layer.onMenu = (x, y, id) => { setOrderMenu(null); setMenu({ x, y, id }); };
     setGeom({ y: p => cs.priceToCoordinate(p), p: y => cs.coordinateToPrice(y), round: p => feed.round(p), paneW: () => chart.paneSize().width, paneH: () => chart.paneSize().height });
     const studies = new StudyLayer(el, chart, cs, feed, layer, onToast); // price zones and session lines, under the drawings
+    const py = pyL.current = new PyLayer(el, chart, cs, feed, layer, onToast); // Python indicators: series, a lower pane, a canvas over the studies
     let grabbed = false;
 
     const syncInds = () => {
@@ -107,6 +110,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
         if (m.kind === 'in') ms.push({ time: T(time), position: m.side > 0 ? 'belowBar' : 'aboveBar', color: m.side > 0 ? C.up : C.down, shape: m.side > 0 ? 'arrowUp' : 'arrowDown', text: `${m.side > 0 ? 'B' : 'S'}${m.id}` });
         else if (m.kind === 'out') ms.push({ time: T(time), position: m.side > 0 ? 'belowBar' : 'aboveBar', color: C.text, shape: 'circle', text: `${({ 'Stop loss': 'SL', 'Take profit': 'TP' } as Record<string, string>)[m.reason || ''] || 'X'}${m.id}` });
       }
+      ms.push(...py.markers(first));
       ms.sort((a, b) => (a.time as number) - (b.time as number));
       cs.setMarkers(ms);
     };
@@ -126,7 +130,8 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       }
       if (session.account.version !== accVer) { accVer = session.account.version; syncLines(); syncMarkers(); labelsAt = now; }
       else if (now - labelsAt > 250) { labelsAt = now; syncLines(); } // open P&L on the entry lines
-      layer.render(); studies.render();
+      layer.render(); studies.render(); py.render();
+      if (py.marksChanged()) syncMarkers();
     };
     frameHooks.add(draw);
     draw(performance.now());
@@ -134,7 +139,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     chart.subscribeCrosshairMove(p => {
       const d = p.time != null ? p.seriesData.get(cs) as { open: number; high: number; low: number; close: number } | undefined : undefined;
       const vd = p.time != null ? p.seriesData.get(vs) as { value: number } | undefined : undefined;
-      setHover(d ? { o: d.open, h: d.high, l: d.low, c: d.close, v: vd?.value || 0 } : null);
+      setHover(d ? { o: d.open, h: d.high, l: d.low, c: d.close, v: vd?.value || 0, t: p.time as number } : null);
     });
     // a new theme or time zone (Settings): the colors and time labels again, and the lines, markers and volume redrawn
     const offLook = onLook(() => {
@@ -142,7 +147,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
         timeScale: { borderColor: C.line, tickMarkFormatter: (t: Time) => tickLabel(t as number) }, localization: { timeFormatter: (t: Time) => crossLabel(t as number), priceFormatter: (p: number) => p.toFixed(prec) } });
       cs.applyOptions(candleColors());
       if (!drag) { for (const l of lines.values()) cs.removePriceLine(l); lines.clear(); }
-      ver = -1; accVer = -1; layer.invalidate();
+      ver = -1; accVer = -1; layer.invalidate(); py.relook();
     });
 
     // dragging a stop, a target or an order (a finger gets a wider line to grab)
@@ -220,7 +225,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     return () => {
       offLook();
       frameHooks.delete(draw);
-      layer.dispose(); studies.dispose();
+      layer.dispose(); studies.dispose(); py.dispose(); pyL.current = null;
       cancelHold();
       el.removeEventListener('pointerdown', onDown, true);
       el.removeEventListener('dblclick', onDbl, true);
@@ -236,6 +241,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
   const selD = session.drawings.get(ds.selected), sel = selD && selD.sym === sym ? selD : null;
   const menuD = menu ? session.drawings.get(menu.id) : null;
   const ch = b && b.o ? (b.c - b.o) / b.o * 100 : 0, n = (x: number) => x.toFixed(prec);
+  const pyLeg = pyL.current?.legend(hover && hover.t !== F?.time ? hover.t : null) || [];
   return (
     <div className={'pane' + (active ? ' active' : '')} onMouseDown={() => session.setActive(sym)}>
       <div className="lw" ref={box} />
@@ -249,7 +255,8 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
             {!hover && F && <span className="k" title="Time left in this candle">{closesIn(F.time + tfSeconds(feed.tf) - feed.time)}</span>}</>}
           {active && session.feeds.length > 1 && <span className="trading">Trading this chart</span>}
         </div>
-        {feed.inds.length > 0 && <div className="inds">{feed.inds.map((x, k) => { const v = feed.peek(k); return <span key={x.spec.id} style={{ background: hexA(x.spec.color, 0.14), color: x.spec.color }}>{indLabel(x.spec)}{v != null ? ' · ' + v.toFixed(prec) : ''}</span>; })}</div>}
+        {(feed.inds.length > 0 || pyLeg.length > 0) && <div className="inds">{feed.inds.map((x, k) => { const v = feed.peek(k); return <span key={x.spec.id} style={{ background: hexA(x.spec.color, 0.14), color: x.spec.color }}>{indLabel(x.spec)}{v != null ? ' · ' + v.toFixed(prec) : ''}</span>; })}
+          {pyLeg.map(x => <span key={x.key} data-py={x.title} style={{ background: hexA(x.color, 0.14), color: x.color }}>{x.title} · {x.text}</span>)}</div>}
       </div>
       {geom && <ChartTrade session={session} sym={sym} geom={geom} menuAt={orderMenu} onCloseMenu={() => setOrderMenu(null)} onToast={onToast} />}
       {sel && !ds.editing && <DrawBar session={session} d={sel} onToast={onToast} />}
