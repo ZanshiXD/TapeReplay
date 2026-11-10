@@ -6,6 +6,7 @@ import { money, smoney, fmtQty } from '../core/account';
 import { fmtClock, fmtHM, spanText } from '../core/time';
 import { useLive } from './live';
 import { ICheck, ITrash } from './icons';
+import { usePhone } from './phone';
 import { C, hexA } from './look';
 
 /** a snapshot as a small candle chart, with the entry, the exit and the stop and target zones */
@@ -46,6 +47,7 @@ export function JournalPage({ session, onReplay }: { session: Session; onReplay:
   const [sel, setSel] = useState<string | null>(null);
   const [newTag, setNewTag] = useState('');
   const [confirmDel, setConfirmDel] = useState(false);
+  const phone = usePhone();
   const all = session.journal;
   const list = all.filter(e => filter === 'all' || (filter === 'wins') === (e.net >= 0)).slice().reverse();
   const e = list.find(x => x.id === sel) || list[0];
@@ -76,7 +78,7 @@ export function JournalPage({ session, onReplay }: { session: Session; onReplay:
     ['Balance after', money(e.balanceAfter), '', ''],
   ] : [];
   return (
-    <div className="page" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className={'page jpage' + (phone && sel && e ? ' jdetail' : '')} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <header className="ctx" style={{ height: 'auto', padding: '12px 20px', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginRight: 8 }}><b style={{ fontSize: 18 }}>Journal</b><span className="muted" style={{ fontSize: 12 }}>Every closed trade, saved automatically with a snapshot and its numbers.</span></div>
         <span className="seg" role="group" aria-label="Show">
@@ -107,7 +109,8 @@ export function JournalPage({ session, onReplay }: { session: Session; onReplay:
           ))}
           {!list.length && <div className="empty">No {filter} yet.</div>}
         </div>
-        {e && <main style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '18px 22px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {e && (!phone || sel) && <main className="jmain" style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '18px 22px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {phone && <button className="btn sm jback" onClick={() => { setSel(null); setConfirmDel(false); }}>← All trades</button>}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <span className="tag" style={{ background: e.side > 0 ? 'var(--up)' : 'var(--down)', color: 'var(--on-accent)', fontSize: 12, padding: '3px 9px' }}>{e.side > 0 ? 'LONG' : 'SHORT'}</span>
             <b style={{ fontSize: 18 }}>{e.sym} · {fmtQty(e.qty)} {e.qty === 1 ? 'contract' : 'contracts'}</b>

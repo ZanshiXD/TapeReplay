@@ -10,7 +10,7 @@ export function ObjectTree({ session }: { session: Session }) {
   const s = session, st = s.drawings, syms = s.feeds.map(f => f.s.inst.sym);
   return (
     <aside className="otree" aria-label="Object tree" onMouseDown={e => e.stopPropagation()}>
-      <header><b>Object tree</b><span className="muted">{st.items.length}</span><span className="spacer" /><button className="ib" aria-label="Close the object tree" onClick={() => setDs({ tree: false })}>✕</button></header>
+      <header><b>Object tree</b><span className="muted">{st.items.length}</span><span className="spacer" /><button className="ib" aria-label="Close the object tree" data-dismiss onClick={() => setDs({ tree: false })}>✕</button></header>
       <div className="list">
         {!st.items.length && <p className="empty">No drawings yet. Pick a tool on the left, then click on the chart.</p>}
         {syms.map(sym => {

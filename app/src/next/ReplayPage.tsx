@@ -1,5 +1,5 @@
 // The Replay screen: one, two or four charts on one clock, the replay bar, the trade panel and the positions.
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Session } from '../core/session';
 import { parseTF, tfLabel, tfValid, tfSeconds } from '../core/time';
 const tfSec = (t: string) => tfSeconds(parseTF(t)!);
@@ -14,6 +14,7 @@ import { usePhone } from './phone';
 import { layers } from './draw/overlay';
 import { cursorTool, setDs } from './draw/state';
 import { DrawRail } from './draw/DrawRail';
+import { DrawSheet } from './draw/DrawSheet';
 import { DrawSettings } from './draw/DrawSettings';
 import { ObjectTree } from './draw/ObjectTree';
 import { useDrawKeys } from './draw/keys';
@@ -51,8 +52,6 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
   const [touring, setTouring] = useState(false);
   const [sheet, setSheet] = useState<'' | 'tf' | 'more'>('');
   const phone = usePhone();
-  // phones: picking a drawing tool puts the rail away, so the whole chart is free to draw on
-  useEffect(() => { if (phone && drawHint(ds.tool)) setDrawOpen(false); }, [phone, ds.tool]);
   const s = session, slots = layout === 'one' ? 1 : layout === 'two' ? 2 : 4;
   const shown = layout === 'one' ? [s.activeFeed] : s.feeds.slice(0, slots);
   const free = slots - shown.length;
@@ -105,6 +104,7 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
         </div>
       )}
       {indOpen && <IndicatorsPanel session={s} onClose={() => setIndOpen(false)} />}
+      {drawOpen && <DrawSheet session={s} onClose={() => setDrawOpen(false)} />}
     </header>
   ) : null;
   return (
@@ -141,7 +141,7 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
       <div className="work" data-mview={mview}>
         <div className="col">
           <div className={'chartrow' + (drawOpen ? ' drawing' : '')}>
-          <DrawRail session={s} />
+          {!phone && <DrawRail session={s} />}
           <div className="charts" style={grid}>
             {shown.map(f => <ChartPane key={f.s.inst.sym} session={s} feed={f} active={f.s.inst.sym === s.active && shown.length > 1}
               onToast={onToast} onRemove={s.feeds.length > 1 && layout !== 'one' ? () => onRemoveMarket(f.s.inst.sym) : undefined} />)}

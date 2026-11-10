@@ -36,6 +36,7 @@ export function UpdateButton({ beforeInstall }: { beforeInstall: () => Promise<v
     <div style={{ position: 'relative' }}>
       <button className="updbtn" title={`Version ${u.version} is ready`} onClick={() => setOpen(!open)}>Update</button>
       {open && <div className="pop" role="dialog" aria-label="Update" style={{ left: 64, bottom: 0, width: 320, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <button hidden data-dismiss onClick={() => setOpen(false)} />
         <b>What's new in {u.version}</b>
         <div className="muted" style={{ fontSize: 12.5, whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{u.notes || 'Fixes and improvements.'}</div>
         <span className="muted" style={{ fontSize: 12 }}>You have {u.current}. The app saves your session, downloads the update and restarts. Your sessions and data are kept.</span>
