@@ -9,6 +9,8 @@ import { ReplayPage, type MView } from './ReplayPage';
 import { NewSessionPage, type ResumeInfo } from './NewSessionPage';
 import { JournalPage } from './JournalPage';
 import { LibraryPage } from './LibraryPage';
+import { KeysSheet, SettingsPage, applyReplayPrefs, startTicket } from './SettingsPage';
+import { applyLook, onLook } from './look';
 import { bump, frameHooks, initPrefs, pref, setPref } from './live';
 import { place, setTicket } from './ticket';
 import { ds, setDs } from './draw/state';
@@ -40,6 +42,7 @@ export function App() {
   const [libList, setLibList] = useState<DatasetMeta[]>([]);
   const [mview, setMview] = useState<MView>('chart');
   const [more, setMore] = useState(false);
+  const [keys, setKeys] = useState(false);
   const tid = useRef(0);
   const session = live?.session || null;
 
@@ -51,7 +54,7 @@ export function App() {
 
   // preferences, then the last session to offer to continue
   useEffect(() => {
-    initPrefs(store).finally(() => setReady(true));
+    initPrefs(store).finally(() => { applyLook(); setReady(true); });
     store.last().then(async l => {
       if (!l.id) return;
       const m = (await store.listSessions()).find(x => x.id === l.id && x.summary?.app === 'next');
@@ -83,7 +86,9 @@ export function App() {
       else if (e.text) toast(e.text);
     });
     store.listDatasets().then(setLibList).catch(() => {});
-    return () => { cancelAnimationFrame(raf); off(); };
+    // a new time zone or trading day start: the candles are rebuilt on the new clock
+    const offLook = onLook(w => { if (w.time) s.setTf(s.tf); });
+    return () => { cancelAnimationFrame(raf); off(); offLook(); };
   }, [live]);
 
   // saving: whenever something changed, every few seconds and when the replay pauses; at once as the window closes
@@ -131,6 +136,17 @@ export function App() {
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
   }, [session, page]);
+  // ? anywhere: the keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey || (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable))) return;
+      if (document.querySelector('.modal')) return;
+      e.preventDefault(); setKeys(true);
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  }, []);
 
   const progress = (text: string) => (p: number, step?: string) => setBusy({ text: step ? `${text}: ${step}` : text, p });
   async function start(x: Opening) {
@@ -138,7 +154,8 @@ export function App() {
     try {
       const L = await openLive(store, x, progress('Preparing the market data'));
       L.session.speed = pref('speed', 60);
-      setTicket({ mode: 'risk', risk: x.risk, type: 'market' });
+      applyReplayPrefs(L.session, true);
+      setTicket(startTicket(x.risk));
       setLive(L); setPage('replay'); setWithData(null); setResume(null);
     } catch (e) { toast((e as Error).message, 'err'); }
     finally { setBusy(null); }
@@ -150,7 +167,8 @@ export function App() {
       const doc = await store.getSession(id) as SessionDoc;
       if (doc.app !== 'next') throw new Error('This session was made in the classic view. Open it there.');
       const L = await reopen(store, doc, progress('Opening the session'));
-      setTicket({ mode: 'risk', risk: L.risk, type: 'market' });
+      applyReplayPrefs(L.session, true);
+      setTicket(startTicket(L.risk));
       setLive(L); setPage('replay'); setResume(null);
     } catch (e) { toast((e as Error).message, 'err'); }
     finally { setBusy(null); }
@@ -218,11 +236,13 @@ export function App() {
         {page === 'replay' && live && <ReplayPage mview={mview} session={live.session} saveState={saveState} available={available()} onAddMarket={addMarket} onRemoveMarket={removeMarket} onJump={jump} onToast={toast} openJournal={() => setPage('journal')} />}
         {page === 'journal' && session && <JournalPage session={session} onReplay={() => setPage('replay')} />}
         {page === 'library' && <LibraryPage current={live?.id || null} onOpen={open} onNewWith={d => { setWithData(d); setPage('new'); }} onBusy={setBusy} onToast={toast} />}
-        {(page === 'backtest' || page === 'settings') && <Classic page={page} />}
+        {page === 'settings' && <SettingsPage session={session} onKeys={() => setKeys(true)} onToast={toast} />}
+        {page === 'backtest' && <Classic page={page} />}
       </div>
       <PhoneNav page={page} mview={mview} hasSession={!!session} badge={session ? session.account.trades.length + session.account.orders.length : 0}
         go={(p, v) => { setMore(false); setPage(p); if (v) setMview(v); }} more={more} setMore={setMore} />
       {busy && <div className="busy" role="status"><div className="box"><b>{busy.text}</b><div className="bar"><i style={{ width: `${Math.round(busy.p * 100)}%` }} /></div><span className="muted" style={{ fontSize: 12 }}>{timeLeft(busy.p, (performance.now() - busyT0.current) / 1000)}</span></div></div>}
+      {keys && <KeysSheet onClose={() => setKeys(false)} />}
       <div className="toasts" aria-live="polite">{toasts.map(t => <div key={t.id} className={'toast ' + t.kind}>{t.text}</div>)}</div>
     </div>
   );
@@ -265,7 +285,6 @@ function timeLeft(f: number, el: number) {
 
 const CLASSIC: Record<string, [string, string]> = {
   backtest: ['Backtest', 'Python strategies, the optimizer and the robustness tests are being moved into this screen. Until then they work as before in the classic view.'],
-  settings: ['Settings', 'Themes, time zone and shortcuts are being moved into this screen. Until then they work as before in the classic view.'],
 };
 function Classic({ page }: { page: string }) {
   const [title, text] = CLASSIC[page];

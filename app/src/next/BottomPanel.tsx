@@ -6,6 +6,7 @@ import { money, smoney, fmtQty, type Trade } from '../core/account';
 import { fmtClock, fmtHM, spanText } from '../core/time';
 import { computeStats, tradesCsv, type Stats } from '../core/stats';
 import { useLive, pref, setPref } from './live';
+import { C } from './look';
 
 /** a stop or target typed into the positions table */
 function BracketInput({ tr, k, n, onSet }: { tr: Trade; k: 'sl' | 'tp'; n: number; onSet: (p: number | null) => void }) {
@@ -20,10 +21,10 @@ function EquityCurve({ st }: { st: Stats }) {
   const series = useRef<ReturnType<ReturnType<typeof createChart>['addAreaSeries']> | null>(null);
   const chart = useRef<ReturnType<typeof createChart> | null>(null);
   useEffect(() => {
-    const ch = createChart(el.current!, { autoSize: true, layout: { background: { color: 'transparent' }, textColor: '#8a91a0', fontSize: 10 }, grid: { vertLines: { visible: false }, horzLines: { color: '#161a22' } },
+    const ch = createChart(el.current!, { autoSize: true, layout: { background: { color: 'transparent' }, textColor: C.text, fontSize: 10 }, grid: { vertLines: { visible: false }, horzLines: { color: C.grid } },
       rightPriceScale: { borderVisible: false }, timeScale: { visible: false, borderVisible: false }, handleScroll: false, handleScale: false, crosshair: { horzLine: { visible: false } } });
     chart.current = ch;
-    series.current = ch.addAreaSeries({ lineColor: '#2962ff', topColor: 'rgba(41,98,255,.3)', bottomColor: 'rgba(41,98,255,0)', lineWidth: 2, priceLineVisible: false });
+    series.current = ch.addAreaSeries({ lineColor: C.accent, topColor: C.accent + '4d', bottomColor: C.accent + '00', lineWidth: 2, priceLineVisible: false });
     return () => ch.remove();
   }, []);
   // one point per closed trade, on an even axis (trades are hours or days apart)

@@ -19,8 +19,8 @@ import { ds } from './draw/state';
 import { isDrawTool } from './draw/tools';
 import { DrawBar, DrawMenu } from './draw/ui';
 import { ChartTrade, type ChartGeom } from './ChartTrade';
+import { C, candleColors, onLook } from './look';
 
-const C = { bg: '#10131a', grid: '#161a22', line: '#232833', text: '#8a91a0', up: '#26a69a', down: '#ef5350', accent: '#2962ff', warn: '#f0b54a' };
 const T = (t: number) => t as UTCTimestamp;
 const hexA = (hex: string, a: number) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
 
@@ -46,7 +46,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       localization: { timeFormatter: (t: Time) => crossLabel(t as number), priceFormatter: (p: number) => p.toFixed(prec) },
       crosshair: { mode: 0 },
     });
-    const cs = chart.addCandlestickSeries({ upColor: C.up, downColor: C.down, wickUpColor: C.up, wickDownColor: C.down, borderVisible: false, priceFormat: { type: 'price', precision: prec, minMove: feed.s.inst.tick } });
+    const cs = chart.addCandlestickSeries({ ...candleColors(), priceFormat: { type: 'price', precision: prec, minMove: feed.s.inst.tick } });
     const vs = chart.addHistogramSeries({ priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false });
     chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.86, bottom: 0 } });
     let ind: ISeriesApi<'Line'>[] = [];
@@ -136,6 +136,14 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       const vd = p.time != null ? p.seriesData.get(vs) as { value: number } | undefined : undefined;
       setHover(d ? { o: d.open, h: d.high, l: d.low, c: d.close, v: vd?.value || 0 } : null);
     });
+    // a new theme or time zone (Settings): the colors and time labels again, and the lines, markers and volume redrawn
+    const offLook = onLook(() => {
+      chart.applyOptions({ layout: { background: { color: C.bg }, textColor: C.text }, grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } }, rightPriceScale: { borderColor: C.line },
+        timeScale: { borderColor: C.line, tickMarkFormatter: (t: Time) => tickLabel(t as number) }, localization: { timeFormatter: (t: Time) => crossLabel(t as number), priceFormatter: (p: number) => p.toFixed(prec) } });
+      cs.applyOptions(candleColors());
+      if (!drag) { for (const l of lines.values()) cs.removePriceLine(l); lines.clear(); }
+      ver = -1; accVer = -1; layer.invalidate();
+    });
 
     // dragging a stop, a target or an order (a finger gets a wider line to grab)
     let tol = 6;
@@ -210,6 +218,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
     return () => {
+      offLook();
       frameHooks.delete(draw);
       layer.dispose(); studies.dispose();
       cancelHold();

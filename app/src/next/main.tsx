@@ -10,6 +10,7 @@ import './theme.css';
 import './phone.css';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { applyLook } from './look';
 import { setCandleCap } from '../core/feed';
 
 // touch screens and small screens: html.touch (fingers: bigger targets, no hover tips), html.m (the phone layout:
@@ -21,6 +22,7 @@ if (TOUCH) setCandleCap(8000, 1500);
 const layout = () => root.classList.toggle('m', innerWidth < 900 || innerHeight < 500);
 layout(); addEventListener('resize', layout);
 
+applyLook(); // from this browser's copy of the settings; again once the app's copy has loaded
 createRoot(document.getElementById('root')!).render(<App />);
 
 // fingers never leave a menu the way a mouse does: a tap outside an open menu closes it (menus close on mouse leave)

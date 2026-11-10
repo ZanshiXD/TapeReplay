@@ -51,7 +51,7 @@ export function IndicatorsPanel({ session, onClose }: { session: Session; onClos
           {edit === x.id && (
             <div style={{ display: 'flex', gap: 10, padding: '4px 16px 12px 36px', alignItems: 'flex-end' }}>
               {x.type !== 'vwap' && <label className="field" style={{ width: 110 }}>Length<input className="in" inputMode="numeric" defaultValue={x.len} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} onChange={e => { const v = parseInt(e.target.value); if (v >= 1 && v <= 2000) upd(x.id, { len: v }); }} onBlur={e => upd(x.id, { len: Math.min(2000, Math.max(1, parseInt(e.target.value) || x.len)) })} /></label>}
-              <div className="field">Color<span style={{ display: 'flex', gap: 6 }}>{IND_COLORS.map(c => <button key={c} aria-label={c} onClick={() => upd(x.id, { color: c })} style={{ width: 24, height: 24, borderRadius: 6, background: c, border: x.color === c ? '2px solid #fff' : '0', cursor: 'pointer' }} />)}<Swatch color={x.color} label="Any color" onPick={c => upd(x.id, { color: c })} /></span></div>
+              <div className="field">Color<span style={{ display: 'flex', gap: 6 }}>{IND_COLORS.map(c => <button key={c} aria-label={c} onClick={() => upd(x.id, { color: c })} style={{ width: 24, height: 24, borderRadius: 6, background: c, border: x.color === c ? '2px solid var(--strong)' : '0', cursor: 'pointer' }} />)}<Swatch color={x.color} label="Any color" onPick={c => upd(x.id, { color: c })} /></span></div>
             </div>
           )}
         </div>

@@ -23,11 +23,14 @@ export function nyOff(t: number): number {
   if (v === undefined) { v = tzOffset('America/New_York', h * 3600); nyCache.set(h, v); }
   return v;
 }
-/** the futures trading day a time belongs to (days start at 18:00 New York) */
-export const tradingDay = (t: number, resetHour = 18) => Math.floor((t + nyOff(t) - resetHour * 3600) / 86400);
+/** the futures trading day a time belongs to (days start at zone.dayStart, 18:00 New York unless set otherwise) */
+export const tradingDay = (t: number, resetHour = zone.dayStart) => Math.floor((t + nyOff(t) - resetHour * 3600) / 86400);
+/** the date a trading day is named by (days since 1970): one that starts in the evening is the next day's */
+export const tradingDate = (t: number) => tradingDay(t) + (zone.dayStart >= 12 ? 1 : 0);
 
 export const LOCAL_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } })();
-export const zone = { id: 'America/New_York', tz: 'America/New_York', fixed: null as number | null };
+/** the chart time zone (switchable at run time with setZone), and the hour in New York a trading day starts */
+export const zone = { id: 'America/New_York', tz: 'America/New_York', fixed: null as number | null, dayStart: 18 };
 const zoneCache = new Map<number, number>();
 export function setZone(id: string) {
   zone.id = id || 'local'; zone.fixed = null;
@@ -36,6 +39,7 @@ export function setZone(id: string) {
   else zone.tz = zone.id;
   zoneCache.clear();
 }
+export function setDayStart(h: number) { zone.dayStart = Math.max(0, Math.min(23, Math.round(h) || 0)); }
 /** seconds east of UTC in the chart zone at UTC time t */
 export function zoneOff(t: number): number {
   if (zone.fixed != null) return zone.fixed;
@@ -107,21 +111,24 @@ export function parseTF(str: string): TF | null {
 }
 export const tfValid = (tf: TF, base: number) => tf.kind === 's' ? (tf.sec >= base && tf.sec % base === 0) : (base <= 86400 && 86400 % base === 0);
 export const tfSeconds = (tf: TF) => tf.kind === 's' ? tf.sec : tf.kind === 'W' ? 604800 * tf.n : 2592000 * tf.n;
-/** candle start times; candles longer than an hour follow the chart zone's clock (daily = its midnight) */
+/** candle start times; candles longer than an hour follow the chart zone's clock. Days, weeks and months follow the
+ *  trading day (Sunday 6 PM New York is Monday's), each candle at its date's midnight in the chart zone. */
 export function makeBucket(tf: TF): (t: number) => number {
-  if (tf.kind === 's') {
+  if (tf.kind === 's' && tf.sec % 86400) {
     const s = tf.sec;
     if (s <= 3600) return t => Math.floor(t / s) * s;
     return t => { const off = zoneOff(t); return Math.floor((t + off) / s) * s - off; };
   }
-  if (tf.kind === 'W') { const s = 604800 * tf.n, mon = 345600; return t => { const off = zoneOff(t); return Math.floor((t + off - mon) / s) * s + mon - off; }; }
-  const n = tf.n;
-  let lo = 1, hi = 0, val = 0;
+  // the first day of the candle a trading date belongs to (days since 1970; day 4 was a Monday)
+  const first: (k: number) => number = tf.kind === 's' ? (n => k => Math.floor(k / n) * n)(tf.sec / 86400)
+    : tf.kind === 'W' ? (n => k => Math.floor((k - 4) / n) * n + 4)(7 * tf.n)
+    : (n => k => { const d = new Date(k * 86400000), mm = Math.floor((d.getUTCFullYear() * 12 + d.getUTCMonth()) / n) * n; return Date.UTC(Math.floor(mm / 12), mm % 12, 1) / 86400000; })(tf.n);
+  let lastK = NaN, val = 0;
   return t => {
-    if (t >= lo && t < hi) return val;
-    const p = zp(t);
-    const mm = Math.floor((p.y * 12 + p.mo) / n) * n, nx = mm + n;
-    lo = val = zoneToUtc(Math.floor(mm / 12), mm % 12, 1); hi = zoneToUtc(Math.floor(nx / 12), nx % 12, 1);
+    const k = tradingDate(t);
+    if (k === lastK) return val;
+    const d = new Date(first(k) * 86400000);
+    lastK = k; val = zoneToUtc(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
     return val;
   };
 }
