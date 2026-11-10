@@ -261,6 +261,7 @@ function PhoneNav({ page, mview, hasSession, badge, go, more, setMore }: { page:
   const on = (p: Page, v?: MView) => !more && page === p && (!v || mview === v) ? ' on' : '';
   return <>
     {more && <div className="msheet-back" onClick={() => setMore(false)}><div className="pop menu msheet" onClick={e => e.stopPropagation()}>
+      <button hidden data-dismiss onClick={() => setMore(false)} />
       <h5>Go to</h5>
       <button onClick={() => go('new')}>New session</button>
       <button onClick={() => go('library')}>Library: sessions and data</button>

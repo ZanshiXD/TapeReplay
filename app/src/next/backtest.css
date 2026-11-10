@@ -60,7 +60,7 @@ html.m .bt-head > b, html.m .bt-head .bt-runbtn { display: none; }
 .bt-trades table.t th { background: var(--field); }
 
 .bt-opt { gap: 16px; }
-.bt-ptable { overflow: auto; }
+.bt-ptable { overflow: auto; flex-shrink: 0; }
 .bt-ptable table.t th { background: var(--field); }
 .bt-ptable tr.off td { color: var(--muted); }
 .bt-ptable td { vertical-align: middle; }
