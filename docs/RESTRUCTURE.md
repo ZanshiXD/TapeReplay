@@ -70,13 +70,32 @@ grid, and a journal entry with chart snapshots for every closed trade.
 |---|---|---|
 | 1 | Core (`src/core`), Replay screen (one, two or four charts, replay bar with step back and timeline, trade panel sized by risk with the order in plain words, positions, orders, history), indicators manager (EMA, SMA, VWAP), Journal, New session (practice markets) | done |
 | 2 | Drawings: TradingView's tools (lines, channels, pitchforks, Fibonacci and Gann, patterns, Elliott waves, cycles, long and short positions, forecast, bars pattern, ghost feed, anchored VWAP, volume profiles, ranges, shapes, brushes, text and notes), drawn the way TradingView draws them (see below) | done |
-| 3 | Real data: Library (saved sessions, Databento and CSV imports, through the apps' storage), sessions saved and reopened | |
-| 4 | Prop rules and the prop simulation (evaluation, funded, live) on the new account | |
-| 5 | Backtest: the Python strategy runner on the core, the Backtest page, the optimizer (with smart search) and robustness | |
-| 6 | Python indicators, Settings (themes, time zone, sessions, shortcuts), phone and tablet layouts | |
+| 3 | Real data: the Library (saved sessions, CSV and Databento imports, through the apps' storage or IndexedDB in a browser), sessions saved as you go and reopened exactly, long series a month at a time | done |
+| 4 | Prop firm challenge (evaluation, funded, live) on the new account, as the classic simulation | done |
+| 5 | Backtest: Python and JavaScript strategies on the core, the Backtest page, the optimizer (smart search, grid, random) and robustness tests | engine done; page in progress |
+| 6 | Python indicators, chart studies (price zones, session lines), Settings (themes, time zone, trading day, replay, shortcuts), trading on the chart, Performance, phones, tablets and touch | done except Python indicators (in progress) |
 | 7 | Switch: `next.html` becomes `index.html`; remove the classic code | |
 
-Tests: `npx tsx tests/core.test.ts` (in `app/`), `python tests/test_next.py` and `python tests/test_drawings.py`.
+Tests, in `app/`: `npx tsx tests/<name>.test.ts` for core, prop, zones, backtest and optimizer (`tests/backtest.bench.ts`
+measures speed). In the browser (build first, then copy `app/dist` to `desktop/web`): `python tests/test_<name>.py` for
+next, drawings, library, prop_ui, chart_trade, studies and settings.
+
+### Where things are
+
+| Area | Core (`src/core`) | Screens (`src/next`) |
+|---|---|---|
+| Replay | `feed.ts`, `session.ts`, `account.ts`, `time.ts` | `ReplayPage`, `ChartPane`, `ReplayBar`, `TradePanel`, `BottomPanel`, `ChartTrade` |
+| Data and saving | `data.ts` (CSV, DBN, contracts, cache, futures table), `store.ts` (apps' server or IndexedDB), `library.ts` | `LibraryPage`, `NewSessionPage`, `sessions.ts`, `library.ts` |
+| Prop challenge | `prop.ts` | `PropPanel` |
+| Drawings | `drawings.ts` | `draw/` |
+| Studies | `zones.ts`, `sessions-studies.ts` | `studies/` |
+| Backtests | `backtest.ts`, `pybridge.ts`, `jsstrategy.ts`, `optimizer.ts`, `opt.worker.ts`, `optjob.ts`, `robust.ts` | `BacktestPage` |
+| Look | — | `look.ts`, `SettingsPage`, `theme.css`, `phone.css` |
+
+Speed: a Python strategy is called about 1 µs per tick inside a batch (4.5 µs a call before); on 10 days of 1-second
+bars an MA cross runs 1.4× faster than the classic bridge in Python and 5× faster as a JavaScript strategy, a trailing
+stop on every tick 1.9× and 14×. The smart search finds a near-best with about a tenth of the runs of a full grid, and
+the optimizer uses every core but one.
 
 ### Drawings
 
