@@ -1,4 +1,4 @@
-"""The Python indicator runtime and ta helpers (in the <script id="trRuntime"> block in tape-replay.html), run by
+"""The Python indicator runtime and ta helpers (in app/src/python/runtime.py), run by
 CPython standing in for Pyodide. Needs numpy.
     python tests/test_indicators.py
 """
@@ -10,8 +10,8 @@ import types
 
 import numpy as np
 
-PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tape-replay.html")
-src = re.search(r'<script type="text/x-python" id="trRuntime">\n(.*?)</script>', open(PAGE, encoding="utf-8").read(), re.S).group(1)
+RUNTIME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "src", "python", "runtime.py")
+src = open(RUNTIME, encoding="utf-8").read()
 rt = types.ModuleType("rt")
 exec(compile(src, "trRuntime", "exec"), rt.__dict__)
 ta = rt.ta

@@ -59,6 +59,12 @@ jobs:
           # a tag like ios-v1.2.0 gives the version 1.2.0
           echo "VERSION=${VERSION#ios-v}" >> "$GITHUB_ENV"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
       - name: Bundle the page and Python for strategies (not kept in git)
         working-directory: ios
         run: python3 sync_web.py

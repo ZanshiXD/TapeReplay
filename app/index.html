@@ -1,0 +1,909 @@
+<!doctype html>
+<html lang="en">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<title>Tape Replay</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<script>
+// the last palette, before anything paints, so a light or cream theme does not open with a flash of the dark one
+// (the settings themselves load later); "system" keeps both and picks by the device's appearance
+try {
+  const c = JSON.parse(localStorage.getItem('tape-replay-theme') || 'null');
+  const p = c && (c.sys && !matchMedia('(prefers-color-scheme: dark)').matches ? c.light : c.dark);
+  if (p) { const r = document.documentElement; r.setAttribute('data-theme', p.kind); r.dataset.pal = p.id; for (const k in p.v) r.style.setProperty('--' + k, p.v[k]); }
+} catch (e) {}
+</script>
+
+<div id="app">
+  <header class="bar">
+    <button class="brand" id="bHome" title="Home: start a new session or continue one"><i></i>Tape Replay</button>
+    <div class="tgroup datag">
+      <button id="bData" class="dchip" title="Data set: open the Library"><b id="dsName">—</b><span id="dsSub"></span></button>
+      <label class="btn" for="fileIn" title="Import CSV or DBN files (several at once are combined)">Import</label>
+      <input id="fileIn" type="file" accept=".csv,.txt,.tsv,.dbn" multiple hidden>
+    </div>
+    <div class="tgroup tfs" role="group" aria-label="Timeframe">
+      <span id="tfChips"></span>
+      <button id="mTf" class="mtf" aria-haspopup="dialog" title="Timeframe"><span id="mTfLbl">—</span><svg class="chev" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3"/></svg></button>
+      <input id="tfCustom" class="tfc" placeholder="45m" title="Custom timeframe: e.g. 45m, 2h, 3D, 1W, 1M (month). Must be a multiple of the data's base timeframe." aria-label="Custom timeframe">
+    </div>
+    <div class="tgroup transport">
+      <button id="bRestart" title="Restart the session from its start time (click twice)" aria-label="Restart">
+        <svg viewBox="0 0 16 16"><path d="M8 2a6 6 0 1 1-5.6 3.8l1.5.6A4.4 4.4 0 1 0 8 3.6V6L4.5 3 8 0z"/></svg><span id="restartLbl" class="sr">Restart</span></button>
+      <button id="bPlay" title="Play / pause (Space)" aria-label="Play"><svg viewBox="0 0 16 16" id="playIco"><path d="M4 2l10 6-10 6z"/></svg></button>
+      <button id="bTick" title="Step one tick (.)">Tick</button>
+      <button id="bBar" title="Finish the current base bar (→)">Bar</button>
+      <button id="bCandle" title="Finish the current candle on the chart timeframe (Shift+→)">Candle</button>
+      <span class="sep"></span>
+      <input id="speed" type="range" min="0" max="1000" value="500" aria-label="Replay speed" title="Replay speed (↑ ↓)">
+      <span id="speedLbl" class="num"></span>
+    </div>
+    <div class="clock" title="Replay time in the chart time zone">
+      <span id="clock" class="num">—</span><span id="clockSub"></span>
+      <div class="prog"><i id="progBar"></i></div>
+    </div>
+    <div class="tgroup">
+      <button id="bSkip" title="Replay forward quickly. Orders, stops and targets fill along the way." aria-haspopup="menu">Skip<span class="mhide"> ahead</span> <svg class="chev" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3"/></svg></button>
+    </div>
+    <span class="spacer"></span>
+    <span id="saveState" class="ds" hidden></span>
+    <div class="tgroup">
+      <button id="bLib" hidden title="Saved backtests and data files">Library</button>
+      <button id="bStrat" title="Backtest a strategy written in Python" aria-haspopup="dialog" aria-label="Strategy"><svg class="mico" viewBox="0 0 20 20"><path d="M7 5.5L2.5 10 7 14.5M13 5.5l4.5 4.5-4.5 4.5"/><path d="M11 4l-2 12" style="opacity:.6"/></svg><span class="mlbl">Strategy</span></button>
+      <button id="bInd" title="Moving averages, VWAP and your own indicators in Python" aria-haspopup="dialog" aria-label="Indicators"><svg class="mico" viewBox="0 0 20 20"><path d="M2.5 14c2.5 0 3-7 6-7s3 6 5.5 6 2.5-4 3.5-5"/><path d="M2.5 17h15" style="opacity:.5"/></svg><span class="mlbl">Indicators</span></button>
+      <button id="bChart" title="Themes, colors, time zone and session lines" aria-label="Chart settings"><svg class="mico" viewBox="0 0 20 20"><path d="M3 5.5h8M15 5.5h2M3 10h2M9 10h8M3 14.5h6M13 14.5h4"/><circle cx="13" cy="5.5" r="1.8"/><circle cx="7" cy="10" r="1.8"/><circle cx="11" cy="14.5" r="1.8"/></svg><span class="mlbl">Chart</span></button>
+      <button id="bSettings" title="Start time, costs and the prop simulation">Session</button>
+      <button id="bKeys" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
+      <button id="bSide" title="Hide or show the side panel" aria-label="Toggle side panel"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M10 2.5v11"/></svg></button>
+    </div>
+  </header>
+
+  <main class="work">
+    <section class="chartwrap" id="chartWrap">
+      <div class="dtools" id="dtools" role="toolbar" aria-label="Drawing tools">
+        <button id="dDone" class="ddone" aria-label="Close the drawing tools"><svg viewBox="0 0 20 20"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg><span class="dl">Done</span></button>
+        <button data-tool="cursor" aria-pressed="true" title="Pointer (Esc)"><svg viewBox="0 0 20 20"><path d="M5 3l10 6.2-4.6 1.4L8.4 15z"/></svg><span class="dl">Select</span></button>
+        <button data-tool="trend" aria-pressed="false" title="Trend line"><svg viewBox="0 0 20 20"><path d="M4.5 15.5l11-11"/><circle cx="4" cy="16" r="1.7"/><circle cx="16" cy="4" r="1.7"/></svg><span class="dl">Trend</span></button>
+        <button data-tool="hline" aria-pressed="false" title="Horizontal line"><svg viewBox="0 0 20 20"><path d="M2 10h16"/><circle cx="10" cy="10" r="1.7"/></svg><span class="dl">H-line</span></button>
+        <button data-tool="vline" aria-pressed="false" title="Vertical line"><svg viewBox="0 0 20 20"><path d="M10 2v16"/><circle cx="10" cy="10" r="1.7"/></svg><span class="dl">V-line</span></button>
+        <button data-tool="rect" aria-pressed="false" title="Rectangle"><svg viewBox="0 0 20 20"><rect x="3.5" y="5" width="13" height="10" rx="1"/></svg><span class="dl">Box</span></button>
+        <button data-tool="fib" aria-pressed="false" title="Fib retracement (OTE, STDV and your own level sets)"><svg viewBox="0 0 20 20"><path d="M3 4h14M3 8h14M3 12h14M3 16h14" style="stroke-width:1.1"/><path d="M4 16L16 4" style="stroke-dasharray:2 2"/></svg><span class="dl">Fib</span></button>
+        <button id="dMagnet" aria-pressed="false" title="Magnet: lock points and the crosshair to the candle's nearest open, high, low or close. Hold Ctrl to use it, or press M to keep it on"><svg viewBox="0 0 20 20"><path d="M5 4v6a5 5 0 0 0 10 0V4"/><path d="M5 7h3M12 7h3" style="stroke-width:2.4"/><path d="M8 4v6a2 2 0 0 0 4 0V4"/></svg><span class="dl">Magnet</span></button>
+        <button id="dZones" aria-pressed="false" title="Price zones: FVG, iFVG, BPR, order blocks and breakers. Click for settings; Z shows or hides them"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="4" rx="0.5"/><rect x="6" y="12" width="11" height="4" rx="0.5" style="stroke-dasharray:2 1.5"/></svg><span class="dl">Zones</span></button>
+        <hr>
+        <button data-tool="long" aria-pressed="false" title="Long position"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="7.5" style="stroke:var(--up)"/><rect x="3" y="10.5" width="14" height="5.5" style="stroke:var(--down)"/></svg><span class="dl">Long</span></button>
+        <button data-tool="short" aria-pressed="false" title="Short position"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="5.5" style="stroke:var(--down)"/><rect x="3" y="9.5" width="14" height="7.5" style="stroke:var(--up)"/></svg><span class="dl">Short</span></button>
+        <hr>
+        <button id="dUndo" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 20 20"><path d="M7.5 5L4 8.5 7.5 12"/><path d="M4.5 8.5H12a4 4 0 0 1 0 8H9"/></svg><span class="dl">Undo</span></button>
+        <button id="dClear" title="Remove all drawings"><svg viewBox="0 0 20 20"><path d="M4.5 6h11M8 6V4h4v2M6 6l1 10.5h6L14 6"/></svg><span class="dl">Clear</span></button>
+      </div>
+      <div id="chart"></div>
+      <canvas id="draw"></canvas>
+      <!-- one-tap trading: market orders straight from the chart, on the one net position -->
+      <div id="otp" class="otp" hidden>
+        <div class="otrow">
+          <button id="otSell" class="sell" title="Sell at market now"><span>SELL</span><b id="otBid">—</b></button>
+          <button id="otMinus" class="otstep" aria-label="Smaller size">−</button>
+          <input id="otQty" type="number" step="any" min="0" inputmode="decimal" aria-label="One-tap size" title="Size (the same as the order ticket's)">
+          <button id="otPlus" class="otstep" aria-label="Larger size">+</button>
+          <button id="otBuy" class="buy" title="Buy at market now"><span>BUY</span><b id="otAsk">—</b></button>
+        </div>
+        <div class="otpos" id="otPos" hidden></div>
+      </div>
+      <button id="mdraw" class="mdraw" aria-label="Drawing tools" aria-pressed="false"><svg viewBox="0 0 20 20"><path d="M4 16l1-4 8-8 3 3-8 8z"/><path d="M11.5 5.5l3 3"/></svg></button>
+      <!-- touch screens: what to do with the active tool, and a slim bar for the selected drawing -->
+      <div id="dsHint" class="dqhint" role="status" hidden><span id="dsHintT"></span><button id="dsHintX" type="button">Cancel</button></div>
+      <div id="dsQuick" class="dsquick" role="toolbar" aria-label="Selected drawing" hidden>
+        <button id="qColor" class="qb" type="button" aria-label="Color" aria-expanded="false"><i></i></button>
+        <button id="qWidth" class="qb" type="button" aria-label="Line width"><svg viewBox="0 0 24 24"><path d="M3 12h18"/></svg></button>
+        <button id="qDash" class="qb" type="button" aria-label="Line style"><svg viewBox="0 0 24 24"><path d="M3 12h18"/></svg></button>
+        <button id="qPlace" class="qb qt" type="button">Place order</button>
+        <button id="qMarket" class="qb qt" type="button">Market now</button>
+        <span class="qsep"></span>
+        <button id="qMore" class="qb" type="button" aria-label="More options" aria-haspopup="dialog"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/></svg></button>
+        <button id="qDel" class="qb" type="button" aria-label="Delete drawing"><svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg></button>
+        <div id="qSw" class="qsw dsw" hidden></div>
+      </div>
+      <div id="dstyle" class="dstyle" hidden>
+        <div class="dshead"><b>Drawing options</b><button id="dsDone" type="button" class="primary">Done</button></div>
+        <span class="mstyle" id="dsMStyle">
+          <span class="dsw" id="dsSwatches" role="group" aria-label="Color"></span>
+          <span class="mseg" id="dsWSeg" role="group" aria-label="Line width"></span>
+          <span class="mseg" id="dsDSeg" role="group" aria-label="Line style"></span>
+        </span>
+        <span class="grp" id="dsStyleGrp">
+          <select id="dsPreset" aria-label="Style preset"></select>
+          <input id="dsColor" type="color" aria-label="Color">
+          <select id="dsWidth" aria-label="Line width"><option value="1">1px</option><option value="2">2px</option><option value="3">3px</option><option value="4">4px</option></select>
+          <select id="dsDash" aria-label="Line style"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select>
+          <label class="grp" id="dsFillGrp">Fill <input id="dsFill" type="range" min="0" max="0.6" step="0.05"></label>
+        </span>
+        <span class="grp" id="dsFibGrp" hidden>
+          <select id="fibPreset" aria-label="Fib levels preset"></select>
+          <input id="fibLevels" aria-label="Fib levels, comma separated" title="Levels, comma separated: 1 is the first point you click, 0 the second">
+          <label class="grp" title="Extend the levels to the right edge"><input id="fibExt" type="checkbox"> Extend</label>
+          <button id="fibSave" title="Save these levels as a preset">Save levels</button>
+          <span class="grp" id="fibSaveBox" hidden><input id="fibName" placeholder="Levels name" aria-label="Levels preset name"><button id="fibSaveOk" class="primary">Save</button></span>
+          <button id="fibDel" title="Delete the selected saved levels" hidden>Delete levels</button>
+        </span>
+        <input id="dsLabel" placeholder="Label (optional)" aria-label="Label">
+        <span class="grp" id="dsPresetGrp">
+          <button id="dsSave" title="Save this style as a preset">Save preset</button>
+          <span class="grp" id="dsSaveBox" hidden><input id="dsName" placeholder="Preset name" aria-label="Preset name"><button id="dsSaveOk" class="primary">Save</button></span>
+          <button id="dsDelPreset" title="Delete the selected preset">Delete preset</button>
+        </span>
+        <span class="grp" id="dsTrade" hidden>
+          <button id="dsPlace" title="Place a limit or stop order at the entry, with this stop and target">Place order</button>
+          <button id="dsMarket" title="Enter at market now with this stop and target">Market now</button>
+        </span>
+        <button id="dsDel" title="Delete drawing (Del)">Delete</button>
+      </div>
+      <div id="legend"></div>
+      <div class="drop" id="drop" hidden>Drop CSV files to load them (several files are combined)</div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h3>Order ticket</h3>
+        <div class="quote">
+          <button id="sellBtn" class="sell" title="Sell (S)"><span>SELL</span><b id="bidPx">—</b></button>
+          <div id="spreadLbl">—</div>
+          <button id="buyBtn" class="buy" title="Buy (B)"><span>BUY</span><b id="askPx">—</b></button>
+        </div>
+        <div class="seg" id="typeSeg">
+          <button data-type="market" aria-pressed="true">Market</button>
+          <button data-type="limit" aria-pressed="false">Limit</button>
+          <button data-type="stop" aria-pressed="false">Stop</button>
+        </div>
+        <label class="f">Order price<input id="ordPrice" type="number" step="any" disabled placeholder="at market"></label>
+        <div class="f">Size
+          <div class="inl"><input id="qty" type="number" step="any" min="0" value="1" aria-label="Size">
+            <select id="sizeMode" aria-label="Size unit"><option value="units">units</option><option value="risk">% risk</option></select></div>
+        </div>
+        <div class="f">Stop loss / take profit
+          <div class="inl"><select id="bracketMode" aria-label="Stop and target entry mode"><option value="price">as price</option><option value="dist">as distance</option></select></div>
+        </div>
+        <div class="row2">
+          <label class="f">Stop loss<input id="slIn" type="number" step="any" placeholder="none"></label>
+          <label class="f">Take profit<input id="tpIn" type="number" step="any" placeholder="none"></label>
+        </div>
+        <div class="hint" id="sizeHint"></div>
+        <label class="f chk" title="Buy and Sell buttons on the chart that trade at market with one tap, on your one position"><input id="oneTap" type="checkbox"> One-tap trading on the chart</label>
+      </div>
+
+      <div class="card" id="simCard" hidden>
+        <h3>Prop simulation <span id="simStatus" class="tag"></span></h3>
+        <div class="simtrack" id="simTrack"></div>
+        <div id="simRows" class="prows"></div>
+        <div class="simact" id="simAct"></div>
+        <div class="simsum" id="simSum"></div>
+        <div class="simlog" id="simLog"></div>
+      </div>
+
+      <div class="card" id="propCard" hidden>
+        <h3>Prop rules <span id="propStatus" class="tag"></span></h3>
+        <div id="propRows" class="prows"></div>
+      </div>
+
+      <div class="card">
+        <h3>Account</h3>
+        <dl class="acct">
+          <dt>Balance</dt><dd id="aBal">—</dd>
+          <dt>Equity</dt><dd id="aEq">—</dd>
+          <dt>Open P&amp;L</dt><dd id="aOpen">—</dd>
+          <dt>Closed P&amp;L</dt><dd id="aClosed">—</dd>
+          <dt>Return</dt><dd id="aRet">—</dd>
+          <dt>Max drawdown</dt><dd id="aDD">—</dd>
+          <dt class="pay" id="aPayK" hidden title="What you have been paid: payouts and bonuses after the profit split. Payouts come out of the balance.">Payout income</dt><dd class="pay" id="aPay" hidden>—</dd>
+        </dl>
+        <div class="flat">
+          <button id="bCloseAll" title="Close every open position at market (X)">Close all</button>
+          <button id="bCancelAll">Cancel orders</button>
+        </div>
+      </div>
+
+      <div class="card mevalhint" id="evalHint">
+        <b>No evaluation running</b>
+        <p class="note">Turn on the prop simulation (evaluation → funded → live) in Session settings to follow it here.</p>
+        <button id="evalSet" class="primary">Open session settings</button>
+      </div>
+    </aside>
+  </main>
+
+  <section class="dock">
+    <div class="dsplit" id="dockSplit" title="Drag to resize"></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="pos" aria-selected="true" id="tabPos">Positions</button>
+      <button class="tab" role="tab" data-tab="ord" aria-selected="false" id="tabOrd">Orders</button>
+      <button class="tab" role="tab" data-tab="hist" aria-selected="false" id="tabHist">History</button>
+      <button class="tab" role="tab" data-tab="stats" aria-selected="false" id="tabStats">Performance</button>
+      <div class="tools"><button id="bCopy" title="Copy closed trades as CSV">Copy trades CSV</button></div>
+    </div>
+    <div class="pane" id="pane-pos"></div>
+    <div class="pane" id="pane-ord" hidden></div>
+    <div class="pane" id="pane-hist" hidden></div>
+    <div class="pane" id="pane-stats" hidden>
+      <div class="stats"><div class="sgrid" id="sgrid"></div><div id="eqChart"></div></div>
+    </div>
+  </section>
+
+  <!-- phones: one screen at a time, picked from the tab bar; replay controls just above it -->
+  <section id="mmore" class="mmore" role="dialog" aria-label="More">
+    <h4>Python</h4>
+    <button data-go="bStrat"><b>Strategy</b><span>Write a strategy in Python and backtest it on this data</span></button>
+    <button data-go="pind"><b>Indicator</b><span>Write an indicator in Python and draw it on the chart</span></button>
+    <button data-go="guide"><b>Python guide</b><span>How to code indicators and strategies</span></button>
+    <h4>Session</h4>
+    <button data-go="bHome"><b>Home</b><span>Start a new session or continue one</span></button>
+    <button data-go="bSettings"><b>Session settings</b><span>Start date, costs and the prop simulation</span></button>
+    <button data-go="bLib"><b>Library</b><span>Saved backtests and data files</span></button>
+    <button data-go="import"><b>Import data</b><span>CSV or DBN files, any size</span></button>
+    <button data-go="bCopy"><b>Copy trades</b><span>Closed trades as CSV</span></button>
+    <h4>Chart</h4>
+    <button data-go="bInd"><b>Indicators</b><span>EMA, SMA, VWAP and your own in Python</span></button>
+    <button data-go="bChart"><b>Chart settings</b><span>Themes, colors, time zone and session lines</span></button>
+    <button data-go="tour"><b>Take the tour</b><span>How the app works, in a minute</span></button>
+    <button data-go="bKeys"><b>Keyboard shortcuts</b><span>For a keyboard on an iPad</span></button>
+    <h4>About</h4>
+    <p class="credit">Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™, © TradingView, Inc. Built-in data is generated for practice, not real market data. Trades are simulated; nothing here is financial advice.</p>
+  </section>
+  <div id="mreplay" class="mreplay"><button id="mSpeed" class="mspeed" aria-haspopup="dialog" aria-label="Replay speed"><svg viewBox="0 0 16 16"><path d="M2.5 11.5a6 6 0 1 1 11 0"/><path d="M8 9.5l3-3.5"/></svg><span id="mSpeedLbl" class="num">—</span></button></div>
+  <nav id="mnav" class="mnav" aria-label="Screens">
+    <button data-mv="chart"><svg viewBox="0 0 20 20"><path d="M3 16V4M3 16h14"/><path d="M6.5 12.5v-4M10 11V6M13.5 13V8.5" style="stroke-width:2.6"/></svg>Chart</button>
+    <button data-mv="trade"><svg viewBox="0 0 20 20"><path d="M4 7h11l-3-3M16 13H5l3 3"/></svg>Trade</button>
+    <button data-mv="positions"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M3 8h14M7 8v8"/></svg>Positions<i id="mnPosN"></i></button>
+    <button data-mv="eval"><svg viewBox="0 0 20 20"><path d="M10 3l2 4 4.5.6-3.3 3.1.8 4.4L10 13l-4 2.1.8-4.4L3.5 7.6 8 7z"/></svg>Eval<i id="mnEval"></i></button>
+    <button data-mv="more"><svg viewBox="0 0 20 20"><circle cx="5" cy="10" r="1.3"/><circle cx="10" cy="10" r="1.3"/><circle cx="15" cy="10" r="1.3"/></svg>More</button>
+  </nav>
+</div>
+
+<div id="modal" class="modal" hidden>
+  <div class="sheet msheet" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <h2 id="mTitle">New replay session</h2>
+    <section class="msec">
+      <h3>Data</h3>
+      <p id="mInfo" class="info"></p>
+      <label class="f" id="fSymRow" hidden>Contract (this file holds several)
+        <select id="fSym"></select>
+      </label>
+      <div id="fSecRow" hidden>
+        <div class="fgrid">
+          <label class="f">Replay span from the start time<select id="fSpan"></select></label>
+          <label class="f">History before the start (shown, not traded)<select id="fHist"></select></label>
+        </div>
+        <p class="note" id="fSecNote"></p>
+      </div>
+      <div class="f"><span>Start replay at <span class="tzl"></span></span>
+        <button type="button" id="fStart" class="dtfield" aria-label="Start time"><span></span><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg></button>
+      </div>
+    </section>
+    <section class="msec">
+      <h3>Account and costs</h3>
+      <div class="fgrid">
+        <label class="f">Starting balance ($)<input id="fBal" type="number" step="any" min="0"><span class="hint" id="fBalNote"></span></label>
+        <label class="f">Order size (contracts or units)<input id="fQty" type="number" step="any" min="0"></label>
+        <div class="f">Commission per side
+          <div class="inl"><input id="fComm" type="number" step="any" min="0" aria-label="Commission per side">
+            <select id="fCommMode" aria-label="Commission unit"><option value="fixed">$ per contract or unit</option><option value="pct">% of notional</option></select></div>
+        </div>
+        <label class="f">Point value ($ per 1.0 price move per unit)<input id="fPv" type="number" step="any" min="0"><span class="hint" id="fPvNote"></span></label>
+        <label class="f">Spread, in price (buys pay it)<input id="fSpread" type="number" step="any" min="0"></label>
+        <label class="f">Slippage on market and stop fills<input id="fSlip" type="number" step="any" min="0"></label>
+      </div>
+    </section>
+    <section class="msec">
+      <h3>Replay</h3>
+      <div class="fgrid">
+        <label class="f">Ticks per base bar (4–600)<input id="fTicks" type="number" min="4" max="600" step="1"><span class="hint">More ticks: smoother, slower replay.</span></label>
+        <div class="mchks">
+          <label class="f chk"><input id="fPause" type="checkbox"> Pause the replay when an order fills or a stop or target is hit</label>
+          <label class="f chk" title="Normally orders work on one net position, like TradingView: a sell while long reduces, closes or flips it. Tick this to keep every order as its own trade."><input id="fHedge" type="checkbox"> Keep each order as a separate trade (no netting)</label>
+        </div>
+      </div>
+      <details class="mhow"><summary>How orders fill</summary><p class="note">Prices in the file are treated as bid. Each base bar is replayed as a price path, open → low → high → close on up bars and open → high → low → close on down bars, and every order, stop and target fills where that path crosses it. Gaps between bars fill at the next open. Times are shown in UTC.</p></details>
+    </section>
+    <fieldset class="pf msec msim">
+      <legend><label class="f chk"><input id="sOn" type="checkbox"> Prop simulation: evaluation → funded → live</label></legend>
+      <div class="pfrow">
+        <select id="sPreset" aria-label="Prop simulation preset"></select>
+      </div>
+      <p class="note" id="sOffNote">Practice a prop firm's whole course: the evaluation, a funded account with payouts, then live. Pick a preset, or tick the box and set the rules yourself.</p>
+      <div id="sFields" hidden>
+        <div class="pfrow">
+          <input id="sName" placeholder="Preset name" aria-label="Prop simulation preset name">
+          <button id="sSave">Save preset</button>
+          <button id="sDel">Delete preset</button>
+        </div>
+        <div class="fgrid">
+          <label class="f">Account size ($)<input id="sSize" type="number" step="any" min="1"></label>
+          <label class="f">Evaluation fee, per attempt ($)<input id="sFee" type="number" step="any" min="0" placeholder="0"></label>
+          <label class="f">Contracts you trade<select id="sUnit"><option value="micro">Micros (10 per mini allowed)</option><option value="mini">Minis</option></select></label>
+          <label class="f">Trading day starts (hour, New York time)<input id="sReset" type="number" step="1" min="0" max="23"></label>
+          <label class="f">Daily loss limit, all stages ($)<input id="sDll" type="number" step="any" min="0" placeholder="off"></label>
+          <label class="f">Max loss locks at start + ($)<input id="sPad" type="number" step="any" min="0"></label>
+          <label class="f chk"><input id="sAuto" type="checkbox"> Take funded payouts automatically as soon as they are allowed</label>
+        </div>
+        <h4 class="sub">Evaluation</h4>
+        <div class="fgrid">
+          <label class="f">Profit target ($)<input id="sEPt" type="number" step="any" min="0"></label>
+          <label class="f">Max loss, EOD trailing ($)<input id="sEMll" type="number" step="any" min="0"></label>
+          <label class="f">Consistency: best day max % of profit<input id="sECons" type="number" step="any" min="0" max="100" placeholder="off"></label>
+          <label class="f">Max contracts (minis)<input id="sEMax" type="number" step="any" min="0" placeholder="no limit"></label>
+          <label class="f">Minimum trading days<input id="sEMin" type="number" step="1" min="0" placeholder="off"></label>
+          <label class="f">Daily profit target: stop for the day at ($)<input id="sEDpt" type="number" step="any" min="0" placeholder="off"></label>
+        </div>
+        <p class="note" id="sEDptNote"></p>
+        <h4 class="sub">Funded</h4>
+        <div class="fgrid">
+          <label class="f">Max loss, EOD trailing ($)<input id="sFMll" type="number" step="any" min="0"></label>
+          <label class="f">Contract scaling, profit:minis<input id="sFTiers" placeholder="0:2, 1000:3, 2000:4"></label>
+          <label class="f">Payout: winning days needed per cycle<input id="sFDays" type="number" step="1" min="0"></label>
+          <label class="f">Payout: minimum profit for a day to count ($)<input id="sFDayMin" type="number" step="any" min="0"></label>
+          <label class="f">Payout: minimum request ($)<input id="sFPayMin" type="number" step="any" min="0"></label>
+          <label class="f">Payout: maximum request ($)<input id="sFPayMax" type="number" step="any" min="0" placeholder="no cap"></label>
+          <label class="f">Payout: max % of profit per request<input id="sFPayPct" type="number" step="any" min="0" max="100"></label>
+          <label class="f">Profit split to you (%)<input id="sSplit" type="number" step="any" min="0" max="100"></label>
+          <label class="f">Payouts before moving to live<input id="sFPayouts" type="number" step="1" min="1"></label>
+        </div>
+        <h4 class="sub">Live</h4>
+        <div class="fgrid">
+          <label class="f">Max loss, EOD trailing ($)<input id="sLMll" type="number" step="any" min="0"></label>
+          <label class="f">Max contracts (minis)<input id="sLMax" type="number" step="any" min="0" placeholder="no limit"></label>
+          <label class="f">Live bonus: profit needed ($)<input id="sLBonusPt" type="number" step="any" min="0" placeholder="off"></label>
+          <label class="f">Live bonus: trading days needed<input id="sLBonusDays" type="number" step="1" min="0"></label>
+          <label class="f">Live bonus amount ($)<input id="sLBonus" type="number" step="any" min="0" placeholder="off"></label>
+        </div>
+        <details class="mhow"><summary>How the simulation works</summary><p class="note">Runs one account through its whole course in this session. Pass the evaluation and a fresh funded account opens at the same size. Each funded payout comes out of the balance and locks the max loss; after the last one the account moves to live. Live opens with no profit and the live max loss; live payouts can be taken any day. Breaking a max loss ends that account; start a new evaluation from the card, and its fee is counted. The max loss trails the end-of-day high and locks at start + the lock amount once the end-of-day balance is that far above the max loss (live: once profit reaches the max loss).</p></details>
+      </div>
+    </fieldset>
+    <div class="actions"><button id="mCancel">Cancel</button><button id="mStart" class="primary">Start session</button></div>
+  </div>
+</div>
+
+<div id="keysSheet" class="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="kTitle">
+    <h2 id="kTitle">Keyboard and mouse</h2>
+    <div class="keysgrid">
+      <kbd>Space</kbd><span>Play or pause the replay</span>
+      <kbd>→</kbd><span>Finish the current base bar</span>
+      <kbd>Shift + →</kbd><span>Finish the current candle on the chart timeframe</span>
+      <kbd>.</kbd><span>Step one tick</span>
+      <kbd>↑ ↓</kbd><span>Replay faster or slower</span>
+      <kbd>B</kbd><span>Buy with the order ticket</span>
+      <kbd>S</kbd><span>Sell with the order ticket</span>
+      <kbd>X</kbd><span>Close all positions at market</span>
+      <kbd>Right-click</kbd><span>Buy or sell a limit or stop order at that price, with or without a stop and target</span>
+      <kbd>Drag TP / SL</kbd><span>From an order or position tag: set its take profit or stop loss</span>
+      <kbd>Drag a line</kbd><span>Move an order, stop or target, or a drawing</span>
+      <kbd>Shift + drag</kbd><span>Keep a line or fib straight (horizontal or vertical), or move a drawing along one axis</span>
+      <kbd>Hold Ctrl</kbd><span>Magnet: the crosshair and drawing points lock to the candle's nearest open, high, low or close</span>
+      <kbd>M</kbd><span>Keep the magnet on, or turn it off</span>
+      <kbd>Drag a box edge</kbd><span>Change only the box's width or height</span>
+      <kbd>Z</kbd><span>Price zones on or off (FVG, iFVG, BPR, order blocks, breakers)</span>
+      <kbd>Del</kbd><span>Delete the selected drawing</span>
+      <kbd>Esc</kbd><span>Back to the pointer, or close a window</span>
+      <kbd>?</kbd><span>Show this list</span>
+    </div>
+    <p class="credit">Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™, © TradingView, Inc.</p>
+    <div class="actions"><button id="kTour">Take the tour</button><button id="kClose" class="primary">Done</button></div>
+  </div>
+</div>
+
+<div id="chartSet" class="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="csTitle">
+    <h2 id="csTitle">Chart</h2>
+    <dl class="dsinfo" id="csData"></dl>
+    <fieldset class="pf">
+      <legend>Time zone</legend>
+      <div class="pfrow"><select id="tzSel" aria-label="Chart time zone"></select><span class="hint" id="tzNow"></span></div>
+      <p class="note">Bars are stored in UTC. The chart, clock, date pickers, daily and weekly candles and the prop trading day all use this zone.</p>
+    </fieldset>
+    <fieldset class="pf">
+      <legend>Session opens</legend>
+      <div class="pfrow">
+        <select id="sStd" aria-label="Standard session hours">
+          <option value="">Set standard hours…</option>
+          <option value="exchange">Stock exchange hours (ASX, Tokyo, LSE, NYSE)</option>
+          <option value="forex">Forex session hours</option>
+        </select>
+      </div>
+      <p class="note" id="sessNote"></p>
+      <div class="sessgrid" id="sessRows"></div>
+      <div class="pfrow">
+        <label class="f chk"><input id="sShade" type="checkbox"> Shade each session from open to close</label>
+        <label class="f chk"><input id="sLabels" type="checkbox"> Name the lines</label>
+      </div>
+      <p class="note">Lines show on timeframes below one day and are skipped on weekends.</p>
+    </fieldset>
+    <fieldset class="pf">
+      <legend>Theme and colors</legend>
+      <div class="palgrid" id="palGrid" role="radiogroup" aria-label="Theme"></div>
+      <div class="fgrid palsys" id="palSys">
+        <label class="f">When the system is dark<select id="thDark"></select></label>
+        <label class="f">When the system is light<select id="thLight"></select></label>
+      </div>
+      <div class="pfrow">
+        <select id="thPreset" aria-label="Color preset"></select>
+        <input id="thName" placeholder="Preset name" aria-label="Color preset name">
+        <button id="thSave">Save preset</button>
+        <button id="thDel">Delete preset</button>
+      </div>
+      <div class="cgrid">
+        <label class="f">Up and down colors<select id="thCandles"></select></label>
+        <label class="f">Accent<input id="thAccent" type="color"></label>
+        <label class="f">Chart background<input id="thChartBg" type="color"></label>
+        <label class="f">Grid<input id="thGrid" type="color"></label>
+        <label class="f">Axis text<input id="thText" type="color"></label>
+        <label class="f">Up candle<input id="thUp" type="color"></label>
+        <label class="f">Down candle<input id="thDown" type="color"></label>
+        <label class="f">Up wick<input id="thWickUp" type="color"></label>
+        <label class="f">Down wick<input id="thWickDown" type="color"></label>
+        <label class="f chk"><input id="thBorder" type="checkbox"> Candle borders (wick color)</label>
+      </div>
+      <div class="pfrow"><button id="thReset">Reset colors</button></div>
+    </fieldset>
+    <div class="actions"><button id="csClose" class="primary">Done</button></div>
+  </div>
+</div>
+
+<div id="lib" class="modal" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="libTitle">
+    <div class="libhead">
+      <h2 id="libTitle">Library</h2>
+      <div class="seg lt" id="libTabs">
+        <button data-lt="bt" aria-pressed="true">Backtests</button>
+        <button data-lt="ds" aria-pressed="false">Data files</button>
+        <button data-lt="op" aria-pressed="false" id="libOpTab" hidden>Optimizations</button>
+      </div>
+      <span class="spacer"></span>
+      <label class="btn" for="fileIn" title="Import CSV or DBN files (several at once are combined)">Import file</label>
+      <button id="libClose">Close</button>
+    </div>
+    <p class="note" id="libNote"></p>
+    <div id="libBulk" class="libbulk" role="toolbar" aria-label="Selected rows" hidden><b id="libSelN"></b><span class="spacer"></span><button id="libSelClr">Clear</button><button id="libSelDel" class="danger"></button></div>
+    <div id="libBody" class="libbody"></div>
+  </div>
+</div>
+
+<!-- Python strategies: write one, run it over the loaded data, see the results -->
+<div id="strat" class="modal" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="stTitle">
+    <div class="sthead">
+      <h2 id="stTitle">Strategy <span class="pytag">Python</span></h2>
+      <div class="seg st" id="stTabs">
+        <button data-st="code" aria-pressed="true">Code</button>
+        <button data-st="res" aria-pressed="false">Results</button>
+        <button data-st="opt" aria-pressed="false" id="stTabOpt" hidden>Optimize</button>
+        <button data-st="help" aria-pressed="false">Help</button>
+      </div>
+      <span class="spacer"></span>
+      <button id="stRun" class="primary"><svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>Run backtest</button>
+      <button id="stStop" disabled>Stop</button>
+      <button id="stClose">Close</button>
+    </div>
+
+    <div id="stCode" class="stres">
+      <div class="stpick">
+        <select id="stTpl" aria-label="Open a strategy or template"></select>
+        <input id="stName" maxlength="60" aria-label="Strategy name" placeholder="Strategy name">
+        <button id="stDel" hidden>Delete</button>
+      </div>
+      <div class="stbody">
+        <div class="sted"><div class="ln" id="stLn"></div><textarea id="stSrc" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Strategy code"></textarea></div>
+        <div class="stside">
+          <div class="stcard">
+            <h3>Run on</h3>
+            <div class="fgrid">
+              <label class="f">From<input id="stFrom" type="date"></label>
+              <label class="f">To<input id="stTo" type="date"></label>
+              <label class="f" style="grid-column:1/-1">Strategy timeframe<select id="stTf"></select></label>
+            </div>
+            <div class="f">Strategy is called
+              <div class="seg" id="stMode"><button data-v="bar" aria-pressed="true">At bar close</button><button data-v="tick" aria-pressed="false">Every tick</button></div>
+            </div>
+            <div class="f">Libraries
+              <div class="seg" id="stLibs"><button data-v="numpy" aria-pressed="true">numpy</button><button data-v="pandas" aria-pressed="false">numpy + pandas</button></div>
+            </div>
+            <div class="f" id="stEvalRow">Prop simulation
+              <label class="f chk"><input id="stRebuy" type="checkbox"> When the account fails, buy a new evaluation and keep going</label>
+              <label class="f" id="stMaxRow">Stop after this many evaluations<input id="stMax" type="number" min="1" step="1" placeholder="no limit"></label>
+              <p class="note" id="stEvalNote"></p>
+            </div>
+            <p class="note" id="stRange"></p>
+          </div>
+          <div class="stcard" style="flex:1">
+            <h3>Console</h3>
+            <div class="stcons" id="stCons"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="stRes" class="stres" hidden>
+      <div class="stkpi" id="stKpi"></div>
+      <div class="stsim" id="stSim" hidden></div>
+      <div class="steq" id="stEq"></div>
+      <div class="sttr"><table><thead><tr><th>#</th><th>Side</th><th class="r">Size</th><th>Opened</th><th class="r">Entry</th><th>Closed</th><th class="r">Exit</th><th>Exit by</th><th class="r">Net P&amp;L</th></tr></thead><tbody id="stTr"></tbody></table></div>
+      <div class="stact">
+        <p class="note" id="stSaved"></p>
+        <button id="stChart">Show on chart</button>
+        <button id="stAgain">Edit and run again</button>
+      </div>
+    </div>
+
+    <div id="stOpt" class="stres" hidden>
+      <div class="optgrid">
+        <div class="optleft">
+          <div class="opthead"><h3>Settings in your code</h3>
+            <span class="optq">Ranges for the ticked settings: <button data-q="narrow">Narrow</button><button data-q="normal">Normal</button><button data-q="wide">Wide</button></span></div>
+          <div class="optlist"><table><thead><tr><th></th><th>Setting</th><th class="r">Now</th><th>Values to try</th><th class="r">Count</th></tr></thead><tbody id="optRows"></tbody></table></div>
+          <label class="f">Rules combinations must meet (optional, one per line)<textarea id="optRules" rows="2" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="e.g. FAST < SLOW"></textarea></label>
+        </div>
+        <div class="stcard optside">
+          <h3>Search</h3>
+          <div class="seg" id="optMode"><button data-v="grid" aria-pressed="true">All combinations</button><button data-v="random" aria-pressed="false">Random sample</button></div>
+          <label class="f" id="optNRow" hidden>Combinations to try<input id="optN" type="number" min="1" step="1" value="200"></label>
+          <label class="f">Goal<select id="optGoal"><option value="ndd">Net ÷ max drawdown</option><option value="net">Net P&amp;L</option><option value="pf">Profit factor</option><option value="take">Prop simulation: payouts − fees</option></select></label>
+          <div class="fgrid">
+            <label class="f">Minimum trades<input id="optMin" type="number" min="0" step="1" value="10"></label>
+            <label class="f">Check on the last<select id="optSplit"><option value="0">Off</option><option value="20">20% of dates</option><option value="30" selected>30% of dates</option><option value="40">40% of dates</option></select></label>
+          </div>
+          <p class="note" id="optCount"></p>
+          <p class="note">Runs over the dates, timeframe and options on the Code tab, with the costs and prop simulation in Session settings. Settings that are times of day are not offered.</p>
+          <div class="optbtns"><button id="optRun" class="primary">Run optimization</button><button id="optStop" disabled>Stop</button></div>
+        </div>
+      </div>
+      <div id="optResults" class="stres" hidden>
+        <div class="opttop"><p class="note" id="optSummary"></p>
+          <button id="optResume" hidden>Resume</button><button id="optZoom">Zoom in on the best</button><button id="optCsv">Copy as CSV</button></div>
+        <div id="optHeat" class="optheat" hidden></div>
+        <div class="sttr optres"><table><thead id="optHead"></thead><tbody id="optBody"></tbody></table></div>
+        <div class="optcards" id="optCards"></div>
+        <section id="robBox" class="robbox" aria-labelledby="robTitle">
+          <div class="opthead"><h3 id="robTitle">Robustness tests</h3>
+            <span class="note">Out of sample, walk-forward and Monte Carlo on the best combinations</span></div>
+          <div class="robgrid">
+            <div class="stcard">
+              <h3>Candidates</h3>
+              <label class="f">Test the best (% of ranked combinations)<input id="robPct" type="number" min="1" max="100" step="1" value="10"></label>
+              <p class="note" id="robCand"></p>
+            </div>
+            <div class="stcard">
+              <h3><label class="robtick"><input type="checkbox" id="robOos" checked> Out of sample</label></h3>
+              <div class="fgrid">
+                <label class="f">From<input id="robFrom" type="date"></label>
+                <label class="f">To<input id="robTo" type="date"></label>
+              </div>
+              <p class="note" id="robOosNote"></p>
+            </div>
+            <div class="stcard">
+              <h3><label class="robtick"><input type="checkbox" id="robWf" checked> Walk-forward</label></h3>
+              <div class="fgrid">
+                <label class="f">Windows<input id="robWfN" type="number" min="2" max="24" step="1" value="6"></label>
+                <label class="f">In-sample share<select id="robWfIs"><option value="60">60%</option><option value="70" selected>70%</option><option value="75">75%</option><option value="80">80%</option></select></label>
+              </div>
+              <div class="seg" id="robWfMode"><button data-v="rolling" aria-pressed="true">Rolling</button><button data-v="anchored" aria-pressed="false">Anchored</button></div>
+            </div>
+            <div class="stcard">
+              <h3><label class="robtick"><input type="checkbox" id="robMc" checked> Monte Carlo</label></h3>
+              <div class="fgrid">
+                <label class="f">Simulations<input id="robMcN" type="number" min="100" max="20000" step="100" value="1000"></label>
+                <label class="f">Method<select id="robMcMode"><option value="resample">Resample trades</option><option value="shuffle">Reshuffle order</option></select></label>
+                <label class="f">Skip trades at random<select id="robMcSkip"><option value="0">None</option><option value="5">5%</option><option value="10">10%</option><option value="20">20%</option></select></label>
+                <label class="f">Ruin at a drawdown of ($)<input id="robRuin" type="number" min="0" step="any" placeholder="off"></label>
+              </div>
+            </div>
+          </div>
+          <div class="opttop"><p class="note" id="robMsg"></p>
+            <span class="optbtns"><button id="robRun" class="primary">Run robustness tests</button><button id="robStop" disabled>Stop</button><button id="robCsv" hidden>Copy as CSV</button></span></div>
+          <div id="robOut" hidden>
+            <p class="note" id="robSummary"></p>
+            <div class="sttr robres"><table><thead id="robHead"></thead><tbody id="robBody"></tbody></table></div>
+            <div id="robWfOut" class="robwf"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div id="stHelp" class="guide" hidden></div>
+
+    <div class="stfoot"><span id="stStat">Ready</span><div class="stprog"><i id="stProg"></i></div><span id="stPct" class="num"></span></div>
+  </div>
+</div>
+
+<!-- the Indicator panel: an indicator written in Python, drawn on the chart (like the Strategy panel) -->
+<div id="pind" class="modal" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="piTitle">
+    <div class="sthead">
+      <h2 id="piTitle">Indicator <span class="pytag">Python</span></h2>
+      <div class="seg st" id="piTabs">
+        <button data-pt="code" aria-pressed="true">Code</button>
+        <button data-pt="help" aria-pressed="false">Help</button>
+      </div>
+      <span class="spacer"></span>
+      <button id="piRun" class="primary"><svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg><span id="piRunLbl">Add to chart</span></button>
+      <button id="piOff" hidden>Remove from chart</button>
+      <button id="piClose">Close</button>
+    </div>
+
+    <div id="piCode" class="stres">
+      <div class="stpick">
+        <select id="piTpl" aria-label="Open an indicator or template"></select>
+        <input id="piName" maxlength="60" aria-label="Indicator name" placeholder="Indicator name">
+        <button id="piDel" hidden>Delete</button>
+      </div>
+      <div class="stbody">
+        <div class="sted"><div class="ln" id="piLn"></div><textarea id="piSrc" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Indicator code"></textarea></div>
+        <div class="stside">
+          <div class="stcard">
+            <h3>On the chart</h3>
+            <div id="piOn" class="pion"></div>
+            <p class="note">Runs on each closed candle of the chart's timeframe, up to the replay time, so it never sees a candle before it prints.</p>
+          </div>
+          <div class="stcard">
+            <h3>Settings</h3>
+            <div id="piSet"></div>
+          </div>
+          <div class="stcard" style="flex:1">
+            <h3>Console</h3>
+            <div class="stcons" id="piCons"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="piHelp" class="guide" hidden></div>
+
+    <div class="stfoot"><span id="piStat">Ready</span><div class="stprog"><i id="piProg"></i></div><span id="piPct" class="num"></span></div>
+  </div>
+</div>
+
+<!-- the Python guide: how to code indicators and strategies (also on each panel's Help tab) -->
+<div id="docs" class="modal" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="docTitle">
+    <div class="sthead">
+      <h2 id="docTitle">Python guide</h2>
+      <span class="spacer"></span>
+      <button id="docClose">Close</button>
+    </div>
+    <div id="docBody" class="guide"></div>
+  </div>
+</div>
+
+<template id="guideInd">
+  <h3 id="gi-start">How an indicator runs</h3>
+  <p>An indicator is a short Python script. Open <b>Indicators</b> on the toolbar (on a phone: <b>More</b>, then <b>Indicator</b>), pick a template or write your own, then <b>Add to chart</b>. It is saved under its name and stays on the chart for every session until you remove it.</p>
+  <p>Your <code>on_bar(ctx, bar)</code> function runs once for each <b>closed candle</b> of the chart's timeframe, oldest first. When the chart opens it catches up on the history before the replay time (up to the last 40,000 candles; 8,000 on phones and tablets), then runs once more each time a candle closes as the tape plays. It never sees the candle that is still forming, or anything after it, so an indicator cannot peek at the future.</p>
+  <p>Changing the timeframe, the time zone or the session starts every indicator again from the beginning. What it draws is kept: a line drawn on an earlier candle stays where it was drawn, as on TradingView.</p>
+
+  <h3 id="gi-first">A first indicator</h3>
+<pre># a setting: change it on the Settings card
+LENGTH = 20
+
+# runs once, before the first candle
+def init(ctx):
+    ctx.avg = ta.EMA(LENGTH)
+
+# runs on every closed candle
+def on_bar(ctx, bar):
+    v = ctx.avg.update(bar.close)
+    ctx.plot(v, "EMA", "orange")
+    if v is not None and bar.open &lt; v &lt; bar.close:
+        ctx.marker("Cross", shape="arrow_up",
+                   position="below", color="up")</pre>
+  <p><code>ctx</code> is how the indicator reads candles and draws. Keep your own values on it (<code>ctx.avg</code> above), not in global variables. <code>np</code> (numpy) and <code>ta</code> are ready to use without importing.</p>
+
+  <h3 id="gi-hooks">Functions you write</h3>
+  <p><code>on_bar(ctx, bar)</code> (required) runs on each closed candle. <code>bar</code> has <code>time</code>, <code>open</code>, <code>high</code>, <code>low</code>, <code>close</code>, <code>volume</code> and <code>index</code>. <code>time</code> is the candle's open as a datetime in the chart's time zone; <code>index</code> counts candles from 0 at the first one the indicator saw.</p>
+  <p><code>init(ctx)</code> (optional) runs once before the first candle: set up your values and levels there.</p>
+
+  <h3 id="gi-read">Reading candles</h3>
+  <p><code>ctx.closes(n)</code>, <code>ctx.opens(n)</code>, <code>ctx.highs(n)</code>, <code>ctx.lows(n)</code>, <code>ctx.volumes(n)</code>, <code>ctx.times(n)</code>: the last <code>n</code> closed candles as numpy arrays, oldest first, the current candle last (all of them without <code>n</code>). Early on there are fewer than <code>n</code>, so check <code>len(...)</code>. <code>times</code> are UTC seconds.</p>
+  <p><code>ctx.df(n)</code>: the same candles as a pandas DataFrame. Write <code>import pandas</code> in your code and pandas loads with it (slower than numpy; avoid it on every bar).</p>
+  <p><code>ctx.time</code> and <code>ctx.price</code> (this candle's time and close), <code>ctx.bar_index</code>, <code>ctx.symbol</code>, <code>ctx.timeframe</code> (like <code>"5m"</code>), <code>ctx.tick_size</code>, <code>ctx.ticks(n)</code> (n ticks as a price distance), <code>ctx.round(price)</code> (to the data's precision), <code>ctx.point_value</code>, and <code>ctx.at("09:30")</code>, a time to compare with <code>bar.time.time()</code>.</p>
+
+  <h3 id="gi-plot">Plots</h3>
+  <p><code>ctx.plot(value, title, color=None, width=1, style="line", pane="price")</code> adds this candle's point to a line. Call it on every bar with the same <code>title</code>; a <code>None</code> or <code>NaN</code> value leaves a gap. A plot's style and pane are set by its first call; its color can change from bar to bar (<code>"up" if fast &gt; slow else "down"</code>).</p>
+  <ul>
+    <li><b>style</b>: <code>"line"</code>, <code>"step"</code>, <code>"dashed"</code>, <code>"dotted"</code>, <code>"points"</code> or <code>"histogram"</code> (bars up from 0, as for a MACD histogram).</li>
+    <li><b>pane</b>: <code>"price"</code> draws on the candles. <code>"lower"</code> puts the plot in a band of its own under the chart, with its own scale, for values such as RSI or MACD. All of an indicator's lower plots share its band.</li>
+  </ul>
+  <p>The legend shows each plot's value on the candle under the pointer.</p>
+
+  <h3 id="gi-levels">Levels, fills and background</h3>
+  <p><code>ctx.hline(price, title=None, color="muted", width=1, style="dashed", pane="price")</code>: a level across the chart, such as 70 and 30 on an RSI (<code>pane="lower"</code>). Call it in <code>init</code>; calling it again with the same title moves it. Levels in the lower band are kept in view.</p>
+  <p><code>ctx.fill(title1, title2, color)</code>: shades between two plots on this candle. Call it on each bar where you want the shading; the color can change from bar to bar.</p>
+  <p><code>ctx.bgcolor(color)</code>: tints the chart behind this candle. Use a see-through color: <code>rgba("down", 0.1)</code>.</p>
+
+  <h3 id="gi-markers">Markers</h3>
+  <p><code>ctx.marker(text="", shape="circle", position="above", color="accent", at=None, size=1)</code>: a marker on this candle, beside the trade markers. <b>shape</b> is <code>"arrow_up"</code>, <code>"arrow_down"</code>, <code>"circle"</code> or <code>"square"</code>; <b>position</b> is <code>"above"</code>, <code>"below"</code> or <code>"inside"</code> the candle. <code>at</code> puts it on an earlier candle instead (a bar index or time), as when a swing high is only confirmed a few candles later.</p>
+
+  <h3 id="gi-draw">Boxes, lines and labels</h3>
+  <p>These are placed by a bar position and a price. A position is a bar index (<code>bar.index</code>, <code>bar.index - 10</code>, or one in the future such as <code>bar.index + 5</code>) or a time (<code>bar.time</code>).</p>
+  <ul>
+    <li><code>ctx.box(left, top, right, bottom, color="accent", fill=None, width=1, style="solid", text="", text_color=None, extend=False)</code>. <code>fill</code> defaults to a see-through version of <code>color</code>; <code>extend=True</code> runs it to the right edge of the chart.</li>
+    <li><code>ctx.line(x1, y1, x2, y2, color="accent", width=1, style="solid", extend="none")</code>. <code>extend</code>: <code>"none"</code>, <code>"right"</code>, <code>"left"</code> or <code>"both"</code>.</li>
+    <li><code>ctx.label(x, y, text, color="accent", text_color=None, style="up")</code>. <code>style</code>: <code>"up"</code> sits below the price and points up at it, <code>"down"</code> sits above and points down, <code>"center"</code> sits on it, <code>"text"</code> is text with no background.</li>
+  </ul>
+  <p>Each returns the drawing. Keep it on <code>ctx</code> to change it on later bars, by setting what changed or with <code>set(...)</code>, and remove it with <code>delete()</code>:</p>
+<pre>ctx.range = ctx.box(bar.index, bar.high, bar.index, bar.low, text="Range")
+...
+ctx.range.right = bar.index                        # keep it running
+ctx.range.set(top=max(ctx.range.top, bar.high))    # or several at once
+ctx.range.delete()</pre>
+  <p>An indicator keeps up to 500 boxes, 500 lines and 500 labels; past that the oldest of that kind is removed. <code>ctx.boxes</code>, <code>ctx.lines</code> and <code>ctx.labels</code> list the ones still drawn, and <code>ctx.clear()</code> removes them all.</p>
+  <p><code>style</code> for boxes, lines and levels is <code>"solid"</code>, <code>"dashed"</code> or <code>"dotted"</code>.</p>
+
+  <h3 id="gi-colors">Colors</h3>
+  <p>Any CSS color: <code>"#22c55e"</code>, <code>"orange"</code>, <code>"rgb(80, 120, 255)"</code>. The theme's own colors follow light and dark themes: <code>"up"</code>, <code>"down"</code>, <code>"accent"</code>, <code>"muted"</code> and <code>"fg"</code> (the text color). <code>rgba(color, alpha)</code> makes any of them see-through, from 0 (clear) to 1 (solid): <code>rgba("up", 0.2)</code>.</p>
+
+  <h3 id="gi-ta">Indicator math: ta</h3>
+  <p><code>ta</code> has the common calculations two ways. The classes take <b>one value at a time</b>, which is fast in <code>on_bar</code>: make one in <code>init</code>, then call <code>update</code> on each bar. It returns <code>None</code> until it has enough values.</p>
+  <table class="gtab">
+    <tr><td><code>ta.SMA(n)</code>, <code>ta.EMA(n)</code>, <code>ta.RMA(n)</code></td><td><code>.update(value)</code>: simple, exponential and Wilder's moving averages. The EMA starts from the simple average of its first <code>n</code> values, like the chart's.</td></tr>
+    <tr><td><code>ta.RSI(n=14)</code></td><td><code>.update(close)</code>: relative strength, 0 to 100.</td></tr>
+    <tr><td><code>ta.ATR(n=14)</code></td><td><code>.update(high, low, close)</code>: average true range.</td></tr>
+    <tr><td><code>ta.STDEV(n)</code></td><td><code>.update(value)</code>: standard deviation of the last <code>n</code>.</td></tr>
+    <tr><td><code>ta.HIGHEST(n)</code>, <code>ta.LOWEST(n)</code></td><td><code>.update(value)</code>: the highest or lowest of the last <code>n</code>.</td></tr>
+  </table>
+  <p>The functions take <b>whole arrays</b>, like <code>ctx.closes(100)</code>, and return an array of the same length, <code>NaN</code> where there is not enough data yet: <code>ta.sma(x, n)</code>, <code>ta.ema(x, n)</code>, <code>ta.rma(x, n)</code>, <code>ta.rsi(x, n)</code>, <code>ta.atr(highs, lows, closes, n)</code>, <code>ta.stdev(x, n)</code>, <code>ta.highest(x, n)</code>, <code>ta.lowest(x, n)</code>. <code>ta.crossover(a, b)</code> and <code>ta.crossunder(a, b)</code> are <code>True</code> when <code>a</code> crossed above (or below) <code>b</code> on the last value; <code>b</code> can be a number.</p>
+  <p>Running a function over all candles on every bar gets slower as the history grows. Give it a window (<code>ta.rsi(ctx.closes(100), 14)[-1]</code>) or use the class instead.</p>
+
+  <h3 id="gi-settings">Settings</h3>
+  <p>Write the numbers you might change as <code>NAME = value</code> lines at the top of the code, in capitals: <code>LENGTH = 14</code>, <code>SHOW_LABELS = True</code>, <code>SOURCE = "close"  # "close" or "hl2"</code>. They appear on the <b>Settings</b> card, where changing one rewrites that line and updates the chart. Text in quotes in the comment becomes a list of choices.</p>
+
+  <h3 id="gi-pine">Coming from Pine Script</h3>
+  <table class="gtab">
+    <tr><td><code>plot(x, "T", color.orange)</code></td><td><code>ctx.plot(x, "T", "orange")</code></td></tr>
+    <tr><td><code>indicator(overlay=false)</code></td><td><code>ctx.plot(x, "T", pane="lower")</code></td></tr>
+    <tr><td><code>hline(70)</code></td><td><code>ctx.hline(70, pane="lower")</code> in <code>init</code></td></tr>
+    <tr><td><code>fill(p1, p2, color)</code></td><td><code>ctx.fill("T1", "T2", color)</code></td></tr>
+    <tr><td><code>bgcolor(color)</code></td><td><code>ctx.bgcolor(color)</code></td></tr>
+    <tr><td><code>plotshape(cond, style=shape.triangleup)</code></td><td><code>if cond: ctx.marker(shape="arrow_up", position="below")</code></td></tr>
+    <tr><td><code>box.new(...)</code>, <code>box.set_right(b, x)</code></td><td><code>b = ctx.box(...)</code>, <code>b.right = x</code></td></tr>
+    <tr><td><code>line.new(...)</code>, <code>label.new(...)</code></td><td><code>ctx.line(...)</code>, <code>ctx.label(...)</code></td></tr>
+    <tr><td><code>close[1]</code></td><td><code>ctx.closes(2)[0]</code></td></tr>
+    <tr><td><code>ta.ema(close, 20)</code></td><td><code>ctx.e = ta.EMA(20)</code> in <code>init</code>, then <code>ctx.e.update(bar.close)</code></td></tr>
+    <tr><td><code>var x = 0</code></td><td><code>ctx.x = 0</code> in <code>init</code></td></tr>
+    <tr><td><code>bar_index</code>, <code>time</code></td><td><code>bar.index</code>, <code>bar.time</code></td></tr>
+    <tr><td><code>color.new(c, 80)</code></td><td><code>rgba(c, 0.2)</code> (Pine's 80% transparent is 0.2 here)</td></tr>
+    <tr><td><code>input.int(14)</code></td><td><code>LENGTH = 14</code> at the top (the Settings card)</td></tr>
+  </table>
+
+  <h3 id="gi-more">Good to know</h3>
+  <p><code>print()</code> writes to the console in the Indicator panel. An error stops that indicator, shows the line in the console and keeps what it had drawn; fix it and press <b>Update chart</b>.</p>
+  <p>An indicator works on the chart's candles. It cannot place orders; a strategy can (see <b>Strategies</b>), and can use the same <code>ta</code> math.</p>
+  <p>Python runs inside the app: no internet, files or other packages than numpy and pandas. Python loads the first time an indicator runs, in a few seconds.</p>
+</template>
+
+<template id="guideStrat">
+  <h3 id="gs-start">How a run works</h3>
+  <p>A strategy is a Python script that places orders. Open <b>Strategy</b> on the toolbar (on a phone: <b>More</b>, then <b>Strategy</b>), pick dates, a timeframe and how often it is called, then <b>Run backtest</b>. A run is a new session on the loaded data: the replay goes as fast as it can, calls your code as each candle of the strategy's timeframe closes, and fills orders exactly as in manual replay. The finished run opens on the chart and is saved to the Library; the session you had stays in the Library too.</p>
+
+  <h3 id="gs-hooks">Functions you write</h3>
+  <p><code>on_bar(ctx, bar)</code> runs when each candle of the strategy timeframe closes. <code>bar</code> has <code>time</code>, <code>open</code>, <code>high</code>, <code>low</code>, <code>close</code>, <code>volume</code> and <code>index</code>; <code>time</code> is the candle's open in the chart's time zone.</p>
+  <p><code>on_tick(ctx, tick)</code> runs on every simulated tick when you choose <b>Every tick</b>: <code>tick.time</code>, <code>tick.price</code>. <code>on_bar</code> still runs at each close.</p>
+  <p>Optional: <code>init(ctx)</code> before the first bar, <code>on_fill(ctx, fill)</code> after each fill (<code>side</code> buy or sell, <code>qty</code>, <code>price</code>, <code>kind</code> entry or exit, <code>reason</code>, <code>trade_id</code>, <code>pnl</code> on exits, net of costs), and <code>on_end(ctx)</code> at the end.</p>
+  <p>Keep your own values on <code>ctx</code>, like <code>ctx.count = 0</code> in <code>init</code>.</p>
+
+  <h3 id="gs-orders">Orders</h3>
+  <p><code>ctx.buy(qty=None, sl=None, tp=None)</code> and <code>ctx.sell(...)</code> trade at market; add <code>limit=price</code> or <code>stop=price</code> for a working order. Also <code>ctx.buy_limit</code>, <code>ctx.sell_limit</code>, <code>ctx.buy_stop</code> and <code>ctx.sell_stop</code><code>(price, qty=None, sl=None, tp=None)</code>.</p>
+  <p>Leave out <code>qty</code> to use the size in <b>Session settings</b>. The stop loss <code>sl</code> and take profit <code>tp</code> are prices: build them with <code>ctx.ticks(n)</code> and round them with <code>ctx.round(price)</code>. Each call returns the order's id, or <code>None</code> if it was rejected (the console says why). A buy stop must be above the ask and a sell stop below the bid.</p>
+  <p><code>ctx.close()</code> closes the position at market, <code>ctx.cancel(id)</code> and <code>ctx.cancel_all()</code> cancel working orders, <code>ctx.set_bracket(sl=..., tp=...)</code> moves the open position's stop and target.</p>
+  <p>There is one position at a time. <code>ctx.position</code> is positive when long, negative when short, 0 when flat. To reverse, <code>ctx.close()</code> and then enter the other way.</p>
+
+  <h3 id="gs-fills">How fills work</h3>
+  <p>Market orders and <code>close()</code> fill on the next tick: from <code>on_bar</code> that is the next bar's open, so a strategy cannot trade at a price it has already seen. Limit and stop orders, stop losses and take profits fill inside bars, exactly as in manual replay. Each bar of the data replays as open, low, high, close (or open, high, low, close on a down bar). Size, costs, spread, slippage, point value and the prop simulation come from <b>Session settings</b>.</p>
+
+  <h3 id="gs-read">What the strategy can read</h3>
+  <p><code>ctx.closes(n)</code>, <code>opens</code>, <code>highs</code>, <code>lows</code>, <code>volumes</code>, <code>times</code>: the last <code>n</code> closed candles (all of them without <code>n</code>) as numpy arrays, oldest first. <code>times</code> are UTC seconds. Check <code>len(...)</code> early on.</p>
+  <p><code>ctx.df(n)</code>: the same candles as a pandas DataFrame (choose <b>numpy + pandas</b> under Libraries). Building one on every bar is slow over long runs; numpy arrays are much faster.</p>
+  <p><code>ctx.position</code>, <code>ctx.position_price</code>, <code>ctx.equity</code>, <code>ctx.balance</code>, <code>ctx.time</code>, <code>ctx.price</code>, <code>ctx.orders</code> (working orders), <code>ctx.trades</code> (open trades), <code>ctx.history</code> (closed trades).</p>
+  <p><code>ctx.tick_size</code>, <code>ctx.ticks(n)</code>, <code>ctx.bid</code> and <code>ctx.ask</code> (sells fill at the bid, buys at the ask), <code>ctx.spread</code>, <code>ctx.round(price)</code>, <code>ctx.point_value</code> (money per 1.0 of price per contract), <code>ctx.at("09:30")</code> (a time to compare with <code>bar.time.time()</code>).</p>
+
+  <h3 id="gs-ta">Indicator math</h3>
+  <p>The <code>ta</code> helpers from indicators work in strategies too: <code>ctx.ema = ta.EMA(20)</code> in <code>init</code>, then <code>ctx.ema.update(bar.close)</code> on each bar, or <code>ta.rsi(ctx.closes(100), 14)[-1]</code>. The <b>Indicators</b> guide lists them all.</p>
+
+  <h3 id="gs-example">An example</h3>
+<pre>FAST = 9
+SLOW = 21
+STOP = 40      # ticks
+TARGET = 80    # ticks
+
+def init(ctx):
+    ctx.fast, ctx.slow = ta.EMA(FAST), ta.EMA(SLOW)
+
+def on_bar(ctx, bar):
+    f, s = ctx.fast.update(bar.close), ctx.slow.update(bar.close)
+    if f is None or s is None:
+        return
+    if f &gt; s and ctx.position &lt;= 0:
+        ctx.close()
+        ctx.buy(sl=bar.close - ctx.ticks(STOP), tp=bar.close + ctx.ticks(TARGET))
+    elif f &lt; s and ctx.position &gt;= 0:
+        ctx.close()
+        ctx.sell(sl=bar.close + ctx.ticks(STOP), tp=bar.close - ctx.ticks(TARGET))
+
+def on_fill(ctx, fill):
+    print(f"{fill.time:%m-%d %H:%M}  {fill.side} {fill.qty:g} @ {fill.price}  {fill.reason}")</pre>
+
+  <h3 id="gs-settings">Settings and the optimizer</h3>
+  <p>Write tunable numbers as <code>NAME = value</code> lines at the top, in capitals. The Optimize tab finds them (numbers, True/False and text choices; times of day are left out). A comment can help it: quoted words become choices (<code>ENTRY = "break"  # "break" or "retest"</code>), and <code># 0 = off</code> makes it always try 0. A setting can carry its own range: <code>FAST = param(9, 5, 30, step=5)</code> or <code>param("break", values=["break", "retest"])</code>; in a normal run it is just the first value.</p>
+  <p class="opthelp" hidden>On the Optimize tab, tick the settings to try and adjust their values; it runs every combination, several at a time, ranked by your goal. <b>Check on the last</b> leaves the end of the dates out of the ranking and shows how each combination did there: a result that only works on the dates it was tuned on is luck. Robustness tests (out of sample, walk-forward, Monte Carlo) then check the best ones. On iPhone and iPad it runs one or two at a time, up to 300 combinations, and pauses if you leave the app (tap Resume when you are back).</p>
+
+  <h3 id="gs-more">Good to know</h3>
+  <p><code>print()</code> writes to the console. Errors stop the run and show the line.</p>
+  <p><b>At bar close</b> is fast. <b>Every tick</b> calls Python many times per bar and is slower; the ticks are simulated from each bar's open, high, low and close. A strategy that never returns stops the app responding.</p>
+  <p>Prop rules (daily loss, drawdown) and buying new evaluations are handled by the app from Session settings; you do not code them.</p>
+  <p>Python runs inside the app: no internet, files or other packages than numpy and pandas.</p>
+</template>
+
+<!-- home: shown at launch and from the logo -->
+<div id="home" class="home" hidden>
+  <div class="hwrap">
+    <header class="hhead">
+      <div class="brand hlogo"><i></i>Tape Replay</div>
+      <nav class="hnav"><button id="hTour" class="hghost">Take the tour</button><button id="hGuide" class="hghost">Python guide</button><button id="hLib" class="hghost">Library</button></nav>
+    </header>
+    <p class="htag">Replay the futures tape bar by bar and trade it as if it were live.</p>
+    <div id="hResume" class="hresume" hidden></div>
+    <section class="hacts" aria-label="Start">
+      <button id="hNew" class="hact primary">
+        <svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></svg>
+        <span><b>New session</b><span id="hNewSub">Pick a start date and go</span></span>
+      </button>
+      <button id="hData" class="hact">
+        <svg viewBox="0 0 20 20"><path d="M10 3v9M6 8l4 4 4-4M4 14v2.5h12V14"/></svg>
+        <span><b>Import data</b><span>Databento or CSV</span></span>
+      </button>
+      <button id="hLib2" class="hact">
+        <svg viewBox="0 0 20 20"><rect x="3" y="3.5" width="14" height="13" rx="2"/><path d="M3 8h14M7.5 8v8.5"/></svg>
+        <span><b>Library</b><span>Sessions and data</span></span>
+      </button>
+    </section>
+    <section class="hrecent" aria-labelledby="hRecentT">
+      <div class="hsec"><h2 id="hRecentT">Recent sessions</h2><button id="hAll" class="hlink">See all</button></div>
+      <div id="hList" class="hlist"><div class="hempty">Loading…</div></div>
+    </section>
+    <footer class="credit">Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™, © TradingView, Inc. Built-in data is generated for practice, not real market data.</footer>
+  </div>
+</div>
+
+<!-- price zones (ICT): opens beside its button on the drawing toolbar -->
+<div id="zonePanel" class="pop zpanel" role="dialog" aria-label="Price zones" hidden>
+  <div class="zhead">
+    <label class="chk"><input id="zOn" type="checkbox"> <b>Price zones</b></label>
+    <span class="hint nokeys">Z shows or hides them</span>
+  </div>
+  <div class="zopts">
+    <label class="f">Find zones on<select id="zTf" aria-label="Timeframe for price zones"></select></label>
+    <label class="f">Newest of each kind<input id="zMax" type="number" min="1" max="50" step="1"></label>
+    <label class="f">OB swing length<input id="zSwing" type="number" min="1" max="20" step="1" title="Candles on each side that make a swing high or low"></label>
+    <label class="f">Smallest FVG (ticks)<input id="zMin" type="number" min="0" step="1"></label>
+  </div>
+  <div class="zgrid" id="zRows"></div>
+  <label class="chk"><input id="zHide" type="checkbox"> Hide zones once filled or broken</label>
+  <label class="chk"><input id="zLabels" type="checkbox"> Label zones</label>
+  <p class="note">Zones come only from finished candles of the timeframe chosen here. FVG: the gap between candles one and three. iFVG: an FVG a candle closed through, now facing the other way. BPR: a new FVG overlapping an opposite one still open. OB: after a close beyond the last swing, the candle with the extreme low (or high) since that swing. BB: an order block a candle closed through. iFVGs and breakers keep drawing from where they formed, with a dashed mark where they flipped.</p>
+</div>
+
+<!-- phones: replay speed, opened from the speed button in the replay bar; the slider moves in here -->
+<div id="speedSheet" class="pop menu spsheet" role="dialog" aria-label="Replay speed" hidden>
+  <h5>Replay speed</h5>
+  <div class="spnow"><b id="spNow" class="num">—</b><span id="spSlot"></span></div>
+  <div class="sppre" id="spPre"></div>
+  <hr>
+  <div id="spTick"></div>
+</div>
+<div id="veil" class="veil" hidden></div>
+<!-- progress of a long job: importing or opening a data file, preparing practice data -->
+<div id="progCard" class="progcard" role="status" hidden>
+  <div class="pghead"><b id="pgTitle"></b><span id="pgPct" class="num"></span></div>
+  <div class="pgbar" id="pgBar" role="progressbar" aria-labelledby="pgTitle" aria-valuemin="0" aria-valuemax="100"><i id="pgFill"></i></div>
+  <div class="pgfoot"><span id="pgStep"></span><span id="pgEta"></span></div>
+  <span id="pgNote" hidden></span>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<script type="module" src="/src/main.ts"></script>

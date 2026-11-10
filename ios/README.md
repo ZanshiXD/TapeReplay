@@ -1,6 +1,6 @@
 # Tape Replay for iPhone and iPad
 
-The iOS app runs the same interface as the desktop app: the page (`tape-replay.html`) in a full-screen web view.
+The iOS app runs the same interface as the desktop app: the page (`app/`, built with Vite) in a full-screen web view.
 A native layer replaces the desktop's Python backend:
 
 | Piece | File | What it does |
@@ -38,8 +38,8 @@ from `~/TapeReplay-iOS` in Ubuntu (a copy of this folder, since building on the 
 7. **Sign-in, for installing on a device.** `xtool auth`: an App Store Connect API key, or an Apple ID and
    password (a free Apple ID works; xtool's docs suggest a separate one, since password sign-in uses private Apple APIs).
 7. **Bundle ID.** Edit `xtool.yml` and change `com.example.TapeReplay` to your own ID (e.g. `com.yourname.tapereplay`).
-8. **Copy the page in.** After any change to `tape-replay.html`, from this folder run (the first time, it also
-   downloads Python for strategy backtests, about 23 MB, into `Sources/TapeReplay/web/pyodide/`):
+8. **Copy the page in.** After any change to the page (`app/`), from this folder run. It needs Node.js; the first
+   time, it also downloads Python for strategy backtests, about 23 MB, into `app/public/pyodide/`:
 
    ```bash
    python3 sync_web.py

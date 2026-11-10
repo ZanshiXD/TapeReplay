@@ -1,9 +1,8 @@
 """Copy the app's page into the iOS app.
 
-The iOS app shows the same page as the desktop app (tape-replay.html). This builds it the way the desktop
-build does (local copies of the chart library and fonts, and Python for strategy backtests, so it works offline)
-and copies the result into
-Sources/TapeReplay/web. Run it after changing tape-replay.html, before `xtool dev`:
+The iOS app shows the same page as the desktop app (../app, built with Vite). This builds it the way the desktop
+build does (with Python for strategy backtests, so it works offline) and copies the result into
+Sources/TapeReplay/web. Run it after changing the page, before `xtool dev`. Needs Node.js:
     python3 sync_web.py
 """
 import os
@@ -14,8 +13,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "desktop"))
 import build  # noqa: E402  (desktop/build.py)
 
-build.vendor()
-build.page()
+build.web()
 dest = os.path.join(HERE, "Sources", "TapeReplay", "web")
 shutil.rmtree(dest, ignore_errors=True)
 shutil.copytree(build.WEB, dest)
