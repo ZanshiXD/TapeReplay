@@ -19,6 +19,9 @@ import { TOOLS } from './draw/tools';
 import { store, classicHref } from './appstore';
 import { contAhead, datasetInstrument, loadMarket, openLive, practiceSource, reopen, sessionDoc, type Live, type MarketSource, type Opening, type SessionDoc } from './sessions';
 import { UpdateButton } from './Update';
+import { BacktestPage } from './BacktestPage';
+import { OptimList } from './OptimizePanel';
+import type { SessionState } from '../core/session';
 import { IBacktest, IClassic, IJournal, ILibrary, IPlus, IReplay, ISettings, Logo } from './icons';
 
 type Page = 'replay' | 'journal' | 'backtest' | 'library' | 'settings' | 'new';
@@ -43,6 +46,8 @@ export function App() {
   const [mview, setMview] = useState<MView>('chart');
   const [more, setMore] = useState(false);
   const [keys, setKeys] = useState(false);
+  const [btSeen, setBtSeen] = useState(false);
+  const [optimId, setOptimId] = useState<string | null>(null);
   const tid = useRef(0);
   const session = live?.session || null;
 
@@ -149,10 +154,10 @@ export function App() {
   }, []);
 
   const progress = (text: string) => (p: number, step?: string) => setBusy({ text: step ? `${text}: ${step}` : text, p });
-  async function start(x: Opening) {
+  async function start(x: Opening, restore?: SessionState) {
     setBusy({ text: 'Preparing the market data', p: 0 });
     try {
-      const L = await openLive(store, x, progress('Preparing the market data'));
+      const L = await openLive(store, x, progress('Preparing the market data'), restore);
       L.session.speed = pref('speed', 60);
       applyReplayPrefs(L.session, true);
       setTicket(startTicket(x.risk));
@@ -218,6 +223,7 @@ export function App() {
     finally { setBusy(null); }
   }
 
+  useEffect(() => { if (page === 'backtest') setBtSeen(true); }, [page]);
   if (!ready) return null;
   const nav: Array<[Page, string, React.ReactNode]> = [['replay', 'Replay', <IReplay />], ['backtest', 'Backtest', <IBacktest />], ['journal', 'Journal', <IJournal />], ['library', 'Library', <ILibrary />], ['settings', 'Settings', <ISettings />]];
   return (
@@ -235,9 +241,11 @@ export function App() {
           withData={withData} resume={session ? null : resume} onResume={open} inds={pref('inds', DEFAULT_INDS)} />}
         {page === 'replay' && live && <ReplayPage mview={mview} session={live.session} saveState={saveState} available={available()} onAddMarket={addMarket} onRemoveMarket={removeMarket} onJump={jump} onToast={toast} openJournal={() => setPage('journal')} />}
         {page === 'journal' && session && <JournalPage session={session} onReplay={() => setPage('replay')} />}
-        {page === 'library' && <LibraryPage current={live?.id || null} onOpen={open} onNewWith={d => { setWithData(d); setPage('new'); }} onBusy={setBusy} onToast={toast} />}
+        {page === 'library' && <LibraryPage current={live?.id || null} onOpen={open} onNewWith={d => { setWithData(d); setPage('new'); }} onBusy={setBusy} onToast={toast}
+          extra={{ tab: 'optims', label: 'Optimizations', node: <OptimList onOpen={id => { setOptimId(id); setPage('backtest'); }} onToast={toast} /> }} />}
         {page === 'settings' && <SettingsPage session={session} onKeys={() => setKeys(true)} onToast={toast} />}
-        {page === 'backtest' && <Classic page={page} />}
+        {(page === 'backtest' || btSeen) && <BacktestPage hidden={page !== 'backtest'} live={live} onToast={toast} onBusy={setBusy} openOptim={optimId} onOptimOpened={() => setOptimId(null)}
+          onShow={(x, st) => { const inds = pref('inds', DEFAULT_INDS); return start({ ...x, inds }, { ...st, inds }); }} />}
       </div>
       <PhoneNav page={page} mview={mview} hasSession={!!session} badge={session ? session.account.trades.length + session.account.orders.length : 0}
         go={(p, v) => { setMore(false); setPage(p); if (v) setMview(v); }} more={more} setMore={setMore} />
@@ -281,18 +289,4 @@ function timeLeft(f: number, el: number) {
   if (f >= 1 || el < 2 || f < 0.02) return f > 0 ? `${Math.floor(f * 100)}%` : '';
   const s = el * (1 - f) / f;
   return `${Math.floor(f * 100)}% · ${s < 50 ? `about ${Math.max(5, Math.round(s / 5) * 5)} s left` : s < 90 ? 'about a minute left' : s < 3600 ? `about ${Math.round(s / 60)} min left` : `about ${(s / 3600).toFixed(1)} h left`}`;
-}
-
-const CLASSIC: Record<string, [string, string]> = {
-  backtest: ['Backtest', 'Python strategies, the optimizer and the robustness tests are being moved into this screen. Until then they work as before in the classic view.'],
-};
-function Classic({ page }: { page: string }) {
-  const [title, text] = CLASSIC[page];
-  return (
-    <div className="page"><div className="page-in" style={{ alignItems: 'center', textAlign: 'center', paddingTop: 80 }}>
-      <h1>{title}</h1>
-      <p className="lead" style={{ maxWidth: 520 }}>{text}</p>
-      <a className="btn primary" style={{ height: 42, padding: '0 20px' }} href={classicHref}>Open the classic view</a>
-    </div></div>
-  );
 }

@@ -26,12 +26,14 @@ export interface Costs { comm: number; spreadTicks: number; slipTicks: number }
 
 /** prop rules and the prop simulation, when they come to the core: checked like the classic app's propTick/simTick */
 export interface RunRules {
-  /** once, before the first bar: the run's account (its quote has the price and time) */
-  start?(account: Account): void;
+  /** once, before the first bar: the run's account (its quote has the price and time), and the console (lines get
+   * the time in front) */
+  start?(account: Account, log?: (text: string, kind: LogKind) => void): void;
   /** true when nothing can change for the rules from now to t1 while flat (the fast path's gate) */
   idle(t1: number): boolean;
-  /** after each tick's engine fills, before the strategy's queued orders: a message ends the run */
-  afterTick(): string | null;
+  /** after each tick's engine fills, before the strategy's queued orders: a message ends the run; {restarted} carries
+   * on with a fresh account (a new prop evaluation): the queued orders are dropped and the text logged */
+  afterTick(): string | { restarted: string } | null;
   /** why an order that adds `adds` contracts is refused, or null */
   block(adds: number): string | null;
 }
@@ -414,12 +416,17 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
   /* ---- the run ---- */
   let fail: string | null = null, started = false, stopped = false, ended = '';
   // the prop rules after a tick's fills: a message ends the run
-  function afterTick() { if (!rules || ended) return; const m = rules.afterTick(); if (m) { ended = m; log(`${fmtDay(feed.time)} ${m}`, 'er'); } }
+  function afterTick() {
+    if (!rules || ended) return;
+    const m = rules.afterTick(); if (!m) return;
+    if (typeof m === 'string') { ended = m; log(`${fmtDay(feed.time)} ${m}`, 'er'); }
+    else { pending = []; log(`${fmtDay(feed.time)} ${m.restarted}`, 'ok'); }
+  }
   const info: StratInfo = { name: cfg.name ?? sym, tf: tfLabel(tf), tick: inst.tick, pv: inst.pv, spread, qty: cfg.qty ?? 1, prec, mode, balance: account.start, quiet, overrides: cfg.overrides || {} };
   const done = () => (feed.i - start) / total;
   const progress = (): Progress => ({ done: done(), time: feed.time, trades: account.hist.length, status: `${fmtDT(feed.time).slice(0, 10)} · ${account.hist.length} trades` });
   try {
-    if (rules && rules.start) rules.start(account);
+    if (rules && rules.start) rules.start(account, (text, kind) => log(`${fmtDay(feed.time)} ${text}`, kind));
     const r = bridge.start(api, info);
     started = true;
     if (r.error) fail = r.error;
