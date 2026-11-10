@@ -45,11 +45,15 @@ async def no_sideways_scroll(pg):
     return await pg.evaluate("() => document.documentElement.scrollWidth <= innerWidth + 1")
 
 
+PAGE = None
+
+
 async def phone(p, url):
+    global PAGE
     b = await p.chromium.launch()
     ctx = await b.new_context(**p.devices["iPhone 13"])
     await ctx.add_init_script(SHIM)
-    pg = await ctx.new_page()
+    pg = PAGE = await ctx.new_page()
     errors = []
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.set_default_timeout(20000)
@@ -103,10 +107,10 @@ async def phone(p, url):
     await pg.tap(".pop.menu button:has-text('One chart')")
     await pg.wait_for_function("() => document.querySelectorAll('.pane .lw').length === 1")
     # speed and jumps from the replay bar's sheets
-    await pg.tap(".mrbar [aria-label='Speed']")
+    await pg.tap(".mrbar button[aria-label='Speed']")
     await pg.tap(".speedpop button:has-text('300×')")
-    check((await pg.locator(".mrbar [aria-label='Speed']").inner_text()).strip() == "300×", "the speed is 300×")
-    await pg.touchscreen.tap(200, 120)
+    check((await pg.locator(".mrbar button[aria-label='Speed']").inner_text()).strip() == "300×", "the speed is 300×")
+    check(await pg.locator(".speedpop").count() == 0, "and the sheet closed")
     clock = await pg.locator(".mclock .num").inner_text()
     await pg.tap(".mrbar button:has-text('Jump')")
     await pg.tap(".pop.menu button:has-text('1 hour')")
@@ -135,7 +139,8 @@ async def phone(p, url):
     check(await pg.locator(".drawrail").is_visible(), "the drawing tools")
     await pg.tap(".drawrail .rarrow >> nth=1")
     await pg.tap(".drawrail .flyout button >> nth=0")
-    check(not await pg.locator(".drawrail").is_visible(), "picking a tool put the tools away")
+    await pg.wait_for_selector(".drawrail", state="hidden", timeout=5000)
+    check(True, "picking a tool put the tools away")
     check(await pg.locator(".drawhint button:has-text('Cancel')").is_visible(), "the hint has Cancel (no Esc key on a phone)")
     lw = await box(pg, ".pane .lw")
     await pg.touchscreen.tap(lw["x"] + 80, lw["y"] + 200)
@@ -174,7 +179,11 @@ async def ipad(p, url):
 async def main():
     url = serve()
     async with async_playwright() as p:
-        await phone(p, url)
+        try:
+            await phone(p, url)
+        except Exception:
+            await PAGE.screenshot(path=f"{OUT}/m-failed.png")
+            raise
         await ipad(p, url)
     print(f"mobile: {passed} checks passed; screenshots in {OUT}")
 

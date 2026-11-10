@@ -51,7 +51,7 @@ export function ReplayBar({ session, onJump }: { session: Session; onJump: (t: n
   );
   const speedPop = (style: React.CSSProperties) => (
     <div className="pop speedpop" style={{ ...style, minWidth: 260, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }} onMouseLeave={() => setCustom(false)}>
-      {phone && <div className="chips" role="group" aria-label="Speed presets">{SPEEDS.map(([v, l]) => <button key={v} className={s.speed === v ? 'on' : ''} onClick={() => setSpeed(v)}>{l}</button>)}</div>}
+      {phone && <div className="chips" role="group" aria-label="Speed presets">{SPEEDS.map(([v, l]) => <button key={v} className={s.speed === v ? 'on' : ''} onClick={() => { setSpeed(v); setCustom(false); }}>{l}</button>)}</div>}
       <span className="row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}><span className="muted">Speed</span><b className="num">{s.speed}× · {s.speed < 60 ? `${s.speed} s` : spanText(s.speed)} a second</b></span>
       <input type="range" min={0} max={1000} value={toSlider(s.speed)} aria-label="Speed" onChange={e => setSpeed(fromSlider(+e.target.value))} style={{ accentColor: 'var(--accent)' }} />
     </div>
