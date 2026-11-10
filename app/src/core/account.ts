@@ -14,7 +14,8 @@ export interface Trade {
   best: number; worst: number;
 }
 export interface Closed extends Trade { exit: number; exitTime: number; gross: number; net: number; reason: string; balanceAfter: number }
-export interface Mark { sym: string; t: number; side: Side; kind: 'in' | 'out'; id: number; reason?: string }
+/** 'payout': money taken out of a prop account (sym '' as it is the whole account's; net is what you got after the split) */
+export interface Mark { sym: string; t: number; side: Side; kind: 'in' | 'out' | 'payout'; id: number; reason?: string; net?: number; bonus?: boolean }
 export interface AccountEvent { kind: 'entry' | 'exit' | 'placed' | 'cancelled' | 'error' | 'pause'; text: string; sym?: string; up?: boolean; closed?: Closed }
 
 const nf2 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -181,11 +182,11 @@ export class Account {
     }
     return null;
   }
-  closeMarket(tr: Trade) {
+  closeMarket(tr: Trade, reason = 'Closed by you') {
     const qt = this.quote(tr.sym);
-    this.closeTrade(tr, tr.side > 0 ? this.bid(tr.sym)! - qt.slip : this.ask(tr.sym)! + qt.slip, 'Closed by you', false);
+    this.closeTrade(tr, tr.side > 0 ? this.bid(tr.sym)! - qt.slip : this.ask(tr.sym)! + qt.slip, reason, false);
   }
-  closeAll(sym?: string) { for (const tr of this.trades.slice()) if (!sym || tr.sym === sym) this.closeMarket(tr); }
+  closeAll(sym?: string, reason?: string) { for (const tr of this.trades.slice()) if (!sym || tr.sym === sym) this.closeMarket(tr, reason); }
   cancel(id: number) {
     const o = this.orders.find(x => x.id === id); if (!o) return;
     this.orders.splice(this.orders.indexOf(o), 1);
@@ -208,6 +209,11 @@ export class Account {
   }
   breakeven(tr: Trade): string | null { return this.setBracket(tr, 'sl', tr.entry); }
   moveOrder(o: Order, price: number) { o.price = this.quote(o.sym).round(price); this.version++; }
+
+  /** money taken out of the account (a prop payout): not a loss, so the peak comes down with it */
+  withdraw(amount: number) { this.balance -= amount; this.peak -= amount; this.version++; }
+  /** a fresh account of `balance` (the next prop account): orders go; closed trades, marks and the drawdown stay */
+  reopen(balance: number) { this.orders = []; this.balance = this.start = this.peak = balance; this.version++; }
 
   state(): AccountState {
     return JSON.parse(JSON.stringify({ balance: this.balance, start: this.start, orders: this.orders, trades: this.trades, hist: this.hist, marks: this.marks, nextId: this.nextId, peak: this.peak, maxDD: this.maxDD }));
