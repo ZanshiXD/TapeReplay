@@ -6,6 +6,7 @@ import { money, smoney, fmtQty } from '../core/account';
 import { fmtClock, fmtHM, spanText } from '../core/time';
 import { useLive } from './live';
 import { ICheck, ITrash } from './icons';
+import { C, hexA } from './look';
 
 /** a snapshot as a small candle chart, with the entry, the exit and the stop and target zones */
 function SnapChart({ x, e, main }: { x: JournalSnap; e: JournalEntry; main: boolean }) {
@@ -19,20 +20,20 @@ function SnapChart({ x, e, main }: { x: JournalSnap; e: JournalEntry; main: bool
   const xe = X(e.time), xx = X(e.exitTime);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', width: '100%', height: 'auto' }} role="img" aria-label={`${x.sym} chart around the trade`}>
-      {main && e.sl != null && <rect x={xe} y={Math.min(Y(e.entry), Y(e.sl))} width={Math.max(4, xx - xe)} height={Math.abs(Y(e.sl) - Y(e.entry))} fill="rgba(239,83,80,.16)" />}
-      {main && e.tp != null && <rect x={xe} y={Math.min(Y(e.entry), Y(e.tp))} width={Math.max(4, xx - xe)} height={Math.abs(Y(e.tp) - Y(e.entry))} fill="rgba(38,166,154,.16)" />}
+      {main && e.sl != null && <rect x={xe} y={Math.min(Y(e.entry), Y(e.sl))} width={Math.max(4, xx - xe)} height={Math.abs(Y(e.sl) - Y(e.entry))} fill={hexA(C.down, 0.16)} />}
+      {main && e.tp != null && <rect x={xe} y={Math.min(Y(e.entry), Y(e.tp))} width={Math.max(4, xx - xe)} height={Math.abs(Y(e.tp) - Y(e.entry))} fill={hexA(C.up, 0.16)} />}
       {cs.map((c, k) => {
-        const x0 = k * step + step * 0.2, w = step * 0.6, up = c[4] >= c[1], col = up ? '#26a69a' : '#ef5350';
-        return <g key={k}><line x1={x0 + w / 2} x2={x0 + w / 2} y1={Y(c[2])} y2={Y(c[3])} stroke={col} strokeWidth={1} /><rect x={x0} y={Y(Math.max(c[1], c[4]))} width={w} height={Math.max(1, Math.abs(Y(c[1]) - Y(c[4])))} fill={col} /></g>;
+        const x0 = k * step + step * 0.2, w = step * 0.6, up = c[4] >= c[1], col = up ? C.up : C.down, wick = up ? C.wickUp : C.wickDown;
+        return <g key={k}><line x1={x0 + w / 2} x2={x0 + w / 2} y1={Y(c[2])} y2={Y(c[3])} stroke={wick} strokeWidth={1} /><rect x={x0} y={Y(Math.max(c[1], c[4]))} width={w} height={Math.max(1, Math.abs(Y(c[1]) - Y(c[4])))} fill={col} stroke={C.border ? wick : undefined} /></g>;
       })}
       {main && <>
-        <line x1={xe} x2={xx} y1={Y(e.entry)} y2={Y(e.exit)} stroke="#d1d4dc" strokeWidth={1} strokeDasharray="3 3" />
-        <circle cx={xe} cy={Y(e.entry)} r={5} fill={e.side > 0 ? '#26a69a' : '#ef5350'} stroke="#0d1016" strokeWidth={2} />
-        <circle cx={xx} cy={Y(e.exit)} r={5} fill={e.net >= 0 ? '#26a69a' : '#ef5350'} stroke="#0d1016" strokeWidth={2} />
-        <text x={Math.max(4, xe - 100)} y={Y(e.entry) - 9} fill="#d1d4dc" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">{e.side > 0 ? 'Bought' : 'Sold'} {e.entry.toFixed(x.prec)}</text>
-        <text x={Math.min(W - 90, xx + 8)} y={Math.min(H - 6, Y(e.exit) + (Math.abs(xx - xe) < 60 ? 18 : 4))} fill={e.net >= 0 ? '#4fd1c0' : '#ff8a86'} fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">{e.reason}</text>
+        <line x1={xe} x2={xx} y1={Y(e.entry)} y2={Y(e.exit)} stroke={C.fg} strokeWidth={1} strokeDasharray="3 3" />
+        <circle cx={xe} cy={Y(e.entry)} r={5} fill={e.side > 0 ? C.up : C.down} stroke={C.field} strokeWidth={2} />
+        <circle cx={xx} cy={Y(e.exit)} r={5} fill={e.net >= 0 ? C.up : C.down} stroke={C.field} strokeWidth={2} />
+        <text x={Math.max(4, xe - 100)} y={Y(e.entry) - 9} fill={C.fg} fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">{e.side > 0 ? 'Bought' : 'Sold'} {e.entry.toFixed(x.prec)}</text>
+        <text x={Math.min(W - 90, xx + 8)} y={Math.min(H - 6, Y(e.exit) + (Math.abs(xx - xe) < 60 ? 18 : 4))} fill={e.net >= 0 ? C.upFg : C.downFg} fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">{e.reason}</text>
       </>}
-      {!main && <><line x1={xe} x2={xe} y1={10} y2={H - 10} stroke="#7aa2ff" strokeDasharray="3 4" opacity={0.6} /><line x1={xx} x2={xx} y1={10} y2={H - 10} stroke="#7aa2ff" strokeDasharray="3 4" opacity={0.6} /></>}
+      {!main && <><line x1={xe} x2={xe} y1={10} y2={H - 10} stroke={C.accentFg} strokeDasharray="3 4" opacity={0.6} /><line x1={xx} x2={xx} y1={10} y2={H - 10} stroke={C.accentFg} strokeDasharray="3 4" opacity={0.6} /></>}
     </svg>
   );
 }
@@ -108,7 +109,7 @@ export function JournalPage({ session, onReplay }: { session: Session; onReplay:
         </div>
         {e && <main style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '18px 22px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span className="tag" style={{ background: e.side > 0 ? 'var(--up)' : 'var(--down)', color: '#fff', fontSize: 12, padding: '3px 9px' }}>{e.side > 0 ? 'LONG' : 'SHORT'}</span>
+            <span className="tag" style={{ background: e.side > 0 ? 'var(--up)' : 'var(--down)', color: 'var(--on-accent)', fontSize: 12, padding: '3px 9px' }}>{e.side > 0 ? 'LONG' : 'SHORT'}</span>
             <b style={{ fontSize: 18 }}>{e.sym} · {fmtQty(e.qty)} {e.qty === 1 ? 'contract' : 'contracts'}</b>
             <span className="muted" style={{ fontSize: 12.5 }}>{fmtClock(e.time, false)} → {fmtHM(e.exitTime)} · trade #{e.dayNo} of the day</span>
             <span className="spacer" />

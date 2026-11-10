@@ -9,5 +9,7 @@ import '@fontsource/jetbrains-mono/latin-600.css';
 import './theme.css';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { applyLook } from './look';
 
+applyLook(); // from this browser's copy of the settings; again once the app's copy has loaded
 createRoot(document.getElementById('root')!).render(<App />);

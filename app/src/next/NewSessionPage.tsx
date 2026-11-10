@@ -14,6 +14,7 @@ import { datasetInstrument, practiceSource, type MarketSource, type Opening } fr
 import { pref, setPref } from './live';
 import type { IndSpec } from '../core/indicators';
 import { PropSetupCard, defaultProp } from './PropPanel';
+import { Credit } from './SettingsPage';
 
 const MARKETS = [
   { id: 'NQ', syms: ['NQ'], badge: 'NQ', cls: '', name: 'Practice Nasdaq-100', d: 'A busy futures market. Moves a lot, so trades play out quickly.', tag: 'Best to start' },
@@ -100,6 +101,7 @@ export function NewSessionPage({ onStart, onCancel, canCancel, onBusy, onToast, 
   const instr = isData ? datasetInstrument(op.meta, pick, op.contracts, op.prec, { pv }) : null;
   const ready = kind === 'practice' || !!op;
   const steps = ['Market', 'Start', 'Account'];
+  const dayStart = `${String(pref('dayStart', 18)).padStart(2, '0')}:00`;
 
   function go() {
     let t = start;
@@ -121,7 +123,7 @@ export function NewSessionPage({ onStart, onCancel, canCancel, onBusy, onToast, 
       name = `${markets.map(x => x.kind === 'dataset' ? x.inst.sym : '').join(' + ')} from ${fmtDay(t)}`;
     }
     if (prop.on) setPref('propLast', prop);
-    onStart({ name: prop.on ? `${name} · ${prop.preset || 'prop challenge'}` : name, start: t, balance: prop.on ? prop.size : balance, risk, tf: pref('tf', '5m'), inds, markets, prop: prop.on ? { sim: prop } : null });
+    onStart({ name: prop.on ? `${name} · ${prop.preset || 'prop challenge'}` : name, start: t, balance: prop.on ? prop.size : balance, risk, tf: pref('tf', '5m'), inds, markets, prop: prop.on ? { sim: { ...prop, resetNY: pref('dayStart', 18) } } : null });
   }
 
   const card = (on: boolean, onClick: () => void, children: ReactNode, key?: string) => <button key={key} className={'choice' + (on ? ' on' : '')} onClick={onClick}>{children}</button>;
@@ -179,7 +181,7 @@ export function NewSessionPage({ onStart, onCancel, canCancel, onBusy, onToast, 
               <div className="field">Quick picks<span className="seg">
                 <button className={time === '09:30' ? 'on' : ''} onClick={() => setTime('09:30')}>New York open</button>
                 <button className={time === '03:00' ? 'on' : ''} onClick={() => setTime('03:00')}>London open</button>
-                <button className={time === '18:00' ? 'on' : ''} onClick={() => setTime('18:00')}>Day start</button>
+                <button className={time === dayStart ? 'on' : ''} title="When a trading day starts (see Settings)" onClick={() => setTime(dayStart)}>Day start</button>
               </span></div>
             </div>}
             {isData && op.index && <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -229,6 +231,7 @@ export function NewSessionPage({ onStart, onCancel, canCancel, onBusy, onToast, 
           </div>
         </aside>
       </div>
+      <footer className="page-foot"><Credit /></footer>
     </div>
   );
 }
