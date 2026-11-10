@@ -25,7 +25,23 @@ layout(); addEventListener('resize', layout);
 applyLook(); // from this browser's copy of the settings; again once the app's copy has loaded
 createRoot(document.getElementById('root')!).render(<App />);
 
-// fingers never leave a menu the way a mouse does: a tap outside an open menu closes it (menus close on mouse leave)
-if (TOUCH) addEventListener('pointerdown', e => {
-  for (const p of document.querySelectorAll('.pop')) if (!p.contains(e.target as Node)) p.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
-}, true);
+// fingers never leave a menu the way a mouse does: a tap outside an open menu closes it (menus close on mouse leave,
+// panels through their close button, the drawing flyouts on a mouse press elsewhere). On phones menus are bottom sheets
+// over a dimmed screen, so that tap only closes the sheet: it doesn't also press what was under it.
+if (TOUCH) {
+  let swallowUntil = 0;
+  addEventListener('pointerdown', e => {
+    swallowUntil = 0; // a new tap: only the rest of the one that closed a sheet is swallowed
+    const t = e.target as Node; let sheet = false;
+    for (const p of document.querySelectorAll<HTMLElement>('.pop, .drawrail .flyout')) {
+      if (p.contains(t) || (p.classList.contains('colorpop') && p.parentElement?.closest('.pop')?.contains(t))) continue;
+      p.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+      p.querySelector<HTMLElement>(':scope > * [data-dismiss], [data-dismiss]')?.click();
+      if (p.classList.contains('flyout')) document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      if (root.classList.contains('m') && !p.classList.contains('colorpop')) sheet = true;
+    }
+    if (sheet) { swallowUntil = e.timeStamp + 700; e.stopPropagation(); e.preventDefault(); }
+  }, true);
+  const swallow = (e: Event) => { if (e.timeStamp < swallowUntil) { e.stopPropagation(); e.preventDefault(); if (e.type === 'click') swallowUntil = 0; } };
+  for (const ev of ['pointerup', 'mousedown', 'mouseup', 'click']) addEventListener(ev, swallow, true);
+}
