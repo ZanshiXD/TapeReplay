@@ -17,6 +17,9 @@ export interface Closed extends Trade { exit: number; exitTime: number; gross: n
 /** 'payout': money taken out of a prop account (sym '' as it is the whole account's; net is what you got after the split) */
 export interface Mark { sym: string; t: number; side: Side; kind: 'in' | 'out' | 'payout'; id: number; reason?: string; net?: number; bonus?: boolean }
 export interface AccountEvent { kind: 'entry' | 'exit' | 'placed' | 'cancelled' | 'error' | 'pause'; text: string; sym?: string; up?: boolean; closed?: Closed }
+/** one fill, as strategies see it: side of the fill (1 buy, -1 sell), entry or exit, its reason, the trade it belongs
+ * to and, on exits, the net P&L of the part closed */
+export interface FillEvent { sym: string; side: Side; qty: number; price: number; kind: 'entry' | 'exit'; reason: string; id: number; pnl: number | null; time: number }
 
 const nf2 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const money = (x: number) => (x < 0 ? '−$' : '$') + nf2.format(Math.abs(x));
@@ -24,13 +27,17 @@ export const smoney = (x: number) => (x > 0.004 ? '+$' : x < -0.004 ? '−$' : '
 export const fmtQty = (q: number) => String(+(+q).toPrecision(8));
 
 export interface AccountState {
-  balance: number; start: number; orders: Order[]; trades: Trade[]; hist: Closed[]; marks: Mark[]; nextId: number; peak: number; maxDD: number;
+  balance: number; start: number; orders: Order[]; trades: Trade[]; hist: Closed[]; marks: Mark[]; nextId: number; peak: number; maxDD: number; maxDDpct?: number;
 }
 
 export class Account {
   balance: number; start: number;
   orders: Order[] = []; trades: Trade[] = []; hist: Closed[] = []; marks: Mark[] = [];
   nextId = 1; peak: number; maxDD = 0;
+  /** the largest drawdown as a percent of the peak it fell from (when it was the largest in dollars) */
+  maxDDpct = 0;
+  /** 'classic': the classic app's order messages and fill reasons (Limit fill, Stop fill), for strategy runs */
+  wording: 'app' | 'classic' = 'app';
   /** every fill is its own trade instead of netting into one position per market */
   hedge = false;
   /** pause the replay when an order or a stop or target fills */
@@ -39,6 +46,8 @@ export class Account {
   version = 0;
   quote: (sym: string) => Quote = () => { throw new Error('no market'); };
   onEvent: (e: AccountEvent) => void = () => {};
+  /** every fill as it happens (backtests hand these to the strategy's on_fill) */
+  onFill: ((f: FillEvent) => void) | null = null;
 
   constructor(balance: number) { this.balance = this.start = this.peak = balance; }
 
@@ -53,7 +62,7 @@ export class Account {
     return { q, avg: q ? cost / q : null };
   }
   private commOf(sym: string, q: number) { return Math.abs(q) * this.quote(sym).comm; }
-  trackDD() { const eq = this.equity(); if (eq > this.peak) this.peak = eq; const dd = this.peak - eq; if (dd > this.maxDD) this.maxDD = dd; }
+  trackDD() { const eq = this.equity(); if (eq > this.peak) this.peak = eq; const dd = this.peak - eq; if (dd > this.maxDD) { this.maxDD = dd; this.maxDDpct = this.peak > 0 ? dd / this.peak * 100 : 0; } }
   private changed(auto: boolean) { this.version++; if (auto && this.pauseOnFill) this.onEvent({ kind: 'pause', text: '' }); }
 
   // Netting: an opposite fill reduces, closes or flips the position (oldest trade first); a same-side fill adds to it at
@@ -75,6 +84,7 @@ export class Account {
     const c = this.commOf(sym, qty); this.balance -= c;
     const tr: Trade = { id: id || this.nextId++, sym, side, qty, entry: px, time: q.time, sl, tp, comm: c, how, sl0: sl, best: px, worst: px };
     this.trades.push(tr);
+    if (this.onFill) this.onFill({ sym, side, qty, price: px, kind: 'entry', reason: how, id: tr.id, pnl: null, time: q.time });
     this.marks.push({ sym, t: q.barTime, side, kind: 'in', id: tr.id });
     this.onEvent({ kind: 'entry', sym, up: side > 0, text: `${side > 0 ? 'Bought' : 'Sold'} ${fmtQty(qty)} ${sym} at ${px.toFixed(this.prec(sym))}` });
     this.changed(auto);
@@ -85,6 +95,7 @@ export class Account {
     const c = this.commOf(tr.sym, qn); this.balance -= c;
     tr.entry = (tr.entry * tr.qty + px * qn) / (tr.qty + qn);
     tr.qty += qn; tr.comm += c;
+    if (this.onFill) this.onFill({ sym: tr.sym, side: tr.side, qty: qn, price: px, kind: 'entry', reason: how, id: tr.id, pnl: null, time: q.time });
     if (tr.sl == null && sl != null) { tr.sl = sl; tr.sl0 ??= sl; }
     if (tr.tp == null && tp != null) tr.tp = tp;
     this.marks.push({ sym: tr.sym, t: q.barTime, side: tr.side, kind: 'in', id: tr.id });
@@ -99,6 +110,7 @@ export class Account {
     tr.qty -= qn; tr.comm -= share;
     const closed: Closed = { ...tr, qty: qn, comm: share + c2, exit: px, exitTime: q.time, gross, net, reason, balanceAfter: this.balance };
     this.hist.push(closed);
+    if (this.onFill) this.onFill({ sym: tr.sym, side: (-tr.side) as Side, qty: qn, price: px, kind: 'exit', reason, id: tr.id, pnl: net, time: q.time });
     this.marks.push({ sym: tr.sym, t: q.barTime, side: (-tr.side) as Side, kind: 'out', id: tr.id, reason });
     this.trackDD();
     this.onEvent({ kind: 'exit', sym: tr.sym, up: net >= 0, closed, text: `${reason}: closed ${fmtQty(qn)} of ${tr.sym} at ${px.toFixed(this.prec(tr.sym))}, ${smoney(net)}` });
@@ -112,6 +124,7 @@ export class Account {
     const net = gross - tr.comm - c2;
     const closed: Closed = { ...tr, exit: px, exitTime: q.time, gross, comm: tr.comm + c2, net, reason, balanceAfter: this.balance };
     this.hist.push(closed);
+    if (this.onFill) this.onFill({ sym: tr.sym, side: (-tr.side) as Side, qty: tr.qty, price: px, kind: 'exit', reason, id: tr.id, pnl: net, time: q.time });
     this.marks.push({ sym: tr.sym, t: q.barTime, side: (-tr.side) as Side, kind: 'out', id: tr.id, reason });
     this.trackDD();
     this.onEvent({ kind: 'exit', sym: tr.sym, up: net >= 0, closed, text: `${reason}: ${tr.sym} ${tr.side > 0 ? 'long' : 'short'} closed at ${px.toFixed(this.prec(tr.sym))}, ${smoney(net)}` });
@@ -139,7 +152,7 @@ export class Account {
         if (o.type === 'limit') { if (jump ? bTo >= o.price : bHi >= o.price) fill = jump ? bTo : o.price; }
         else if (jump ? bTo <= o.price : bLo <= o.price) fill = (jump ? bTo : o.price) - sl_;
       }
-      if (fill != null) { this.orders.splice(this.orders.indexOf(o), 1); this.openTrade(sym, o.side, o.qty, fill, o.sl, o.tp, o.type === 'limit' ? 'Limit order' : 'Stop order', true, o.id); }
+      if (fill != null) { this.orders.splice(this.orders.indexOf(o), 1); this.openTrade(sym, o.side, o.qty, fill, o.sl, o.tp, this.fillHow(o.type), true, o.id); }
     }
     for (const tr of this.trades.slice()) {
       if (tr.sym !== sym) continue;
@@ -153,16 +166,54 @@ export class Account {
     }
   }
 
+  private fillHow(type: 'limit' | 'stop') { return this.wording === 'classic' ? (type === 'limit' ? 'Limit fill' : 'Stop fill') : (type === 'limit' ? 'Limit order' : 'Stop order'); }
+  /** true when a tick from `from` to `to` would fill a working order or hit a stop or target on this market (the
+   * same tests as onTick, changing nothing): backtests batch the ticks before it */
+  wouldFill(sym: string, from: number, to: number, jump: boolean): boolean {
+    if (!this.orders.length && !this.trades.length) return false;
+    const qt = this.quote(sym), sp = qt.spread;
+    const bLo = Math.min(from, to), bHi = Math.max(from, to), aLo = bLo + sp, aHi = bHi + sp, bTo = to, aTo = to + sp;
+    for (const o of this.orders) {
+      if (o.sym !== sym) continue;
+      if (o.side > 0 ? (o.type === 'limit' ? (jump ? aTo : aLo) <= o.price : (jump ? aTo : aHi) >= o.price)
+        : (o.type === 'limit' ? (jump ? bTo : bHi) >= o.price : (jump ? bTo : bLo) <= o.price)) return true;
+    }
+    for (const tr of this.trades) {
+      if (tr.sym !== sym) continue;
+      if (tr.side > 0 ? (tr.sl != null && (jump ? bTo : bLo) <= tr.sl) || (tr.tp != null && (jump ? bTo : bHi) >= tr.tp)
+        : (tr.sl != null && (jump ? aTo : aHi) >= tr.sl) || (tr.tp != null && (jump ? aTo : aLo) <= tr.tp)) return true;
+    }
+    return false;
+  }
   /** why an order can't be placed, in plain words, or null */
   check(sym: string, side: Side, type: 'market' | 'limit' | 'stop', price: number, sl: number | null, tp: number | null): string | null {
     const b = this.bid(sym), a = this.ask(sym);
     if (b == null || a == null) return 'Press play or step forward first, so the market has a price.';
+    if (this.wording === 'classic') return this.checkClassic(sym, side, type, price, sl, tp, b, a);
     const ref = side > 0 ? a : b;
     if (type === 'limit' && (side > 0 ? price >= ref : price <= ref)) return side > 0 ? `A buy limit waits below the price (${ref}). To buy above it, use a stop order.` : `A sell limit waits above the price (${ref}). To sell below it, use a stop order.`;
     if (type === 'stop' && (side > 0 ? price <= ref : price >= ref)) return side > 0 ? `A buy stop goes above the price (${ref}). To buy below it, use a limit order.` : `A sell stop goes below the price (${ref}). To sell above it, use a limit order.`;
     const entry = type === 'market' ? ref : price;
     if (sl != null && (side > 0 ? sl >= entry : sl <= entry)) return side > 0 ? 'When buying, the stop loss goes below the entry.' : 'When selling, the stop loss goes above the entry.';
     if (tp != null && (side > 0 ? tp <= entry : tp >= entry)) return side > 0 ? 'When buying, the take profit goes above the entry.' : 'When selling, the take profit goes below the entry.';
+    return null;
+  }
+  // the classic app's wording (orderErr, then bracketErr for market orders), which strategies and their tests expect
+  private checkClassic(sym: string, side: Side, type: 'market' | 'limit' | 'stop', price: number, sl: number | null, tp: number | null, b: number, a: number): string | null {
+    const ref = side > 0 ? a : b, nm = side > 0 ? 'ask' : 'bid', S = side > 0 ? 'buy' : 'sell', fp = (x: number) => x.toFixed(this.prec(sym));
+    if (type === 'market') price = ref;
+    if (type === 'limit' && (side > 0 ? price >= ref : price <= ref)) return `A ${S} limit must be ${side > 0 ? 'below' : 'above'} the ${nm} (${fp(ref)}). Use a stop order to ${S} ${side > 0 ? 'above' : 'below'} it.`;
+    if (type === 'stop' && (side > 0 ? price <= ref : price >= ref)) return `A ${S} stop must be ${side > 0 ? 'above' : 'below'} the ${nm} (${fp(ref)}). Use a limit order to ${S} ${side > 0 ? 'below' : 'above'} it.`;
+    if (sl != null && (side > 0 ? sl >= price : sl <= price)) return `The stop loss must be ${side > 0 ? 'below' : 'above'} the order price.`;
+    if (tp != null && (side > 0 ? tp <= price : tp >= price)) return `The take profit must be ${side > 0 ? 'above' : 'below'} the order price.`;
+    if (type !== 'market') return null;
+    if (side > 0) {
+      if (sl != null && sl >= b) return `A buy's stop loss must be below the bid (${fp(b)}).`;
+      if (tp != null && tp <= b) return `A buy's take profit must be above the bid (${fp(b)}).`;
+    } else {
+      if (sl != null && sl <= a) return `A sell's stop loss must be above the ask (${fp(a)}).`;
+      if (tp != null && tp >= a) return `A sell's take profit must be below the ask (${fp(a)}).`;
+    }
     return null;
   }
   /** places an order; returns an error in plain words, or null */
@@ -216,7 +267,7 @@ export class Account {
   reopen(balance: number) { this.orders = []; this.balance = this.start = this.peak = balance; this.version++; }
 
   state(): AccountState {
-    return JSON.parse(JSON.stringify({ balance: this.balance, start: this.start, orders: this.orders, trades: this.trades, hist: this.hist, marks: this.marks, nextId: this.nextId, peak: this.peak, maxDD: this.maxDD }));
+    return JSON.parse(JSON.stringify({ balance: this.balance, start: this.start, orders: this.orders, trades: this.trades, hist: this.hist, marks: this.marks, nextId: this.nextId, peak: this.peak, maxDD: this.maxDD, maxDDpct: this.maxDDpct }));
   }
-  load(s: AccountState) { Object.assign(this, JSON.parse(JSON.stringify(s))); this.version++; }
+  load(s: AccountState) { this.maxDDpct = 0; Object.assign(this, JSON.parse(JSON.stringify(s))); this.version++; }
 }
