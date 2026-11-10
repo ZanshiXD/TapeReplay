@@ -31,9 +31,11 @@ export class Feed {
   private indSpecs: IndSpec[] = [];
   /** the first bar of the replay: what is before it is history, shown but not traded */
   readonly start: number;
+  /** false: no chart candles kept (backtests aggregate their own), so nothing is built from the history either */
+  readonly chart: boolean;
 
-  constructor(s: Series, startIdx: number, tf: TF, ticksPerBar = 20, inds: IndSpec[] = []) {
-    this.s = s; this.tf = tf; this.bucket = makeBucket(tf); this.ticksPerBar = ticksPerBar;
+  constructor(s: Series, startIdx: number, tf: TF, ticksPerBar = 20, inds: IndSpec[] = [], chart = true) {
+    this.s = s; this.tf = tf; this.bucket = makeBucket(tf); this.ticksPerBar = ticksPerBar; this.chart = chart;
     this.start = this.i = Math.max(0, Math.min(startIdx, s.n));
     const prevT = this.i > 0 ? s.t[this.i - 1] : s.t[0] - s.base;
     this.price = this.prevClose = this.i > 0 ? s.c[this.i - 1] : null;
@@ -44,7 +46,8 @@ export class Feed {
 
   get done() { return this.i >= this.s.n; }
   get tick() { return this.s.inst.tick; }
-  round(x: number) { const tk = this.s.inst.tick; return +(Math.round(x / tk) * tk).toFixed(this.s.inst.prec); }
+  // to the tick grid, then to the decimals shown (as toFixed would, without making text: this runs for every tick)
+  round(x: number) { const tk = this.s.inst.tick, m = 10 ** this.s.inst.prec; return Math.round(Math.round(x / tk) * tk * m) / m; }
 
   /** the ticks of bar i (open, then the near extreme, the far one, the close), written to F and P; returns how many */
   private buildTicks(i: number): number {
@@ -116,6 +119,7 @@ export class Feed {
     else { if (h > F.h) F.h = h; if (l < F.l) F.l = l; F.c = c; F.v += v; }
   }
   private completeForming() {
+    if (!this.chart) return;
     const F = this.F!; this.candles.push(F);
     for (const x of this.inds) x.vals.push(x.ind.push(F));
     if (this.candles.length > MAX_CANDLES + CANDLE_SLACK) {
@@ -130,7 +134,7 @@ export class Feed {
     this.candles = []; this.F = null;
     const daily = tfSeconds(this.tf) >= 86400;
     this.inds = this.indSpecs.filter(x => x.on).map(spec => ({ spec, ind: makeInd(spec, { daily, hasVol: s.hasVol }), vals: [] }));
-    for (let j = 0; j < this.i; j++) this.aggBar(s.t[j], s.o[j], s.h[j], s.l[j], s.c[j], s.v[j]);
+    if (this.chart) for (let j = 0; j < this.i; j++) this.aggBar(s.t[j], s.o[j], s.h[j], s.l[j], s.c[j], s.v[j]);
     if (this.P) this.aggBar(s.t[this.i], this.P.o, this.P.h, this.P.l, this.P.c, this.P.v);
     this.version++;
   }
@@ -154,6 +158,13 @@ export class Feed {
   skipBar() {
     const s = this.s, i = this.i; if (i >= s.n) return;
     if (this.k) { while (this.k && this.i === i) this.step(); return; }
+    if (!this.chart) { // no candles to keep: only where the bar ends (its last tick is the close, rounded unless flat)
+      const o = s.o[i], h = s.h[i], l = s.l[i], c = s.c[i], up = c >= o;
+      const flat = Math.abs((up ? l : h) - o) + Math.abs(h - l) + Math.abs(c - (up ? h : l)) === 0;
+      this.barTime = s.t[i]; this.time = s.t[i] + s.base;
+      this.price = this.prevClose = flat ? c : this.round(c); this.i++; this.k = 0; this.nt = 0; this.P = null;
+      return;
+    }
     const n = this.nt || this.buildTicks(i), f = this.tkF, P = this.tkP, v = s.v[i], p0 = P[0];
     this.barTime = s.t[i];
     const b = this.F ? Math.max(this.bucket(s.t[i]), this.F.time) : this.bucket(s.t[i]);
