@@ -1,5 +1,5 @@
 // The Replay screen: one, two or four charts on one clock, the replay bar, the trade panel and the positions.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Session } from '../core/session';
 import { parseTF, tfLabel, tfValid, tfSeconds } from '../core/time';
 const tfSec = (t: string) => tfSeconds(parseTF(t)!);
@@ -9,7 +9,10 @@ import { TradePanel } from './TradePanel';
 import { BottomPanel } from './BottomPanel';
 import { IndicatorsPanel } from './IndicatorsPanel';
 import { pref, setPref, useLive } from './live';
-import { IInd, ILayout1, ILayout2, ILayout4, IPlus } from './icons';
+import { IChev, IInd, ILayout1, ILayout2, ILayout4, IPlus } from './icons';
+import { usePhone } from './phone';
+import { layers } from './draw/overlay';
+import { cursorTool, setDs } from './draw/state';
 import { DrawRail } from './draw/DrawRail';
 import { DrawSettings } from './draw/DrawSettings';
 import { ObjectTree } from './draw/ObjectTree';
@@ -46,6 +49,10 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
   const [tfAdd, setTfAdd] = useState<string | null>(null);
   const [drawOpen, setDrawOpen] = useState(false);
   const [touring, setTouring] = useState(false);
+  const [sheet, setSheet] = useState<'' | 'tf' | 'more'>('');
+  const phone = usePhone();
+  // phones: picking a drawing tool puts the rail away, so the whole chart is free to draw on
+  useEffect(() => { if (phone && drawHint(ds.tool)) setDrawOpen(false); }, [phone, ds.tool]);
   const s = session, slots = layout === 'one' ? 1 : layout === 'two' ? 2 : 4;
   const shown = layout === 'one' ? [s.activeFeed] : s.feeds.slice(0, slots);
   const free = slots - shown.length;
@@ -54,17 +61,63 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
   const hideTip = () => { setTip(false); setPref('tipPlay', false); };
   const base = Math.min(...s.feeds.map(f => f.s.base));
   useDrawKeys(s, true);
+  const tfList = tfs.filter(t => parseTF(t) && tfValid(parseTF(t)!, base));
+  const pickTf = (t: string) => { s.setTf(parseTF(t)!); setPref('tf', t); };
+  const addTf = (raw: string) => {
+    const tf = parseTF(raw.trim()); if (!tf) { onToast('Write a timeframe like 2m, 45m, 2h, 1D, 1W or 15s.', 'err'); return false; }
+    if (!tfValid(tf, base)) { onToast('That is shorter than the bars in this data.', 'err'); return false; }
+    const lbl = tfLabel(tf); const l = tfs.includes(lbl) ? tfs : [...tfs, lbl].sort((a, b) => (parseTF(a) ? tfSec(a) : 0) - (parseTF(b) ? tfSec(b) : 0));
+    setTfs(l); setPref('tfs', l); setTfAdd(null); s.setTf(tf); setPref('tf', lbl); return true;
+  };
+  const cancelDraw = () => { for (const l of layers) l.cancel(); setDs({ tool: cursorTool(), selected: null }); };
+  const bar = <ReplayBar session={s} onJump={onJump} />;
+  const hint = drawHint(ds.tool) && <div className="drawhint" role="status">{drawHint(ds.tool)}{phone ? <button onClick={cancelDraw}>Cancel</button> : <span>Esc to cancel</span>}</div>;
+  const header = phone ? (
+    // phones: the market, then the timeframe, indicators, drawing and the rest as buttons that open sheets
+    <header className="ctx mctx">
+      <span className="badge">{s.activeFeed.s.inst.sym}</span>
+      <span className="title">{s.name}</span>
+      <button className="btn sm tfbtn" aria-label="Timeframe" aria-expanded={sheet === 'tf'} onClick={() => setSheet(sheet === 'tf' ? '' : 'tf')}>{tfLabel(s.tf)} <IChev /></button>
+      <button className="ib" aria-label="Indicators" aria-expanded={indOpen} onClick={() => setIndOpen(!indOpen)}><IInd /></button>
+      <button className="ib" aria-label={drawOpen ? 'Hide the drawing tools' : 'Drawing tools'} aria-pressed={drawOpen} onClick={() => setDrawOpen(!drawOpen)}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16zM14 6l3 3" /></svg></button>
+      <button className="ib" aria-label="Chart options" aria-expanded={sheet === 'more'} onClick={() => setSheet(sheet === 'more' ? '' : 'more')}><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg></button>
+      {sheet === 'tf' && (
+        <div className="pop menu" role="menu" onMouseLeave={() => setSheet('')}>
+          <h5>Timeframe</h5>
+          {tfList.map(t => <button key={t} role="menuitemradio" aria-checked={tfLabel(s.tf) === t} className={tfLabel(s.tf) === t ? 'on' : ''} onClick={() => { pickTf(t); setSheet(''); }}>{t}{tfLabel(s.tf) === t && <span>✓</span>}</button>)}
+          <h5>Another timeframe</h5>
+          <form style={{ display: 'flex', gap: 6, padding: '2px 8px 6px' }} onSubmit={e => { e.preventDefault(); if (addTf(tfAdd || '')) setSheet(''); }}>
+            <input className="in" style={{ flex: 1, height: 40, fontSize: 16 }} placeholder="e.g. 2m, 45m, 2h, 1W" aria-label="New timeframe" value={tfAdd || ''} onChange={e => setTfAdd(e.target.value)} />
+            <button className="btn primary" disabled={!tfAdd}>Add</button>
+          </form>
+        </div>
+      )}
+      {sheet === 'more' && (
+        <div className="pop menu" role="menu" onMouseLeave={() => setSheet('')}>
+          <h5>Charts</h5>
+          <button role="menuitemradio" aria-checked={layout === 'one'} onClick={() => { pick('one'); setSheet(''); }}>One chart{layout === 'one' && <span>✓</span>}</button>
+          <button role="menuitemradio" aria-checked={layout !== 'one'} disabled={s.feeds.length < 2} onClick={() => { pick('two'); setSheet(''); }}>Two charts, one above the other{layout !== 'one' && <span>✓</span>}</button>
+          {available.length > 0 && <><h5>Add a market on the same clock</h5>
+            {available.map(m => <button key={m.key} role="menuitem" onClick={() => { setSheet(''); onAddMarket(m.key); pick('two'); }}>{m.name}<span>{m.sym}</span></button>)}</>}
+          {s.feeds.length > 1 && <><h5>Trade on</h5>
+            {s.feeds.map(f => <button key={f.s.inst.sym} role="menuitemradio" aria-checked={s.active === f.s.inst.sym} onClick={() => { s.setActive(f.s.inst.sym); setSheet(''); }}>{f.s.inst.name || f.s.inst.sym}<span>{s.active === f.s.inst.sym ? '✓' : f.s.inst.sym}</span></button>)}</>}
+          {saveState && <p className="muted" style={{ margin: '10px 12px 2px', fontSize: 12.5 }}>{saveState}. Sessions save themselves to the Library.</p>}
+        </div>
+      )}
+      {indOpen && <IndicatorsPanel session={s} onClose={() => setIndOpen(false)} />}
+    </header>
+  ) : null;
   return (
     <>
-      <header className="ctx">
+      {header || <header className="ctx">
         <span className="title">{s.name}</span>
         <span className="muted" style={{ fontSize: 12 }}>{s.feeds.map(f => f.s.inst.sym).join(' + ')}</span>
         <div className="sep" />
         <div className="seg" role="group" aria-label="Timeframe">
-          {tfs.filter(t => parseTF(t) && tfValid(parseTF(t)!, base)).map(t => <button key={t} className={tfLabel(s.tf) === t ? 'on' : ''} title={TFS.includes(t) ? undefined : 'Right-click to remove'} onContextMenu={e => { if (TFS.includes(t)) return; e.preventDefault(); const l = tfs.filter(x => x !== t); setTfs(l); setPref('tfs', l); }} onClick={() => { s.setTf(parseTF(t)!); setPref('tf', t); }}>{t}</button>)}
+          {tfList.map(t => <button key={t} className={tfLabel(s.tf) === t ? 'on' : ''} title={TFS.includes(t) ? undefined : 'Right-click to remove'} onContextMenu={e => { if (TFS.includes(t)) return; e.preventDefault(); const l = tfs.filter(x => x !== t); setTfs(l); setPref('tfs', l); }} onClick={() => pickTf(t)}>{t}</button>)}
           {tfAdd == null ? <button title="Another timeframe (like 2m, 45m, 2h, 1W, 15s)" aria-label="Add a timeframe" onClick={() => setTfAdd('')}>+</button>
             : <input className="in" autoFocus style={{ height: 26, width: 64, fontSize: 12 }} placeholder="e.g. 2h" aria-label="New timeframe" value={tfAdd} onChange={e => setTfAdd(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Escape') setTfAdd(null); if (e.key !== 'Enter') return; const tf = parseTF(tfAdd.trim()); if (!tf) return onToast('Write a timeframe like 2m, 45m, 2h, 1D, 1W or 15s.', 'err'); if (!tfValid(tf, base)) return onToast('That is shorter than the bars in this data.', 'err'); const lbl = tfLabel(tf); const l = tfs.includes(lbl) ? tfs : [...tfs, lbl].sort((a, b) => (parseTF(a) ? tfSec(a) : 0) - (parseTF(b) ? tfSec(b) : 0)); setTfs(l); setPref('tfs', l); setTfAdd(null); s.setTf(tf); setPref('tf', lbl); }}
+              onKeyDown={e => { if (e.key === 'Escape') setTfAdd(null); if (e.key === 'Enter') addTf(tfAdd); }}
               onBlur={() => setTfAdd(null)} />}
         </div>
         <button className="btn" onClick={() => setIndOpen(!indOpen)} aria-expanded={indOpen}><IInd /> Indicators</button>
@@ -84,11 +137,10 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
         <span className="spacer" />
         {saveState && <span className="muted savestate" title="Sessions save themselves to the Library">{saveState}</span>}
         {indOpen && <IndicatorsPanel session={s} onClose={() => setIndOpen(false)} />}
-      </header>
+      </header>}
       <div className="work" data-mview={mview}>
         <div className="col">
           <div className={'chartrow' + (drawOpen ? ' drawing' : '')}>
-          <button className="pencil" aria-label={drawOpen ? 'Hide the drawing tools' : 'Drawing tools'} aria-pressed={drawOpen} onClick={() => setDrawOpen(!drawOpen)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16zM14 6l3 3" /></svg></button>
           <DrawRail session={s} />
           <div className="charts" style={grid}>
             {shown.map(f => <ChartPane key={f.s.inst.sym} session={s} feed={f} active={f.s.inst.sym === s.active && shown.length > 1}
@@ -108,10 +160,11 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
                 </span>
               </div>
             )}
-            <ReplayBar session={s} onJump={onJump} />
-            {drawHint(ds.tool) && <div className="drawhint" role="status">{drawHint(ds.tool)}<span>Esc to cancel</span></div>}
+            {!phone && bar}
+            {hint}
           </div>
           </div>
+          {phone && bar}
           <DrawSettings session={s} onToast={onToast} />
           {touring && <Tour onEnd={() => setTouring(false)} />}
           <BottomPanel session={s} onToast={onToast} openJournal={openJournal} />

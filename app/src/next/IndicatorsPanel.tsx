@@ -30,7 +30,7 @@ export function IndicatorsPanel({ session, onClose }: { session: Session; onClos
     <div className="pop" role="dialog" aria-label="Indicators" style={{ top: 48, left: 300, width: 400, padding: 0, maxHeight: 'calc(100vh - 120px)', overflow: 'auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 10px' }}>
         <b style={{ fontSize: 14 }}>Indicators</b>
-        <button className="ib" aria-label="Close" onClick={onClose}><IClose width={14} height={14} /></button>
+        <button className="ib" aria-label="Close" data-dismiss onClick={onClose}><IClose width={14} height={14} /></button>
       </div>
       <div style={{ padding: '0 16px 12px' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38, padding: '0 12px', borderRadius: 9, background: 'var(--field)', border: '1px solid var(--line2)', color: 'var(--muted)' }}>

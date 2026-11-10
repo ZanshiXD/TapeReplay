@@ -131,7 +131,7 @@ export function NewSessionPage({ onStart, onCancel, canCancel, onBusy, onToast, 
     <div className="page">
       <header className="ctx" style={{ gap: 14 }}>
         {canCancel && <button className="btn sm" onClick={onCancel}>Back</button>}
-        <b style={{ fontSize: 15 }}>New session</b>
+        <b className="ttl" style={{ fontSize: 15 }}>New session</b>
         <span className="spacer" />
         <nav className="steps" aria-label="Steps">
           {steps.map((l, i) => <button key={l} className={step === i + 1 ? 'on' : step > i + 1 ? 'done' : ''} disabled={!ready && i > 0} onClick={() => setStep(i + 1)}><i>{step > i + 1 ? <ICheck width={12} height={12} /> : i + 1}</i>{l}</button>)}
@@ -210,10 +210,11 @@ export function NewSessionPage({ onStart, onCancel, canCancel, onBusy, onToast, 
             </div>
             <PropSetupCard value={prop} onChange={setProp} />
           </>}
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="wizacts" style={{ display: 'flex', gap: 10 }}>
             {step > 1 && <button className="btn" style={{ height: 42 }} onClick={() => setStep(step - 1)}>Back</button>}
             {step < 3 ? <button className="btn primary" style={{ height: 42, padding: '0 22px' }} disabled={!ready || (step === 2 && (!okDate || tooBig))} onClick={() => setStep(step + 1)}>Continue</button>
               : <button className="btn primary" style={{ height: 42, padding: '0 22px' }} disabled={!okDate || tooBig || !ready} onClick={go}>Start session</button>}
+            {step < 3 && <button className="btn mstart" style={{ height: 42, marginLeft: 'auto' }} disabled={!okDate || tooBig || !ready} onClick={go}>Start now</button>}
           </div>
         </main>
         <aside style={{ flex: '1 1 300px', maxWidth: 360 }}>

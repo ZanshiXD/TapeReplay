@@ -63,6 +63,7 @@ jobs:
           TAPE_SKIP_BUILD=1 python tests/test_studies.py "$RUNNER_TEMP/shots"
           python tests/test_settings.py "$RUNNER_TEMP/shots"
           python tests/test_pyind.py "$RUNNER_TEMP/shots"
+          python tests/test_mobile.py "$RUNNER_TEMP/shots"
 
       - name: Strategies in the browser
         run: |
