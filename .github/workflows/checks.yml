@@ -48,10 +48,11 @@ jobs:
           (cd app && npm ci)
           python -c "import sys; sys.path.insert(0, 'desktop'); import build; build.web()"
 
-      - name: The new app's core (replay, orders, journal) and the new app in the browser
+      - name: The new app's core (replay, orders, journal, drawings) and the new app in the browser
         run: |
           (cd app && npx tsx tests/core.test.ts)
           python tests/test_next.py "$RUNNER_TEMP/shots"
+          python tests/test_drawings.py "$RUNNER_TEMP/shots"
 
       - name: Strategies in the browser
         run: python tests/test_browser.py "$RUNNER_TEMP/shots"

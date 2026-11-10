@@ -2,6 +2,7 @@
 // drive it with play/pause and the step buttons, and call frame() on every animation frame while playing.
 import { Account, type AccountEvent, type AccountState, type Quote, type Side } from './account';
 import { Feed, type FeedSnap } from './feed';
+import { DrawStore } from './drawings';
 import type { IndSpec } from './indicators';
 import { journalEntry, type JournalEntry } from './journal';
 import type { Series } from './series';
@@ -46,8 +47,12 @@ export class Session {
   inds: IndSpec[];
   ticksPerBar: number;
 
+  /** drawings on the charts, per market; they stay put when the replay steps back or jumps */
+  readonly drawings = new DrawStore();
+
   constructor(x: SessionSetup) {
     this.name = x.name; this.tf = x.tf; this.inds = x.inds || []; this.ticksPerBar = x.ticksPerBar || 20;
+    this.drawings.onChange = () => this.changed();
     this.feeds = x.markets.map(s => this.makeFeed(s, x.start));
     this.active = this.feeds[0].s.inst.sym;
     this.startTime = this.simTime = Math.max(...this.feeds.map(f => f.time));

@@ -3,6 +3,7 @@
 import { practiceSeries } from '../src/core/practice';
 import { Session } from '../src/core/session';
 import { parseTF } from '../src/core/time';
+import { DrawStore, anchoredVwap, fibExtPrice, fibPrice, makeStyle, positionOutcome, regression, volumeProfile } from '../src/core/drawings';
 
 let passed = 0;
 const check = (c: unknown, m: string) => { if (!c) throw new Error('FAILED: ' + m); passed++; };
@@ -74,4 +75,43 @@ console.log(`frame cost at 60x: ${ms.toFixed(3)} ms`);
 check(ms < 4, 'a frame of playback is cheap');
 S.speed = 1000; const tp2 = performance.now(); for (let k = 0; k < 120; k++) S.frame(1 / 60);
 console.log(`frame cost at 1000x: ${((performance.now() - tp2) / 120).toFixed(3)} ms`);
+
+/* ---- drawings ---- */
+{
+  const st = new DrawStore();
+  const a = st.add({ tool: 'trend', sym: 'NQ', pts: [{ t: 0, p: 1 }, { t: 60, p: 2 }], style: makeStyle({ color: '#ff0000' }) });
+  st.add({ tool: 'hline', sym: 'ES', pts: [{ t: 0, p: 5 }], style: makeStyle() });
+  check(st.forSym('NQ').length === 1 && st.items.length === 2, 'drawings are kept per market');
+  st.update(a.id, { style: { width: 3 } });
+  check(st.get(a.id)!.style.width === 3 && st.get(a.id)!.style.color === '#ff0000', 'a style change keeps the rest of the style');
+  st.begin(); st.get(a.id)!.pts[1].p = 9; st.live(); st.get(a.id)!.pts[1].p = 10; st.live(); st.commit();
+  st.undo();
+  check(st.get(a.id)!.pts[1].p === 2, 'a drag made of many moves undoes in one step');
+  st.redo();
+  check(st.get(a.id)!.pts[1].p === 10, 'and redoes');
+  st.begin(); st.get(a.id)!.style.text = 'x'; st.rollback();
+  check(st.get(a.id)!.style.text === '', 'Cancel in the settings puts the drawing back');
+  check(st.clear('NQ') === 1 && st.items.length === 1, 'remove all on one market');
+  st.undo();
+  check(st.items.length === 2, 'and undo brings them back');
+  const c = st.clone(a.id, p => ({ t: p.t + 60, p: p.p }))!;
+  check(c.id !== a.id && c.pts[0].t === 60 && st.items.length === 3, 'clone');
+  st.order(c.id, -2);
+  check(st.items[0].id === c.id, 'send to back');
+  st.setAll(null, { locked: true });
+  check(st.items.every(d => d.locked), 'lock all');
+  check(fibPrice(100, 200, 0.5) === 150 && fibPrice(100, 200, 1) === 100 && fibPrice(100, 200, 0) === 200, 'fib retracement: 1 at the first point, 0 at the second');
+  check(fibExtPrice(100, 150, 120, 1) === 170, 'trend-based extension projects the first move from the third point');
+  const r = regression([1, 2, 3, 4, 5])!;
+  check(Math.abs(r.b - 1) < 1e-9 && Math.abs(r.a - 1) < 1e-9 && r.sd < 1e-9, 'regression of a straight line');
+  const vp = volumeProfile([{ o: 10, h: 12, l: 10, c: 12, v: 100 }, { o: 12, h: 12, l: 11, c: 11, v: 300 }], 4)!;
+  check(vp.up.reduce((x, y) => x + y) + vp.dn.reduce((x, y) => x + y) === 400 && vp.poc >= 2, 'volume profile keeps all the volume, its point of control where most traded');
+  const vw = anchoredVwap([{ h: 3, l: 1, c: 2, v: 1 }, { h: 6, l: 4, c: 5, v: 3 }]);
+  check(vw[0] === 2 && Math.abs(vw[1] - (2 + 15) / 4) < 1e-9, 'anchored VWAP');
+  const bars = [{ time: 0, h: 101, l: 99, c: 100 }, { time: 60, h: 103, l: 100, c: 102 }, { time: 120, h: 106, l: 101, c: 105 }];
+  check(positionOutcome(1, 100, 98, 105, bars).state === 'target', 'a long reaching its target');
+  check(positionOutcome(-1, 100, 102, 95, bars).state === 'stop', 'a short reaching its stop');
+  check(positionOutcome(1, 90, 88, 95, bars).state === 'waiting', 'a long never filled');
+  check(positionOutcome(1, 100, 99, 104.5, [bars[0], { time: 60, h: 105, l: 98, c: 100 }]).state === 'stop', 'stop first when one bar reaches both');
+}
 console.log(`core: ${passed} checks passed`);

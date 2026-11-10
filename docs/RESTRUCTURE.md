@@ -69,11 +69,35 @@ grid, and a journal entry with chart snapshots for every closed trade.
 | Milestone | What | Status |
 |---|---|---|
 | 1 | Core (`src/core`), Replay screen (one, two or four charts, replay bar with step back and timeline, trade panel sized by risk with the order in plain words, positions, orders, history), indicators manager (EMA, SMA, VWAP), Journal, New session (practice markets) | done |
-| 2 | Drawings (trend, lines, boxes, fib, long and short positions, text, measure) with templates and lock; price zones | next |
+| 2 | Drawings: TradingView's tools (lines, channels, pitchforks, Fibonacci and Gann, patterns, Elliott waves, cycles, long and short positions, forecast, bars pattern, ghost feed, anchored VWAP, volume profiles, ranges, shapes, brushes, text and notes), drawn the way TradingView draws them (see below) | done |
 | 3 | Real data: Library (saved sessions, Databento and CSV imports, through the apps' storage), sessions saved and reopened | |
 | 4 | Prop rules and the prop simulation (evaluation, funded, live) on the new account | |
 | 5 | Backtest: the Python strategy runner on the core, the Backtest page, the optimizer (with smart search) and robustness | |
 | 6 | Python indicators, Settings (themes, time zone, sessions, shortcuts), phone and tablet layouts | |
 | 7 | Switch: `next.html` becomes `index.html`; remove the classic code | |
 
-Tests: `npx tsx tests/core.test.ts` (in `app/`) and `python tests/test_next.py`.
+Tests: `npx tsx tests/core.test.ts` (in `app/`), `python tests/test_next.py` and `python tests/test_drawings.py`.
+
+### Drawings
+
+`src/core/drawings.ts` keeps the drawings per market in the session (anchored to time and price, so they stay on their
+bars across timeframes and when the replay steps back), with undo and redo; it also has the numbers some tools need
+(fib levels, regression, volume profile, anchored VWAP, how a long or short position played out). `src/next/draw/`
+draws and edits them:
+
+- `tools.ts`: the catalog, grouped as on TradingView's left toolbar. Each tool says how many points it takes, its
+  starting style and how it draws.
+- `paint.ts`: the painter the tools draw with. It records what it draws (segments, areas, boxes), so clicks are tested
+  against exactly what is on the screen.
+- `overlay.ts`: one canvas per chart, above the candles, redrawn only when something it shows changed. The mouse works
+  as on TradingView: pick a tool, click the points (or press and drag), the tool goes back to the cursor unless "stay
+  in drawing mode" is on; click to select, drag handles or the body, double-click for settings, right-click for the
+  menu. The magnet (weak or strong; Ctrl or Cmd flips it) snaps to the bar's open, high, low or close; Shift keeps
+  lines at 0, 45 or 90 degrees; Shift+click measures.
+- `DrawRail.tsx` (the toolbar, with flyouts that remember the last tool of each group), `ui.tsx` (the selected
+  drawing's toolbar and menu, the color picker), `DrawSettings.tsx` (Style, Text, Coordinates, Visibility; Cancel
+  puts everything back), `ObjectTree.tsx`, `keys.ts` (Alt+T, Alt+H, Alt+J, Alt+V, Alt+C, Alt+F, Alt+Shift+R, Esc,
+  Delete, Enter, Ctrl+Z / Ctrl+Y, Ctrl+C / Ctrl+V).
+
+A long or short position drawing shows how it would have played out as the replay moves on, and "Place order" on its
+toolbar sends it as a real order (limit or stop at its entry, its stop and target, sized by its risk).
