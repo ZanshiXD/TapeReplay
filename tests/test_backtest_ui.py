@@ -229,7 +229,11 @@ async def main():
         check(await pg.locator(".bt-saved .librow").count() >= 1, "the optimization is saved to the Library")
         await pg.click(".bt-saved .librow button:has-text('Open')")
         await pg.wait_for_selector(".bt-rtable tbody tr")
-        check(await pg.locator(".bt-rtable tbody tr").count() == n, "it reopens with its results")
+        try:  # the rows come in as the saved results load
+            await pg.wait_for_function(f"() => document.querySelectorAll('.bt-rtable tbody tr').length === {n}", timeout=10000)
+        except Exception:
+            pass
+        check(await pg.locator(".bt-rtable tbody tr").count() == n, f"it reopens with its results ({await pg.locator('.bt-rtable tbody tr').count()} of {n} rows)")
 
         # ---- a prop challenge in the run (JavaScript, buying new evaluations) ----
         await pg.click(".bt-head .tabs button:has-text('Code')")
