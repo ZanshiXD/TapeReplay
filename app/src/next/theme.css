@@ -278,6 +278,18 @@ table.t tbody tr:hover td { background: rgba(209,212,220,.04); }
 .drawhint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 11; pointer-events: none; display: flex; gap: 10px; align-items: center; padding: 6px 12px; border-radius: 16px; background: rgba(29,36,51,.95); border: 1px solid #2f3a55; font-size: 12.5px; font-weight: 500; white-space: nowrap; box-shadow: var(--shadow); }
 .drawhint span { color: var(--muted); font-size: 11.5px; }
 
+/* ---- prop challenge ---- */
+.propcard .pill { font-size: 11px; padding: 2px 8px; }
+.propcard .pill.neg { background: var(--down-soft); color: var(--down-fg); } .propcard .pill.pos { background: var(--up-soft); color: var(--up-fg); } .propcard .pill.warn { background: var(--warn-soft); color: var(--warn); }
+.propcard .track { display: flex; gap: 4px; }
+.propcard .track span { flex: 1; text-align: center; font-size: 11px; font-weight: 600; padding: 4px 0; border-radius: 5px; background: var(--field); color: var(--faint); border: 1px solid var(--line); }
+.propcard .track span.done { color: var(--up-fg); border-color: rgba(38,166,154,.4); } .propcard .track span.on { color: var(--accent-fg); background: var(--accent-soft); border-color: var(--accent); }
+.propcard .prow { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.propcard .row { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+.pbar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.pbar i { display: block; height: 100%; background: var(--accent); } .pbar i.ok { background: var(--up); } .pbar i.bad { background: var(--down); }
+.plog { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--muted); max-height: 90px; overflow: auto; }
+
 /* ---- library ---- */
 .savestate { font-size: 11.5px; white-space: nowrap; }
 .page .h2 { margin: 6px 0 0; font-size: 16px; font-weight: 600; }

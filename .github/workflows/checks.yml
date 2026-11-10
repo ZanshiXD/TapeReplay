@@ -55,6 +55,7 @@ jobs:
           python tests/test_next.py "$RUNNER_TEMP/shots"
           python tests/test_drawings.py "$RUNNER_TEMP/shots"
           python tests/test_library.py "$RUNNER_TEMP/shots"
+          python tests/test_prop_ui.py "$RUNNER_TEMP/shots"
 
       - name: Strategies in the browser
         run: python tests/test_browser.py "$RUNNER_TEMP/shots"

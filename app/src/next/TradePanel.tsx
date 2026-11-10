@@ -3,6 +3,7 @@ import type { Session } from '../core/session';
 import { money, smoney } from '../core/account';
 import { useLive } from './live';
 import { place, plan, setTicket, ticket, type SizeMode } from './ticket';
+import { PropCard } from './PropPanel';
 
 const TYPES = { market: 'Buys or sells right away at the current price.', limit: 'Waits for the price to come to you, then fills at your price or better.', stop: 'Fills once the price breaks through your level.' } as const;
 const MODES: Array<[SizeMode, string]> = [['risk', 'Risk $'], ['pct', 'Risk %'], ['qty', 'Contracts']];
@@ -69,6 +70,7 @@ export function TradePanel({ session, onToast }: { session: Session; onToast: (m
         {pos.q !== 0 && <div className="plain"><span className="row"><span>Your {inst.sym} position</span><b className={pos.q > 0 ? 'up' : 'down'}>{pos.q > 0 ? 'Long' : 'Short'} {Math.abs(pos.q)}</b></span>
           <span className="row"><span className="muted">Open profit / loss</span><b className={'num ' + (acc.openPnl(inst.sym) >= 0 ? 'up' : 'down')}>{smoney(acc.openPnl(inst.sym))}</b></span></div>}
       </div>
+      <PropCard session={s} onToast={onToast} />
       <div className="sec">
         <h3>Account</h3>
         <div className="grid2">

@@ -74,7 +74,7 @@ export function App() {
       bump();
       if (!e) return;
       if (e.kind === 'error') toast(e.text, 'err');
-      else if (e.kind === 'entry' || e.kind === 'exit') toast(e.text, e.up ? 'up' : 'down');
+      else if (e.kind === 'entry' || e.kind === 'exit' || e.kind === 'prop') toast(e.text, e.up ? 'up' : 'down');
       else if (e.text) toast(e.text);
     });
     store.listDatasets().then(setLibList).catch(() => {});

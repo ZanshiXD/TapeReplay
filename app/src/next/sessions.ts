@@ -1,6 +1,6 @@
 // A replay session as the app keeps it: the markets it plays (practice markets or Library data, and how much was
 // loaded), the account, and everything the session did, saved to the Library and reopened exactly.
-import { Session, type SessionState } from '../core/session';
+import { Session, type PropSetup, type SessionState } from '../core/session';
 import { practiceSeries, PRACTICE } from '../core/practice';
 import { asSeries, instrumentFor } from '../core/data';
 import { loadSection, openDataset, slice, type Progress } from '../core/library';
@@ -58,14 +58,14 @@ export function datasetInstrument(meta: DatasetMeta, pick: string, contracts: st
   return instrumentFor({ name: meta.name, pick, contracts, prec }, costs);
 }
 
-export interface Opening { name: string; start: number; balance: number; risk: number; tf: string; inds: IndSpec[]; markets: MarketSource[]; id?: string; created?: number }
+export interface Opening { name: string; start: number; balance: number; risk: number; tf: string; inds: IndSpec[]; markets: MarketSource[]; id?: string; created?: number; prop?: PropSetup | null }
 export async function openLive(store: Store, x: Opening, progress?: Progress, restore?: SessionState): Promise<Live> {
   const series: Series[] = [];
   for (const [k, m] of x.markets.entries()) series.push(await loadMarket(store, m, (f, step) => progress?.((k + f) / x.markets.length, step)));
   // two markets with the same code (two NQ files) get told apart
   const seen = new Set<string>();
   for (const s of series) { let sym = s.inst.sym, j = 2; while (seen.has(sym)) sym = `${s.inst.sym}${j++}`; seen.add(sym); if (sym !== s.inst.sym) s.inst = { ...s.inst, sym }; }
-  const session = new Session({ name: x.name, markets: series, start: x.start, tf: parseTF(restore ? tfLabel(restore.tf) : x.tf) || parseTF('5m')!, balance: x.balance, inds: restore?.inds || x.inds });
+  const session = new Session({ name: x.name, markets: series, start: x.start, tf: parseTF(restore ? tfLabel(restore.tf) : x.tf) || parseTF('5m')!, balance: x.balance, inds: restore?.inds || x.inds, prop: restore ? null : x.prop });
   if (restore) session.load(restore);
   return { session, id: x.id || newId(), created: x.created || Date.now(), name: x.name, start: x.start, balance: x.balance, risk: x.risk, markets: x.markets };
 }

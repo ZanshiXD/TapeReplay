@@ -13,6 +13,7 @@ import { addData, fmtBars, fmtBase, fmtDay, joinFiles } from './library';
 import { datasetInstrument, practiceSource, type MarketSource, type Opening } from './sessions';
 import { pref, setPref } from './live';
 import type { IndSpec } from '../core/indicators';
+import { PropSetupCard, defaultProp } from './PropPanel';
 
 const MARKETS = [
   { id: 'NQ', syms: ['NQ'], badge: 'NQ', cls: '', name: 'Practice Nasdaq-100', d: 'A busy futures market. Moves a lot, so trades play out quickly.', tag: 'Best to start' },
@@ -54,6 +55,7 @@ export function NewSessionPage({ onStart, onCancel, canCancel, onBusy, onToast, 
   const [spread, setSpread] = useState(1);
   const [slip, setSlip] = useState(1);
   const [pv, setPv] = useState(1);
+  const [prop, setProp] = useState(defaultProp);
   const fileIn = useRef<HTMLInputElement>(null);
 
   const refresh = () => store.listDatasets().then(l => setList(l.sort((a, b) => (b.added || 0) - (a.added || 0)))).catch(() => {});
@@ -118,7 +120,8 @@ export function NewSessionPage({ onStart, onCancel, canCancel, onBusy, onToast, 
       const mem = pref<Record<string, CostMem>>('costs', {}); mem[instr!.sym] = { pv, comm, spread, slip }; setPref('costs', mem);
       name = `${markets.map(x => x.kind === 'dataset' ? x.inst.sym : '').join(' + ')} from ${fmtDay(t)}`;
     }
-    onStart({ name, start: t, balance, risk, tf: pref('tf', '5m'), inds, markets });
+    if (prop.on) setPref('propLast', prop);
+    onStart({ name: prop.on ? `${name} · ${prop.preset || 'prop challenge'}` : name, start: t, balance: prop.on ? prop.size : balance, risk, tf: pref('tf', '5m'), inds, markets, prop: prop.on ? { sim: prop } : null });
   }
 
   const card = (on: boolean, onClick: () => void, children: ReactNode, key?: string) => <button key={key} className={'choice' + (on ? ' on' : '')} onClick={onClick}>{children}</button>;
@@ -190,7 +193,7 @@ export function NewSessionPage({ onStart, onCancel, canCancel, onBusy, onToast, 
           {step === 3 && <>
             <div><h1>Account and costs</h1><p className="lead">Play money. Costs are filled in for {isData ? instr!.name : m.syms.join(' and ')}; change anything that doesn't match your broker.</p></div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, maxWidth: 760 }}>
-              <label className="field">Starting balance<span className="suffix"><input className="in" inputMode="numeric" value={balance} onChange={e => setBalance(Math.max(100, parseInt(e.target.value) || 0))} /><span>dollars</span></span></label>
+              <label className="field">Starting balance<span className="suffix"><input className="in" inputMode="numeric" disabled={prop.on} title={prop.on ? 'The challenge sets the account size' : undefined} value={prop.on ? prop.size : balance} onChange={e => setBalance(Math.max(100, parseInt(e.target.value) || 0))} /><span>dollars</span></span></label>
               <label className="field"><span className="lbl">Risk per trade <span className="q" title="What you lose if a trade hits its stop. The order ticket sizes trades from it.">?</span></span><span className="suffix"><input className="in" inputMode="numeric" value={risk} onChange={e => setRisk(Math.max(1, parseInt(e.target.value) || 0))} /><span>dollars</span></span></label>
             </div>
             <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 760 }}>
@@ -203,6 +206,7 @@ export function NewSessionPage({ onStart, onCancel, canCancel, onBusy, onToast, 
               </div>
               <span className="muted" style={{ fontSize: 12 }}>{isData ? `${instr!.sym}: $${pv} per point, ticks of ${+instr!.tick.toPrecision(6)}` : m.syms.map(sm => `${sm}: $${PRACTICE[sm].pv} per point, ticks of ${PRACTICE[sm].tick}`).join(' · ')}</span>
             </div>
+            <PropSetupCard value={prop} onChange={setProp} />
           </>}
           <div style={{ display: 'flex', gap: 10 }}>
             {step > 1 && <button className="btn" style={{ height: 42 }} onClick={() => setStep(step - 1)}>Back</button>}
@@ -216,7 +220,8 @@ export function NewSessionPage({ onStart, onCancel, canCancel, onBusy, onToast, 
             <div className="row"><span className="muted">Market</span><b>{isData ? `${instr!.sym}${pick && pick !== '*auto' ? '' : pick === '*auto' ? ' (continuous)' : ''}${op2 ? ' + ' + datasetInstrument(op2.meta, op2.pick, op2.contracts, op2.prec).sym : ''}` : m.name}</b></div>
             {isData && <div className="row"><span className="muted">Data</span><b style={{ fontWeight: 500 }}>{fmtBase(op.base)}{pick ? ` · ${pickLabel(pick)}` : ''}</b></div>}
             <div className="row"><span className="muted">Starts</span><b>{start === 'random' ? 'A random day, 9:30' : fmtClock(start, false)}</b></div>
-            <div className="row"><span className="muted">Account</span><b>{money(balance)}</b></div>
+            <div className="row"><span className="muted">Account</span><b>{money(prop.on ? prop.size : balance)}</b></div>
+            {prop.on && <div className="row"><span className="muted">Challenge</span><b>{prop.preset || 'Your own rules'}</b></div>}
             <div className="row"><span className="muted">Risk per trade</span><b>{money(risk)}</b></div>
             <div className="row"><span className="muted">Costs</span><b>${comm.toFixed(2)} a side · {spread} tick spread</b></div>
             <div style={{ height: 1, background: 'var(--line)' }} />
