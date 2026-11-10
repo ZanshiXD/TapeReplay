@@ -1,23 +1,24 @@
-/* Layout: one-screen trading terminal. Toolbar strip on top, chart beside an order ticket, blotter dock underneath. */
+/* Layout: one-screen trading terminal. Toolbar strip on top, chart beside an order ticket, blotter dock underneath.
+   The desktop shell and components are restyled in ui.css (loaded after this file). */
 :root{
-  --bg:#0c1016; --panel:#121820; --raise:#18202b; --line:#242e3b; --grid:#161d26;
-  --fg:#d6dce6; --muted:#8692a4; --accent:#e2a63c; --accent-ink:#1b1306;
-  --up:#2db38a; --down:#e5554c; --ma2:#7f9cf5;
-  --f-ui:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --bg:#0b0e13; --panel:#10131a; --raise:#191d26; --line:#232833; --grid:#161a22;
+  --fg:#d1d4dc; --muted:#7d8494; --accent:#2962ff; --accent-ink:#ffffff;
+  --up:#26a69a; --down:#ef5350; --ma2:#ab8cf2;
+  --f-ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-num:"JetBrains Mono",ui-monospace,Consolas,monospace;
   color-scheme:dark;
 }
 @media (prefers-color-scheme: light){
   :root:not([data-theme="dark"]){
-    --bg:#eef1f5; --panel:#ffffff; --raise:#f5f7fa; --line:#d5dbe4; --grid:#eef1f5;
-    --fg:#161e2a; --muted:#5a6678; --accent:#a86a0c; --accent-ink:#ffffff;
-    --up:#0e8c66; --down:#cc3a31; --ma2:#4060c8; color-scheme:light;
+    --bg:#eef0f4; --panel:#ffffff; --raise:#f3f5f8; --line:#e0e3eb; --grid:#f2f3f6;
+    --fg:#131722; --muted:#6a6f7d; --accent:#2962ff; --accent-ink:#ffffff;
+    --up:#089981; --down:#f23645; --ma2:#7b4fd6; color-scheme:light;
   }
 }
 :root[data-theme="light"]{
-  --bg:#eef1f5; --panel:#ffffff; --raise:#f5f7fa; --line:#d5dbe4; --grid:#eef1f5;
-  --fg:#161e2a; --muted:#5a6678; --accent:#a86a0c; --accent-ink:#ffffff;
-  --up:#0e8c66; --down:#cc3a31; --ma2:#4060c8; color-scheme:light;
+  --bg:#eef0f4; --panel:#ffffff; --raise:#f3f5f8; --line:#e0e3eb; --grid:#f2f3f6;
+  --fg:#131722; --muted:#6a6f7d; --accent:#2962ff; --accent-ink:#ffffff;
+  --up:#089981; --down:#f23645; --ma2:#7b4fd6; color-scheme:light;
 }
 [hidden]{display:none!important}
 html,body{height:100%}

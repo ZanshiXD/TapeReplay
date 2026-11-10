@@ -27,32 +27,17 @@ try {
       <button id="mTf" class="mtf" aria-haspopup="dialog" title="Timeframe"><span id="mTfLbl">—</span><svg class="chev" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3"/></svg></button>
       <input id="tfCustom" class="tfc" placeholder="45m" title="Custom timeframe: e.g. 45m, 2h, 3D, 1W, 1M (month). Must be a multiple of the data's base timeframe." aria-label="Custom timeframe">
     </div>
-    <div class="tgroup transport">
-      <button id="bRestart" title="Restart the session from its start time (click twice)" aria-label="Restart">
-        <svg viewBox="0 0 16 16"><path d="M8 2a6 6 0 1 1-5.6 3.8l1.5.6A4.4 4.4 0 1 0 8 3.6V6L4.5 3 8 0z"/></svg><span id="restartLbl" class="sr">Restart</span></button>
-      <button id="bPlay" title="Play / pause (Space)" aria-label="Play"><svg viewBox="0 0 16 16" id="playIco"><path d="M4 2l10 6-10 6z"/></svg></button>
-      <button id="bTick" title="Step one tick (.)">Tick</button>
-      <button id="bBar" title="Finish the current base bar (→)">Bar</button>
-      <button id="bCandle" title="Finish the current candle on the chart timeframe (Shift+→)">Candle</button>
-      <span class="sep"></span>
-      <input id="speed" type="range" min="0" max="1000" value="500" aria-label="Replay speed" title="Replay speed (↑ ↓)">
-      <span id="speedLbl" class="num"></span>
-    </div>
-    <div class="clock" title="Replay time in the chart time zone">
-      <span id="clock" class="num">—</span><span id="clockSub"></span>
-      <div class="prog"><i id="progBar"></i></div>
-    </div>
-    <div class="tgroup">
-      <button id="bSkip" title="Replay forward quickly. Orders, stops and targets fill along the way." aria-haspopup="menu">Skip<span class="mhide"> ahead</span> <svg class="chev" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3"/></svg></button>
+    <span class="sep"></span>
+    <div class="tgroup chartg">
+      <button id="bInd" title="Moving averages, VWAP and your own indicators in Python" aria-haspopup="dialog" aria-label="Indicators"><svg class="mico" viewBox="0 0 20 20"><path d="M2.5 14c2.5 0 3-7 6-7s3 6 5.5 6 2.5-4 3.5-5"/><path d="M2.5 17h15" style="opacity:.5"/></svg><span class="mlbl">Indicators</span></button>
+      <button id="bChart" title="Themes, colors, time zone and session lines" aria-label="Chart settings"><svg class="mico" viewBox="0 0 20 20"><path d="M3 5.5h8M15 5.5h2M3 10h2M9 10h8M3 14.5h6M13 14.5h4"/><circle cx="13" cy="5.5" r="1.8"/><circle cx="7" cy="10" r="1.8"/><circle cx="11" cy="14.5" r="1.8"/></svg><span class="mlbl">Chart</span></button>
     </div>
     <span class="spacer"></span>
     <span id="saveState" class="ds" hidden></span>
     <div class="tgroup">
-      <button id="bLib" hidden title="Saved backtests and data files">Library</button>
+      <button id="bLib" hidden title="Saved backtests and data files"><svg class="mico" viewBox="0 0 20 20"><path d="M2.5 6V15.5h15V7.5H9.5L8 5.5H3.5z"/></svg><span class="mlbl">Library</span></button>
       <button id="bStrat" title="Backtest a strategy written in Python" aria-haspopup="dialog" aria-label="Strategy"><svg class="mico" viewBox="0 0 20 20"><path d="M7 5.5L2.5 10 7 14.5M13 5.5l4.5 4.5-4.5 4.5"/><path d="M11 4l-2 12" style="opacity:.6"/></svg><span class="mlbl">Strategy</span></button>
-      <button id="bInd" title="Moving averages, VWAP and your own indicators in Python" aria-haspopup="dialog" aria-label="Indicators"><svg class="mico" viewBox="0 0 20 20"><path d="M2.5 14c2.5 0 3-7 6-7s3 6 5.5 6 2.5-4 3.5-5"/><path d="M2.5 17h15" style="opacity:.5"/></svg><span class="mlbl">Indicators</span></button>
-      <button id="bChart" title="Themes, colors, time zone and session lines" aria-label="Chart settings"><svg class="mico" viewBox="0 0 20 20"><path d="M3 5.5h8M15 5.5h2M3 10h2M9 10h8M3 14.5h6M13 14.5h4"/><circle cx="13" cy="5.5" r="1.8"/><circle cx="7" cy="10" r="1.8"/><circle cx="11" cy="14.5" r="1.8"/></svg><span class="mlbl">Chart</span></button>
-      <button id="bSettings" title="Start time, costs and the prop simulation">Session</button>
+      <button id="bSettings" title="Start time, costs and the prop simulation"><svg class="mico" viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2.2M10 15.3v2.2M2.5 10h2.2M15.3 10h2.2M4.7 4.7l1.6 1.6M13.7 13.7l1.6 1.6M4.7 15.3l1.6-1.6M13.7 6.3l1.6-1.6"/></svg><span class="mlbl">Session</span></button>
       <button id="bKeys" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
       <button id="bSide" title="Hide or show the side panel" aria-label="Toggle side panel"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M10 2.5v11"/></svg></button>
     </div>
@@ -139,6 +124,27 @@ try {
         <button id="dsDel" title="Delete drawing (Del)">Delete</button>
       </div>
       <div id="legend"></div>
+      <!-- replay controls, floating over the bottom of the chart (phones: the bar above the tab bar) -->
+      <div id="replayBar" class="replaybar" role="toolbar" aria-label="Replay">
+        <div class="tgroup transport">
+          <button id="bRestart" title="Restart the session from its start time (click twice)" aria-label="Restart">
+            <svg viewBox="0 0 16 16"><path d="M8 2a6 6 0 1 1-5.6 3.8l1.5.6A4.4 4.4 0 1 0 8 3.6V6L4.5 3 8 0z"/></svg><span id="restartLbl" class="sr">Restart</span></button>
+          <button id="bPlay" title="Play / pause (Space)" aria-label="Play"><svg viewBox="0 0 16 16" id="playIco"><path d="M4 2l10 6-10 6z"/></svg></button>
+          <button id="bTick" title="Step one tick (.)">Tick</button>
+          <button id="bBar" title="Finish the current base bar (→)">Bar</button>
+          <button id="bCandle" title="Finish the current candle on the chart timeframe (Shift+→)">Candle</button>
+          <span class="sep"></span>
+          <input id="speed" type="range" min="0" max="1000" value="500" aria-label="Replay speed" title="Replay speed (↑ ↓)">
+          <span id="speedLbl" class="num"></span>
+        </div>
+        <div class="clock" title="Replay time in the chart time zone">
+          <span id="clock" class="num">—</span><span id="clockSub"></span>
+          <div class="prog"><i id="progBar"></i></div>
+        </div>
+        <div class="tgroup">
+          <button id="bSkip" title="Replay forward quickly. Orders, stops and targets fill along the way." aria-haspopup="menu">Skip<span class="mhide"> ahead</span> <svg class="chev" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3"/></svg></button>
+        </div>
+      </div>
       <div class="drop" id="drop" hidden>Drop CSV files to load them (several files are combined)</div>
     </section>
 

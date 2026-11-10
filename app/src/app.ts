@@ -717,9 +717,11 @@ function hexA(hex, a) {
 let C = {};
 // Colors come from the page theme, then the user's own choices on top (Chart settings).
 // mode: 'system' (follows the device's light or dark setting, with the palettes picked for each) or a palette id
-const TH_DEF = { mode: 'system', dark: 'terminal', light: 'paper', accent: '', chartBg: '', grid: '', text: '', up: '', down: '', wickUp: '', wickDown: '', border: false };
+const TH_DEF = { mode: 'system', dark: 'carbon', light: 'daylight', accent: '', chartBg: '', grid: '', text: '', up: '', down: '', wickUp: '', wickDown: '', border: false };
 // App palettes. Each sets every color the page and chart use; the color pickers below still override single colors.
 const PALETTES = [
+  { id: 'carbon', name: 'Carbon', kind: 'dark', note: 'Default dark', v: { bg: '#0b0e13', panel: '#10131a', raise: '#191d26', line: '#232833', grid: '#161a22', fg: '#d1d4dc', muted: '#7d8494', accent: '#2962ff', 'accent-ink': '#ffffff', up: '#26a69a', down: '#ef5350', ma2: '#ab8cf2' } },
+  { id: 'daylight', name: 'Daylight', kind: 'light', note: 'Default light', v: { bg: '#eef0f4', panel: '#ffffff', raise: '#f3f5f8', line: '#e0e3eb', grid: '#f2f3f6', fg: '#131722', muted: '#6a6f7d', accent: '#2962ff', 'accent-ink': '#ffffff', up: '#089981', down: '#f23645', ma2: '#7b4fd6' } },
   { id: 'terminal', name: 'Terminal', kind: 'dark', v: { bg: '#0c1016', panel: '#121820', raise: '#18202b', line: '#242e3b', grid: '#161d26', fg: '#d6dce6', muted: '#8692a4', accent: '#e2a63c', 'accent-ink': '#1b1306', up: '#2db38a', down: '#e5554c', ma2: '#7f9cf5' } },
   { id: 'midnight', name: 'Midnight', kind: 'dark', v: { bg: '#0a101d', panel: '#0f182a', raise: '#152036', line: '#22304b', grid: '#121c30', fg: '#dbe4f3', muted: '#8a98b4', accent: '#5b9cf5', 'accent-ink': '#06101f', up: '#26b48c', down: '#ef5b5b', ma2: '#c792ea' } },
   { id: 'graphite', name: 'Graphite', kind: 'dark', v: { bg: '#141414', panel: '#1c1c1c', raise: '#252525', line: '#343434', grid: '#202020', fg: '#e6e6e6', muted: '#9b9b9b', accent: '#4fb3bf', 'accent-ink': '#061a1d', up: '#3cb371', down: '#e0544f', ma2: '#d7a14a' } },
@@ -773,7 +775,7 @@ function initCharts() {
   readColors();
   chart = LW.createChart($('#chart'), {
     autoSize: true,
-    layout: { background: { type: 'solid', color: C.bg }, textColor: C.muted, fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 11 },
+    layout: { background: { type: 'solid', color: C.bg }, textColor: C.muted, fontFamily: 'Inter, system-ui, sans-serif', fontSize: 11 },
     grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
     rightPriceScale: { borderColor: C.line, scaleMargins: { top: 0.08, bottom: 0.2 } },
     timeScale: { borderColor: C.line, timeVisible: true, secondsVisible: false, rightOffset: 12, shiftVisibleRangeOnNewBar: true, tickMarkFormatter: t => tickLabel(t) },
@@ -3824,7 +3826,7 @@ function phoneLayout() {
     $('#spTick').appendChild($('#bTick')); $('#bTick').textContent = 'Step one tick';
     $('#dsPresetGrp').prepend($('#dsPreset')); // the style preset list sits with Save and Delete in the options sheet
   } else {
-    const before = $('.bar .spacer'); parts.forEach(p => $('.bar').insertBefore(p, before));
+    parts.forEach(p => $('#replayBar').appendChild(p)); // the bar floating over the bottom of the chart
     $('#bBar').before($('#bTick')); $('#bTick').textContent = 'Tick';
     $('.transport').append($('#speed'), $('#speedLbl'));
     if (!TOUCH) $('#dsStyleGrp').prepend($('#dsPreset'));
