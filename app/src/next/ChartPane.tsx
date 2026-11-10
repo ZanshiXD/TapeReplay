@@ -12,6 +12,7 @@ import { indLabel } from '../core/indicators';
 import { frameHooks, useLive } from './live';
 import { IClose } from './icons';
 import { DrawLayer } from './draw/overlay';
+import { StudyLayer } from './studies/layer';
 import { ds } from './draw/state';
 import { isDrawTool } from './draw/tools';
 import { DrawBar, DrawMenu } from './draw/ui';
@@ -56,6 +57,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     const layer = new DrawLayer(el, chart, cs, session, feed);
     layer.onMenu = (x, y, id) => { setOrderMenu(null); setMenu({ x, y, id }); };
     setGeom({ y: p => cs.priceToCoordinate(p), p: y => cs.coordinateToPrice(y), round: p => feed.round(p), paneW: () => chart.paneSize().width, paneH: () => chart.paneSize().height });
+    const studies = new StudyLayer(el, chart, cs, feed, layer, onToast); // price zones and session lines, under the drawings
     let grabbed = false;
 
     const syncInds = () => {
@@ -122,7 +124,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       }
       if (session.account.version !== accVer) { accVer = session.account.version; syncLines(); syncMarkers(); labelsAt = now; }
       else if (now - labelsAt > 250) { labelsAt = now; syncLines(); } // open P&L on the entry lines
-      layer.render();
+      layer.render(); studies.render();
     };
     frameHooks.add(draw);
     draw(performance.now());
@@ -206,7 +208,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     window.addEventListener('pointercancel', onUp);
     return () => {
       frameHooks.delete(draw);
-      layer.dispose();
+      layer.dispose(); studies.dispose();
       cancelHold();
       el.removeEventListener('pointerdown', onDown, true);
       el.removeEventListener('dblclick', onDbl, true);
