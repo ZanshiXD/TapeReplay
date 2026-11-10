@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '../core/session';
 import { LOCAL_TZ, tzOffset } from '../core/time';
-import { pref, setPref, useLive } from './live';
+import { bump, pref, setPref, useLive } from './live';
 import { setTicket } from './ticket';
 import { CANDLE_SETS, C, FIXED_OFFSETS, PALETTES, THEME_DEF, ZONES, activePalette, applyLook, fixedId, palOf, theme, type Palette, type Theme } from './look';
 import { store, classicHref } from './appstore';
@@ -173,6 +173,7 @@ export function SettingsPage({ session, onKeys, onToast }: { session: Session | 
           </Row>
           <Row title="Separate trades" hint={<>Normally a sell against a long position closes it (netting), as most futures brokers do. With this on, every order is its own trade, so you can hold a long and a short at once.{hedgeLater && <b className="warnline" style={{ display: 'block', marginTop: 4 }}>The open session keeps its way until nothing is open in it.</b>}</>}>
             <label className="chk"><input type="checkbox" checked={pref('hedge', false)} onChange={e => replay('hedge', e.target.checked)} />Keep each order as a separate trade (no netting)</label>
+            <label className="chk"><input type="checkbox" checked={pref('oneTap', true)} onChange={e => { setPref('oneTap', e.target.checked); bump(); }} />Buy and sell buttons on each chart</label>
           </Row>
           <Row title="Order size" hint="How the order ticket sizes a trade when a session starts. By risk: the app works out the number of contracts so that a stop loss costs about what you chose. Fixed: always the same number of contracts.">
             <div className="duo">

@@ -292,6 +292,13 @@ table.t tbody tr:hover td { background: color-mix(in srgb, var(--fg) 4%, transpa
 .dragline.sl { border-color: var(--down); } .dragline.tp { border-color: var(--up); }
 .dragline span { position: absolute; right: 12px; top: -11px; font: 600 11px var(--f-num); padding: 2px 6px; border-radius: 4px; background: var(--raise); }
 .chartmenu { min-width: 250px; }
+.onetap { position: absolute; top: 8px; right: 124px; display: flex; align-items: stretch; height: 30px; pointer-events: auto; border-radius: 7px; overflow: hidden; border: 1px solid var(--line2); background: var(--panel); font: 600 12px var(--f-num); }
+.onetap button { border: 0; cursor: pointer; padding: 0 9px; display: flex; align-items: center; gap: 6px; color: #fff; font: inherit; }
+.onetap button span { font: 700 10px var(--f-ui); opacity: .85; }
+.onetap .sell { background: var(--down); } .onetap .buy { background: var(--up); }
+.onetap .qty { display: grid; place-items: center; min-width: 30px; padding: 0 6px; color: var(--fg); }
+.onetap button:hover { filter: brightness(1.1); }
+html.m .onetap { top: auto; bottom: 168px; right: 12px; }
 .eqchart { height: 150px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .perf { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 420px); gap: 16px; padding: 12px 14px; }
 .perf .sgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px 14px; font-size: 12.5px; }

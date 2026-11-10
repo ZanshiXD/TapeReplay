@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { Session } from '../core/session';
 import { fmtQty, smoney, type Order, type Trade } from '../core/account';
 import { frameHooks, useLive } from './live';
-import { plan, setTicket, ticket } from './ticket';
+import { place, plan, setTicket, ticket } from './ticket';
+import { pref } from './live';
 
 export interface ChartGeom { y(p: number): number | null; p(y: number): number | null; round(p: number): number; paneW(): number; paneH(): number }
 type Drag = { kind: 'sl' | 'tp'; tr?: Trade; o?: Order; y: number; side: 1 | -1 } | null;
@@ -72,6 +73,8 @@ export function ChartTrade({ session, sym, geom, menuAt, onCloseMenu, onToast }:
   };
   const lineY = drag ? drag.y : 0;
   const dragPrice = drag ? geom.p(lineY) : null;
+  const strip = pref('oneTap', true), bid = acc.bid(sym), ask = acc.ask(sym);
+  const tap = (side: 1 | -1) => { s.setActive(sym); const e = place(s, side); if (e) onToast(e, 'err'); };
   return (
     <div className="ctrade" ref={box} onPointerMove={e => drag && setDrag({ ...drag, y: yOf(e) })} onPointerUp={endDrag} style={{ pointerEvents: drag ? 'auto' : 'none' }}>
       {trades.map(tr => { const pnl = acc.unreal(tr); return (
@@ -91,6 +94,11 @@ export function ChartTrade({ session, sym, geom, menuAt, onCloseMenu, onToast }:
           {handles(o, { o, side: o.side as 1 | -1 })}
           <button className="tx" title="Cancel this order" aria-label="Cancel the order" onClick={() => { acc.cancel(o.id); s.changed(); }}>×</button>
         </div>))}
+      {strip && <div className="onetap" role="group" aria-label={`Trade ${sym}`}>
+        <button className="sell" title="Sell now, with the trade panel's size, stop and target (S)" onClick={() => tap(-1)}><span>SELL</span>{bid != null ? bid.toFixed(prec) : '—'}</button>
+        <span className="qty" title="Contracts, from the trade panel">{Math.max(0, plan(s, 1).qty)}</span>
+        <button className="buy" title="Buy now, with the trade panel's size, stop and target (B)" onClick={() => tap(1)}><span>BUY</span>{ask != null ? ask.toFixed(prec) : '—'}</button>
+      </div>}
       {drag && dragPrice != null && <div className={'dragline ' + drag.kind} style={{ top: lineY }}><span>{drag.kind.toUpperCase()} {dragPrice.toFixed(prec)}</span></div>}
       {menuAt && price != null && (
         <div className="pop menu chartmenu" style={{ left: Math.min(menuAt.x, geom.paneW() - 260), top: menuAt.y, pointerEvents: 'auto' }} onMouseLeave={onCloseMenu} onMouseDown={e => e.stopPropagation()}>
