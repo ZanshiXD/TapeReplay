@@ -10,9 +10,9 @@ import { jsApply, jsCheck, jsStrategy } from '../core/jsstrategy';
 import { pandasErr, pyCheck, pySetValues, pyStrategy } from '../core/pybridge';
 import { money, smoney, fmtQty } from '../core/account';
 import { PRACTICE, PRACTICE_FROM, PRACTICE_TO } from '../core/practice';
-import { openDataset } from '../core/library';
+import { MAX_BARS, openDataset } from '../core/library';
 import { parseTF } from '../core/time';
-import type { DatasetMeta } from '../core/store';
+import type { DatasetMeta, SeriesIndex } from '../core/store';
 import type { SessionState } from '../core/session';
 import { STAGES, type PropAcct, type PropConfig, type PropSim } from '../core/prop';
 import { store } from './appstore';
@@ -29,7 +29,7 @@ import { StratSettings, timeSettings } from './StratSettings';
 import './backtest.css';
 
 type Tab = 'list' | 'code' | 'run' | 'results' | 'opt' | 'rob';
-interface Prefs { name: string; mode: Mode; libs: 'numpy' | 'pandas'; tf: string; rebuy: boolean; maxEvals: number; data: DataChoice; range: [number, number]; base: number;
+interface Prefs { name: string; mode: Mode; libs: 'numpy' | 'pandas'; tf: string; rebuy: boolean; maxEvals: number; data: DataChoice; range: [number, number]; cut?: boolean; base: number;
   balance: number; qty: number; costs: RunCosts | null; propOn: boolean; prop: PropConfig | null }
 /** a finished run, as the Results tab shows it */
 export interface RunView { r: RunResult; setup: RunSetup; overrides: Record<string, Setting> | null; sim: SimRun | null; tf: string }
@@ -37,11 +37,21 @@ export interface RunView { r: RunResult; setup: RunSetup; overrides: Record<stri
 const PRACTICE_RANGE: [number, number] = [PRACTICE_FROM, PRACTICE_TO];
 /** practice data has no end of its own (it is made as it is asked for), so a backtest on it runs its latest month */
 const PRACTICE_DAYS = 30;
-/** a backtest runs on all the data of its market: the whole file (its latest ten years at most) or practice's latest month */
+/** a backtest runs on all the data of its market: the whole file (P.range, kept to the file's own span) or practice's latest month */
 function runRange(p: Prefs): [number, number] {
   if (p.data.kind === 'practice') { const t1 = ymdUtc(ymd(PRACTICE_TO), 1); return [t1 - PRACTICE_DAYS * 86400, t1]; }
-  const t1 = ymdUtc(ymd(p.range[1]), 1);
-  return [Math.max(ymdUtc(ymd(p.range[0])), t1 - 3653 * 86400), t1];
+  return [ymdUtc(ymd(p.range[0])), ymdUtc(ymd(p.range[1]), 1)];
+}
+/** a data file's span to backtest: all of it, or for a long file more than the app loads at once (MAX_BARS), its
+ *  latest whole months that fit */
+function fitSpan(ix: SeriesIndex | null, from: number, to: number): { range: [number, number]; cut: boolean } {
+  if (!ix || !ix.blocks.length) return { range: [from, to], cut: false };
+  let n = 0;
+  for (let i = ix.blocks.length - 1; i >= 0; i--) {
+    n += ix.blocks[i].n;
+    if (n > MAX_BARS * 0.9) return { range: [Math.max(from, ix.blocks[Math.min(i + 1, ix.blocks.length - 1)].t0), to], cut: true };
+  }
+  return { range: [from, to], cut: false };
 }
 const MAX_LINES = 1500;
 /** the console keeps a run's first lines (Python ready, Running …) when a long run fills it */
@@ -166,11 +176,32 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
       const i0 = datasetInstrument(meta, o.pick, o.contracts, o.prec), mem = pref<Record<string, { pv?: number; comm: number; spread: number; slip: number }>>('costs', {})[i0.sym];
       const i = datasetInstrument(meta, o.pick, o.contracts, o.prec, mem ? { pv: mem.pv } : undefined);
       const c = { comm: mem?.comm ?? (i.pv > 1 ? 2.1 : 0), spreadTicks: mem?.spread ?? i.spreadTicks, slipTicks: mem?.slip ?? 0 };
-      set({ data: { kind: 'dataset', id: meta.id, name: meta.name, pick: o.pick, inst: { ...i, ...c }, long: !!o.index }, range: [o.from, o.to], base: o.base, costs: c,
+      const f = fitSpan(o.index, o.from, o.to);
+      set({ data: { kind: 'dataset', id: meta.id, name: meta.name, pick: o.pick, inst: { ...i, ...c }, long: !!o.index }, range: f.range, cut: f.cut, base: o.base, costs: c,
             tf: stratTfs(o.base).includes(P.tf) ? P.tf : stratTfs(o.base)[0] });
     } catch (e) { onToast(`${meta.name}: ${(e as Error).message}`, 'err'); }
     finally { onBusy(null); }
   }
+  // a data file's whole span, read again from the Library: an open session on a long file has only part of it loaded,
+  // and a range kept from before can be out of date
+  const dsKey = P.data.kind === 'dataset' ? P.data.id : '';
+  useEffect(() => {
+    if (!dsKey) return;
+    let gone = false;
+    (async () => {
+      try {
+        const meta = (await store.listDatasets()).find(x => x.id === dsKey); if (!meta || gone) return;
+        let f: { range: [number, number]; cut: boolean } | null = null;
+        if (meta.chunked) { const ix = await store.seriesIndex(meta.id); f = fitSpan(ix, ix.from, ix.to); }
+        else if (meta.from != null && meta.to != null) f = { range: [meta.from, meta.to], cut: false };
+        if (!f || gone) return;
+        const nf = f;
+        setP(p => p.data.kind !== 'dataset' || p.data.id !== dsKey || (p.range[0] === nf.range[0] && p.range[1] === nf.range[1] && !!p.cut === nf.cut) ? p
+          : (() => { const n = { ...p, range: nf.range, cut: nf.cut }; setPref('strat', n); return n; })());
+      } catch { /* keep the range there is */ }
+    })();
+    return () => { gone = true; };
+  }, [dsKey]);
   /** the run's settings, or what is wrong with them */
   function setupNow(c = code, name = cur, lg = lang): RunSetup | string {
     const [t0, t1] = runRange(P);
@@ -316,8 +347,8 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
                     {P.data.kind === 'dataset' && !datasets.some(d => d.id === (P.data as { id: string }).id) && <option value={'ds:' + P.data.id}>{P.data.name}</option>}
                     {datasets.map(d => <option key={d.id} value={'ds:' + d.id}>{d.name}</option>)}
                   </select></label>
-                  <div className="field bt-wide"><span className="lbl">Dates <span className="q" title={P.data.kind === 'practice' ? `Practice data is made as it is asked for, so a backtest on it runs its latest ${PRACTICE_DAYS} days.` : 'A backtest runs on all the data in the file (its latest ten years at most).'}>?</span></span>
-                    <span className="bt-range" aria-label="Dates">{(([a, b]) => `${ymd(a)} to ${ymd(b - 1)}`)(runRange(P))} · {P.data.kind === 'practice' ? `the latest ${PRACTICE_DAYS} days` : 'all the data'}</span></div>
+                  <div className="field bt-wide"><span className="lbl">Dates <span className="q" title={P.data.kind === 'practice' ? `Practice data is made as it is asked for, so a backtest on it runs its latest ${PRACTICE_DAYS} days.` : P.cut ? 'The file has more bars than the app loads at once, so a backtest runs on its latest months that fit. A file of longer candles (1 minute rather than seconds) fits more years.' : 'A backtest runs on all the data in the file.'}>?</span></span>
+                    <span className="bt-range" aria-label="Dates">{(([a, b]) => `${ymd(a)} to ${ymd(b - 1)}`)(runRange(P))} · {P.data.kind === 'practice' ? `the latest ${PRACTICE_DAYS} days` : P.cut ? 'the latest part that fits in memory' : 'all the data'}</span></div>
                   <label className="field"><span className="lbl">Candles <span className="q" title="The strategy's on_bar runs when each candle of this size closes.">?</span></span>
                     <select className="in ui" aria-label="Candles" value={tfs.includes(P.tf) ? P.tf : tfs[0]} onChange={e => set({ tf: e.target.value })}>{tfs.map(t => <option key={t} value={t}>{t}</option>)}</select></label>
                   <div className="field bt-wide"><span className="lbl">The strategy runs <span className="q" title="At bar close: on_bar when each candle closes (fast). Every tick: on_tick on every simulated price move too, for trailing stops and the like (slower).">?</span></span>
