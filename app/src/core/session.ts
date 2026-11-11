@@ -1,6 +1,6 @@
 // A replay session: one or more markets on one clock, one account trading all of them, and the journal. The screens
 // drive it with play/pause and the step buttons, and call frame() on every animation frame while playing.
-import { Account, type AccountEvent, type AccountState, type Quote, type Side } from './account';
+import { Account, type AccountEvent, type AccountSnap, type AccountState, type Quote, type Side } from './account';
 import { Feed, type FeedSnap } from './feed';
 import { DrawStore, type Drawing } from './drawings';
 import { startProp, type PropConfig, type PropState, type RulesConfig, type RulesState, type PropSim, type PropRules } from './prop';
@@ -31,10 +31,12 @@ export interface SessionState {
   account: AccountState; journal: JournalEntry[]; drawings: Drawing[];
   prop?: { setup: PropSetup; state: PropState | RulesState } | null;
 }
-interface Snapshot { time: number; feeds: FeedSnap[]; account: AccountState; journal: number; prop: PropState | RulesState | null }
+interface Snapshot { time: number; feeds: FeedSnap[]; account: AccountSnap; journal: number; prop: PropState | RulesState | null }
 
 /** a quiet stretch this long (the daily break, nights, weekends) is jumped over rather than played in real time */
 const CLOSED_GAP = 600;
+/** most of a frame (ms) the replay may spend playing ticks; the charts draw in the rest */
+const FRAME_BUDGET = 10;
 
 export class Session {
   readonly name: string;
@@ -107,7 +109,11 @@ export class Session {
   get now() { return Math.max(this.simTime, ...this.feeds.map(f => f.time)); }
 
   subscribe(fn: (e: SessionEvent | null) => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
-  private emit(e: SessionEvent | null) { this.version++; for (const fn of this.listeners) fn(e); }
+  /** tells the screens; a screen that fails can't stop the replay half-way through a tick */
+  private emit(e: SessionEvent | null) {
+    this.version++;
+    for (const fn of this.listeners) { try { fn(e); } catch (err) { console.warn('Tape Replay: a screen failed to update', err); } }
+  }
   changed() { this.emit(null); }
   private onAccount(e: AccountEvent) {
     if (e.kind === 'pause') { this.stop = true; this.playing = false; return; }
@@ -126,13 +132,17 @@ export class Session {
     const m = f.step();
     if (m) { this.account.onTick(f.s.inst.sym, m.from, m.to, m.jump); this.prop?.onTick(f.time); }
   }
-  /** plays every tick up to time `target`, on all markets in time order */
-  advanceTo(target: number) {
-    let budget = 400000; this.stop = false;
+  /** plays every tick up to time `target`, on all markets in time order. With a time budget (ms) it stops when the
+   *  budget is spent and the clock waits where the ticks got to, so one frame never blocks the page: at a speed the
+   *  computer can't keep up with, the tape plays as fast as it can instead of piling up a backlog. */
+  advanceTo(target: number, budgetMs = Infinity) {
+    let budget = 400000, n = 0; this.stop = false;
+    const until = budgetMs < Infinity ? performance.now() + budgetMs : Infinity;
     while (budget-- > 0 && !this.stop) {
       const [f, t] = this.next();
       if (!f || t > target) break;
       this.tickOne(f);
+      if ((++n & 31) === 0 && performance.now() > until) { budget = 0; break; }
     }
     if (budget <= 0) this.simTime = this.now;
     this.account.trackDD();
@@ -145,7 +155,7 @@ export class Session {
     // jump the clock over the market being closed
     if (isFinite(t) && t - this.simTime >= CLOSED_GAP) this.simTime = t;
     this.simTime += Math.min(0.25, dt) * this.speed;
-    this.advanceTo(this.simTime);
+    this.advanceTo(this.simTime, FRAME_BUDGET);
     return true;
   }
   play() { if (this.atEnd) return; this.playing = true; this.changed(); }
@@ -177,12 +187,12 @@ export class Session {
   private takeSnap() {
     const last = this.snaps[this.snaps.length - 1], t = this.activeFeed.nextTickTime();
     if (last && last.time >= t) return;
-    this.snaps.push({ time: isFinite(t) ? t : this.now, feeds: this.feeds.map(f => f.snap()), account: this.account.state(), journal: this.journal.length, prop: this.prop ? this.prop.state() : null });
+    this.snaps.push({ time: isFinite(t) ? t : this.now, feeds: this.feeds.map(f => f.snap()), account: this.account.snap(), journal: this.journal.length, prop: this.prop ? this.prop.state() : null });
     if (this.snaps.length > 3000) this.snaps.splice(1, 500); // keep the very first (the session start)
   }
   private restore(x: Snapshot) {
     this.feeds.forEach((f, k) => f.restore(x.feeds[k]));
-    this.account.load(x.account);
+    this.account.restoreSnap(x.account);
     if (this.prop && x.prop) (this.prop.load as (s: PropState | RulesState) => void)(x.prop);
     this.journal.length = Math.min(this.journal.length, x.journal);
     this.simTime = x.time;
@@ -212,8 +222,8 @@ export class Session {
     const from = this.now; this.stop = false;
     while (!this.stop && !this.atEnd) {
       const [f, tn] = this.next(); if (!f || tn > t) break;
-      let budget = 80000;
-      while (budget-- > 0 && !this.stop) {
+      let budget = 80000; const until = performance.now() + 40;
+      while (budget-- > 0 && !this.stop && ((budget & 63) !== 0 || performance.now() < until)) {
         const [g, tg] = this.next(); if (!g || tg > t) break;
         const sym = g.s.inst.sym;
         // nothing can fill on this market: play its bar in one step
@@ -240,11 +250,12 @@ export class Session {
   }
 
   /* ---- saving and reopening ---- */
-  state(): SessionState {
+  /** what to save: copied by default; with copy=false the parts are the session's own (for writing out at once) */
+  state(copy = true): SessionState {
     return {
       v: 2, simTime: this.simTime, active: this.active, speed: this.speed, tf: this.tf, inds: this.inds,
       feeds: this.feeds.map(f => ({ sym: f.s.inst.sym, at: f.i < f.s.n ? f.s.t[f.i] : null })),
-      account: this.account.state(), journal: this.journal, drawings: this.drawings.state(),
+      account: copy ? this.account.state() : this.account.plain(), journal: this.journal, drawings: this.drawings.state(),
       prop: this.prop && this.propSetup ? { setup: this.propSetup, state: this.prop.state() } : null,
     };
   }

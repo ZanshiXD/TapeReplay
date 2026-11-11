@@ -69,6 +69,8 @@ jobs:
           python tests/test_guide.py "$RUNNER_TEMP/shots"
           python tests/test_jsind.py "$RUNNER_TEMP/shots"
           python tests/test_drawtools.py "$RUNNER_TEMP/shots"
+          python tests/test_dropdowns.py "$RUNNER_TEMP/shots"
+          python tests/test_freeze.py "$RUNNER_TEMP/shots"
 
       - name: Strategies in the browser
         run: |
