@@ -1,12 +1,12 @@
 // Every drawing in the session, by market: click one to select it, and show, hide, lock or remove it.
 import type { Session } from '../../core/session';
-import { useLive } from '../live';
+import { useShape } from '../live';
 import { ds, setDs } from './state';
 import { drawingName, removeDrawing, toggleHide, toggleLock } from './actions';
 import { Ic, ToolIcon, UI } from './ui';
 
 export function ObjectTree({ session }: { session: Session }) {
-  useLive();
+  useShape();
   const s = session, st = s.drawings, syms = s.feeds.map(f => f.s.inst.sym);
   return (
     <aside className="otree" aria-label="Object tree" onMouseDown={e => e.stopPropagation()}>

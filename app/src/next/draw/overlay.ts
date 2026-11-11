@@ -39,6 +39,9 @@ export class DrawLayer {
   private zoomStack: Array<{ from: number; to: number }> = [];
   private mouse: XY | null = null;
   private key = '';
+  /** whether the drawings drawn last time looked at the candles or the clock (a volume profile, an anchored VWAP, a
+   *  forecast): only then do they draw again as each tick changes the newest candle */
+  private usesLive = false;
   private crossFor = '';
   private w = 0; private h = 0;
   private finishedAt = 0;
@@ -96,6 +99,8 @@ export class DrawLayer {
     const { x0, bs } = this.scale(), s = this.series, inst = this.feed.s.inst, prec = inst.prec, acc = this.session.account;
     const L = (t: number) => this.logical(t);
     const risk = ticket.mode === 'risk' ? ticket.risk : ticket.mode === 'pct' ? acc.balance * ticket.pct / 100 : 0;
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const self = this;
     return {
       w: this.w, h: this.h,
       x: t => x0 + L(t) * bs,
@@ -104,12 +109,12 @@ export class DrawLayer {
       p: y => s.coordinateToPrice(y) ?? NaN,
       xy: pt => ({ x: x0 + L(pt.t) * bs, y: s.priceToCoordinate(pt.p) ?? NaN }),
       logical: L, tOf: l => this.tOf(l), barW: bs, tfSec: this.tf,
-      bars: (t0, t1) => this.bars(t0, t1),
+      bars: (t0, t1) => { this.usesLive = true; return this.bars(t0, t1); },
       tick: inst.tick, prec, pv: inst.pv, sym: inst.sym,
       fp: p => p.toFixed(prec),
       ft: t => `${fmtShortDay(t)} ${fmtHM(t)}`,
       span: sec => spanText(sec),
-      now: this.session.now,
+      get now() { self.usesLive = true; return self.session.now; },
       ticket: { risk: risk || 200, sl: ticket.slTicks, tp: ticket.tpTicks },
       focus,
     };
@@ -123,7 +128,7 @@ export class DrawLayer {
     this.updateTimes();
     const F = this.feed.F, { x0, bs } = this.scale(), s = this.series, st = this.store;
     const key = [st.version, ds.version, x0.toFixed(2), bs.toFixed(4), s.priceToCoordinate(0)?.toFixed(2), s.priceToCoordinate(1000)?.toFixed(3), this.w, this.h, this.times.length,
-      F ? `${F.time},${F.o},${F.h},${F.l},${F.c}` : '', this.hover, this.hoverH, this.busy || ds.tool === 'dot' || this.measure ? `${this.mouse?.x},${this.mouse?.y}` : '', this.el.clientWidth, this.el.clientHeight].join('|');
+      F && this.usesLive ? `${F.time},${F.o},${F.h},${F.l},${F.c}` : '', this.hover, this.hoverH, this.busy || ds.tool === 'dot' || this.measure ? `${this.mouse?.x},${this.mouse?.y}` : '', this.el.clientWidth, this.el.clientHeight].join('|');
     if (key === this.key) return;
     this.key = key;
     this.applyCursorMode();
@@ -131,7 +136,7 @@ export class DrawLayer {
     if (cv.width !== Math.round(cw * dpr) || cv.height !== Math.round(ch * dpr)) { cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; }
     const c = this.ctx; c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, cw, ch);
     c.save(); c.beginPath(); c.rect(0, 0, this.w, this.h); c.clip();
-    this.hits.clear(); this.handlesOf.clear();
+    this.hits.clear(); this.handlesOf.clear(); this.usesLive = false;
     const axis: Painter['axis'] = [];
     const tfKind = this.tf < 60 ? 'sec' : this.tf < 3600 ? 'min' : this.tf < 86400 ? 'hour' : 'day';
     const sel = this.store.get(ds.selected);

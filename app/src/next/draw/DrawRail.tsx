@@ -6,7 +6,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Session } from '../../core/session';
-import { bump, pref, setPref, useLive } from '../live';
+import { bump, pref, setPref, useShape } from '../live';
 import { GROUPS, ICONS, TOOL, TOOLS, isDrawTool, type Group } from './tools';
 import { cursorTool, ds, setDs, type Magnet } from './state';
 import { layers } from './overlay';
@@ -45,7 +45,7 @@ function Flyout({ name, children, search }: { name: string; children: React.Reac
 }
 
 export function DrawRail({ session }: { session: Session }) {
-  useLive();
+  useShape();
   const [open, setOpen] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const ref = useRef<HTMLDivElement>(null);

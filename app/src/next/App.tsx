@@ -11,11 +11,11 @@ import { JournalPage } from './JournalPage';
 import { LibraryPage } from './LibraryPage';
 import { KeysSheet, SettingsPage, applyReplayPrefs, startTicket } from './SettingsPage';
 import { applyLook, onLook } from './look';
-import { bump, frameHooks, initPrefs, pref, setPref } from './live';
+import { bump, frameHooks, initPrefs, pref, pulse, setPref } from './live';
 import { place, setTicket } from './ticket';
 import { ds, setDs } from './draw/state';
 import { layers } from './draw/overlay';
-import { TOOLS } from './draw/tools';
+import { TOOLS, styleFor } from './draw/tools';
 import { store } from './appstore';
 import { contAhead, datasetInstrument, loadMarket, openLive, practiceSource, reopen, sessionDoc, type Live, type MarketSource, type Opening, type SessionDoc } from './sessions';
 import { UpdateButton } from './Update';
@@ -88,7 +88,7 @@ export function App() {
   useEffect(() => {
     if (!live) return;
     const s = live.session;
-    if (import.meta.env.MODE === 'test') (window as unknown as { __next: unknown }).__next = { session: s, live, ds, layers, setDs, store, tools: TOOLS.filter(t => t.group !== 'cursor').map(t => ({ id: t.id, n: t.n })) };
+    if (import.meta.env.MODE === 'test') (window as unknown as { __next: unknown }).__next = { session: s, live, ds, layers, setDs, store, tools: TOOLS.filter(t => t.group !== 'cursor').map(t => ({ id: t.id, n: t.n })), styleFor };
     let last = performance.now(), lastBump = 0, raf = 0, wasPlaying = false, lastCont = 0;
     // the next frame is asked for first, and each part runs on its own: a part that fails (a chart that can't draw,
     // a panel) is reported once and the replay, the clock and the other charts carry on
@@ -97,7 +97,9 @@ export function App() {
       const dt = (now - last) / 1000; last = now;
       guard('replay', () => s.frame(dt));
       for (const f of frameHooks) guard('chart', () => f(now));
-      if ((s.playing || wasPlaying) && now - lastBump > 100) { lastBump = now; guard('panels', bump); }
+      // the panels: the prices and the clock ten times a second while playing; everything once when it stops
+      if (wasPlaying && !s.playing) { lastBump = now; guard('panels', bump); }
+      else if (s.playing && now - lastBump > 100) { lastBump = now; guard('panels', pulse); }
       if (s.playing && now - lastCont > 1000) { lastCont = now; guard('data', () => contAhead(store, live, m => toast(m, 'err'))); }
       wasPlaying = s.playing;
     };
@@ -127,12 +129,15 @@ export function App() {
       catch { setSaveState('Not saved'); }
       finally { saving = false; }
     };
-    // while the tape plays, a save every PLAY_SAVE_EVERY (writing a long session out takes a moment); paused, as
-    // soon as anything changed, and at once when it pauses or the app goes to the background
+    // while the tape plays, a save every PLAY_SAVE_EVERY (writing a long session out takes a moment), started when the
+    // page is idle between frames so it doesn't hold up the next one; paused, as soon as anything changed, and at once
+    // when it pauses or the app goes to the background
     let lastSave = 0;
+    const idle = (f: () => void) => { const ric = (window as unknown as { requestIdleCallback?: (f: () => void, o: { timeout: number }) => number }).requestIdleCallback; if (ric) ric(f, { timeout: 3000 }); else setTimeout(f, 0); };
     const timer = setInterval(() => {
       const now = Date.now();
-      if (!s.playing || now - lastSave >= PLAY_SAVE_EVERY) { lastSave = now; save(); }
+      if (s.playing && now - lastSave >= PLAY_SAVE_EVERY) { lastSave = now; idle(() => { if (s.playing) save(); }); }
+      else if (!s.playing) { lastSave = now; save(); }
       if (wasPlaying && !s.playing) save(true);
       wasPlaying = s.playing;
     }, SAVE_EVERY);

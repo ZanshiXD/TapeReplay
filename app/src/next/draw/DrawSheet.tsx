@@ -5,7 +5,7 @@
 // closes it, so the whole chart is free to draw on.
 import { useEffect, useRef, useState } from 'react';
 import type { Session } from '../../core/session';
-import { pref, setPref, useLive } from '../live';
+import { pref, setPref, useShape } from '../live';
 import { ICONS, TOOL, TOOLS, type Group } from './tools';
 import { cursorTool, ds, setDs, type Magnet } from './state';
 import { layers } from './overlay';
@@ -44,7 +44,7 @@ export function Star({ id, name }: { id: string; name: string }) {
 }
 
 export function DrawSheet({ session, onClose, panel = false }: { session: Session; onClose: () => void; panel?: boolean }) {
-  useLive();
+  useShape();
   const [tab, setTabS] = useState<Tab>(() => pref<Tab>('drawTab', 'recent'));
   const [sure, setSure] = useState(false);
   const [q, setQ] = useState('');

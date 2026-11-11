@@ -37,6 +37,9 @@ interface Snapshot { time: number; feeds: FeedSnap[]; account: AccountSnap; jour
 const CLOSED_GAP = 600;
 /** most of a frame (ms) the replay may spend playing ticks; the charts draw in the rest */
 const FRAME_BUDGET = 10;
+/** while playing, at least one tick about this often (real seconds): at slow speeds bars get more ticks (up to 600;
+ *  the setting in Settings is the least), so a 1-minute bar at 1x moves several times a second, not every 3 seconds */
+const TICK_EVERY = 0.15;
 
 export class Session {
   readonly name: string;
@@ -54,6 +57,8 @@ export class Session {
   /** bumps on anything the screens show */
   version = 0;
   private stop = false;
+  /** the time of the last tick played */
+  private lastTick = -Infinity;
   private snaps: Snapshot[] = [];
   private listeners = new Set<(e: SessionEvent | null) => void>();
   private quotes = new Map<string, Quote>();
@@ -129,33 +134,36 @@ export class Session {
   }
   private tickOne(f: Feed) {
     if (f.s.inst.sym === this.active && f.atCandleStart) this.takeSnap();
+    this.lastTick = f.nextTickTime();
     const m = f.step();
     if (m) { this.account.onTick(f.s.inst.sym, m.from, m.to, m.jump); this.prop?.onTick(f.time); }
   }
-  /** plays every tick up to time `target`, on all markets in time order. With a time budget (ms) it stops when the
-   *  budget is spent and the clock waits where the ticks got to, so one frame never blocks the page: at a speed the
-   *  computer can't keep up with, the tape plays as fast as it can instead of piling up a backlog. */
+  /** plays every tick up to time `target`, on all markets in time order, and moves the clock there. With a time budget
+   *  (ms) it stops when the budget is spent and the clock waits at the last tick played (it never runs ahead of the
+   *  prices, and never goes back), so one frame never blocks the page: at a speed the computer can't keep up with,
+   *  the tape plays as fast as it can, evenly, instead of piling up a backlog. A fill that pauses stops it there too. */
   advanceTo(target: number, budgetMs = Infinity) {
-    let budget = 400000, n = 0; this.stop = false;
+    let budget = 400000, n = 0, cut = false; this.stop = false;
     const until = budgetMs < Infinity ? performance.now() + budgetMs : Infinity;
-    while (budget-- > 0 && !this.stop) {
+    while (!this.stop) {
       const [f, t] = this.next();
       if (!f || t > target) break;
       this.tickOne(f);
-      if ((++n & 31) === 0 && performance.now() > until) { budget = 0; break; }
+      if (--budget <= 0 || ((++n & 7) === 0 && performance.now() > until)) { cut = true; break; }
     }
-    if (budget <= 0) this.simTime = this.now;
+    this.simTime = Math.max(this.simTime, cut || this.stop ? Math.min(target, this.lastTick) : target);
     this.account.trackDD();
     if (this.atEnd && this.playing) { this.playing = false; this.emit({ kind: 'placed', text: 'That is the end of the data.', at: this.now }); }
   }
   /** called on every animation frame; dt in seconds */
   frame(dt: number) {
     if (!this.playing) return false;
+    // at slow speeds, more ticks in each bar so the price keeps moving (a new speed applies to the bar playing at once)
+    for (const f of this.feeds) f.setPace(Math.min(600, Math.ceil(f.s.base / (Math.max(0.01, this.speed) * TICK_EVERY))));
     const [, t] = this.next();
     // jump the clock over the market being closed
     if (isFinite(t) && t - this.simTime >= CLOSED_GAP) this.simTime = t;
-    this.simTime += Math.min(0.25, dt) * this.speed;
-    this.advanceTo(this.simTime, FRAME_BUDGET);
+    this.advanceTo(this.simTime + Math.min(0.25, dt) * this.speed, FRAME_BUDGET);
     return true;
   }
   play() { if (this.atEnd) return; this.playing = true; this.changed(); }
@@ -213,6 +221,7 @@ export class Session {
   /** jumps to time t: forward plays there quickly (orders still fill), back returns to the closest snapshot first */
   async jumpTo(t: number, progress?: (f: number) => void): Promise<void> {
     this.playing = false;
+    for (const f of this.feeds) f.setPace(0); // the bars on the way get the usual ticks (a jump plays them unseen)
     if (t < this.now) {
       let j = this.snaps.length - 1;
       while (j > 0 && this.snaps[j].time > t) j--;
