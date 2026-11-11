@@ -2,7 +2,8 @@
 #   strategies  the Python strategy and indicator runtimes, the page's type check and build (app/, Vite +
 #               TypeScript), the core's tests, then the app in Chromium with real Python (strategies, indicators,
 #               optimization in workers) and through the Windows app's server (tests/)
-#   windows     imports DBN and CSV data through the app's server (tests/test_import.py), then
+#   windows     imports DBN and CSV data through the app's server (tests/test_import.py), long backtests on a
+#               long series (tests/test_long_backtest.py), then
 #               builds TapeReplay.exe like the release does, kept for a week as a download on the run's page
 #   ios         compiles the iOS app (with Python bundled) for the simulator, unsigned
 name: Checks
@@ -114,6 +115,13 @@ jobs:
 
       - name: Importing price data (DBN and CSV) through the app's server, on Windows
         run: python tests/test_import.py
+
+      - name: Long backtests (years of 1-second data grouped into minutes as they load)
+        run: |
+          python -m pip install numpy playwright
+          python -m playwright install chromium
+          (cd app && npm ci)
+          python tests/test_long_backtest.py
 
       - name: Build the app
         working-directory: desktop

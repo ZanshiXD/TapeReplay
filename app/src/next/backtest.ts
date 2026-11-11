@@ -194,9 +194,9 @@ export type DataChoice = { kind: 'practice'; sym: string } | { kind: 'dataset'; 
 export interface RunCosts { comm: number; spreadTicks: number; slipTicks: number }
 const HIST_DAYS = 3;
 /** the bars to load for a run from t0 to t1: a few days of history before (the chart shows them), a day after */
-export function marketFor(d: DataChoice, t0: number, t1: number, costs: RunCosts): MarketSource {
+export function marketFor(d: DataChoice, t0: number, t1: number, costs: RunCosts, agg = 0): MarketSource {
   if (d.kind === 'practice') return { kind: 'practice', sym: d.sym, t0: t0 - HIST_DAYS * 86400, t1: t1 + 86400, costs };
-  return { kind: 'dataset', id: d.id, name: d.name, pick: d.pick, inst: { ...d.inst, ...costs }, window: d.long ? { from: t0 - HIST_DAYS * 86400, to: t1 + 86400 } : null, cont: null };
+  return { kind: 'dataset', id: d.id, name: d.name, pick: d.pick, inst: { ...d.inst, ...costs }, window: d.long ? { from: t0 - HIST_DAYS * 86400, to: t1 + 86400 } : null, cont: null, ...(d.long && agg ? { agg } : {}) };
 }
 /** everything a run needs (the Run panel's settings with the code), also kept with an optimization */
 export interface RunSetup {

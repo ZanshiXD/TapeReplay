@@ -16,7 +16,9 @@ export type MarketSource =
       /** the bars loaded: everything (null) or a section of a long series */
       window: { from: number; to: number } | null;
       /** plays on to the end of a long series, loading a month at a time, keeping this many days of history */
-      cont: { hist: number } | null };
+      cont: { hist: number } | null;
+      /** a long backtest: the section's bars grouped into bars of this many seconds as they load (absent: as stored) */
+      agg?: number };
 
 /** a session as it is open in the app */
 export interface Live {
@@ -45,7 +47,7 @@ export async function loadMarket(store: Store, m: MarketSource, progress?: Progr
   let d = op.d;
   if (!d) {
     if (!op.index || !m.window) throw new Error('This session has no saved date range, so it cannot be reopened.');
-    d = await loadSection(store, meta.id, op.index, m.window.from, m.window.to, progress);
+    d = await loadSection(store, meta.id, op.index, m.window.from, m.window.to, progress, m.agg || 0);
   } else if (m.window) d = slice(d, m.window.from, m.window.to);
   return asSeries(meta.id + ':' + (m.pick || 'all'), d, m.inst);
 }
