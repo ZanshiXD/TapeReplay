@@ -10,7 +10,7 @@ import { pyCall, pyLibs, pyLoad } from './client';
 import { jsCall, jsStuck, jsWorker } from './jsclient';
 import { pyBusy, pyErrs, pyLog } from './console';
 import { pyInds, pyState, type PyInd } from './prefs';
-import { bump } from '../live';
+import { bump, pref, setPref } from '../live';
 
 export interface Meta { title: string; style: string; pane: string; width: number; color: string | null }
 export interface Plot { m: Meta; base: string; t: number[]; v: Array<number | null>; c: Array<string | null> }
@@ -45,6 +45,8 @@ export class Inst {
   get lower() { for (const p of this.plots.values()) if (p.m.pane === 'lower') return true; return false; }
 }
 
+/** scripts stopped for taking too long: name -> the code that got stuck (kept with the preferences) */
+const stuckKept = () => ({ ...pref<Record<string, string>>('jsStuck', {}) });
 const same = (a: Candle, b: Candle) => a.time === b.time && a.o === b.o && a.h === b.h && a.l === b.l && a.c === b.c && a.v === b.v;
 /** the first candle after time t */
 const after = (c: Candle[], t: number) => { let a = 0, b = c.length; while (a < b) { const m = (a + b) >> 1; if (c[m].time <= t) a = m + 1; else b = m; } return a; };
@@ -78,6 +80,9 @@ export class PyRun {
     for (const x of want) {
       const old = this.list.find(i => i.x.id === x.id && i.x.code === x.code && i.x.name === x.name);
       if (!old) { pyErrs.delete(x.name); jsStuck.delete(x.name); }
+      // a script stopped for taking too long stays stopped after a restart of the app, until its code changes
+      const st = stuckKept();
+      if (x.name in st && st[x.name] !== x.code) { delete st[x.name]; setPref('jsStuck', st); }
       keep.push(old || new Inst(x));
     }
     for (const ins of this.list) if (!keep.includes(ins)) this.stop(ins);
@@ -125,7 +130,9 @@ export class PyRun {
     const info = { name: inst.name, tf: tfLabel(f.tf), tfs: tfSeconds(f.tf), tick: inst.tick, pv: inst.pv, prec: inst.prec };
     ins.gen = jsWorker.gen;
     // stopped for taking too long (on this chart or another): not again until its code changes
-    if (ins.js && jsStuck.has(ins.name)) { ins.busy = false; this.fail(ins, jsStuck.get(ins.name)!, false); return; }
+    if (ins.js && (jsStuck.has(ins.name) || stuckKept()[ins.name] === ins.x.code)) {
+      ins.busy = false; this.fail(ins, jsStuck.get(ins.name) || `${ins.name} took more than 20 seconds on its candles last time, so it was stopped. Change its code to try again.`, false); return;
+    }
     (ins.js ? jsCall<string>('_ti_start', [ins.iid, ins.x.code, JSON.stringify(info)], { tag: ins.name })
       : pyLoad(pyLibs(ins.x.code)).then(() => pyCall<string>('_ti_start', [ins.iid, ins.x.code, JSON.stringify(info)], { tag: ins.name, libs: pyLibs(ins.x.code) })))
       .then(r => { ins.busy = false; if (this.live(ins)) this.apply(ins, JSON.parse(r)); })
@@ -158,6 +165,7 @@ export class PyRun {
   }
   private fail(ins: Inst, err: string, load: boolean) {
     if (ins.err) return;
+    if (ins.js && jsStuck.has(ins.name) && stuckKept()[ins.name] !== ins.x.code) setPref('jsStuck', { ...stuckKept(), [ins.name]: ins.x.code });
     ins.err = err; ins.ver++; this.ver++; pyErrs.set(ins.name, err); pyBusy.delete(ins.name); soon();
     // said once, not once per chart
     const said = `${ins.name}|${err}`;
