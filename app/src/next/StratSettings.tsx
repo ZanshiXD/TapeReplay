@@ -9,6 +9,25 @@ import type { Lang } from './backtest';
 import { python } from './backtest';
 import { pref, setPref } from './live';
 import { IChev } from './icons';
+import { copyLine, copySettings } from './copysettings';
+import { pyInds, pyScripts, scriptLang, setPyInds, setPyScripts } from './py/prefs';
+
+/** the indicators to copy into: Your scripts and the ones on the charts, by name */
+function indicatorNames(): string[] { return [...new Set([...Object.keys(pyScripts()), ...pyInds().map(x => x.name)])].sort((a, b) => a.localeCompare(b)); }
+/** this strategy's settings into an indicator (its saved script and every copy of it on the charts); what happened */
+async function toIndicator(code: string, lang: Lang, stratName: string, ind: string): Promise<{ text: string; ok: boolean }> {
+  const saved = pyScripts()[ind], onCharts = pyInds().filter(x => x.name === ind);
+  const target = saved != null ? { code: saved, lang: scriptLang(ind) } : onCharts[0] ? { code: onCharts[0].code, lang: onCharts[0].lang || 'py' as const } : null;
+  if (!target) return { text: `There is no indicator called “${ind}”.`, ok: false };
+  const r = await copySettings({ code, lang }, target);
+  if ('error' in r) return { text: r.error, ok: false };
+  if (r.code !== target.code) {
+    if (saved != null) setPyScripts({ ...pyScripts(), [ind]: r.code });
+    if (onCharts.length) setPyInds(pyInds().map(x => x.name === ind && (x.lang || 'py') === target.lang ? { ...x, code: r.code } : x));
+  }
+  const where = onCharts.length ? ' and its chart copy' : '';
+  return { text: copyLine(r, stratName).replace(/^Copied (\d+) settings? from “[^”]*”/, m => m.replace(' from', ` to “${ind}”${where} from`)), ok: r.copied.length > 0 };
+}
 
 export interface SetRow { name: string; kind: 'int' | 'float' | 'bool' | 'choice' | 'time'; value: Setting; line: number; comment: string; money: boolean; choices?: Setting[] }
 
@@ -43,7 +62,8 @@ export function readValue(r: SetRow, text: string): { v: Setting } | { error: st
 }
 const show = (r: SetRow, v: Setting) => r.kind === 'float' && typeof v === 'number' && Number.isInteger(v) ? v.toFixed(1) : String(v);
 
-export function StratSettings({ code, lang, onCode, readOnly }: { code: string; lang: Lang; onCode: (c: string) => void; readOnly?: boolean }) {
+export function StratSettings({ code, lang, onCode, readOnly, name = 'this strategy' }: { code: string; lang: Lang; onCode: (c: string) => void; readOnly?: boolean; name?: string }) {
+  const [copied, setCopied] = useState<{ text: string; ok: boolean } | null>(null);
   const [rows, setRows] = useState<SetRow[]>([]);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
@@ -112,6 +132,13 @@ export function StratSettings({ code, lang, onCode, readOnly }: { code: string; 
         {!open && rows.length > 0 && <span className="muted bt-sum">{rows.slice(0, 6).map(r => `${r.name} ${show(r, r.value)}`).join(' · ')}{rows.length > 6 ? ' …' : ''}</span>}
         <span className="spacer" /><span className="muted bt-meta">{loading && !rows.length ? 'Loading Python to read the settings…' : `${rows.length} setting${rows.length === 1 ? '' : 's'}`}</span>
       </button>
+      {open && <div className="bt-setcopy">
+        <select className="in ui" aria-label="Copy these settings to an indicator" title="Set an indicator's settings to these, for every setting with the same name" value=""
+          disabled={!rows.length || !!err} onChange={async e => { const v = e.target.value; e.target.value = ''; if (!v) return; setCopied({ text: 'Copying…', ok: true }); try { setCopied(await toIndicator(codeRef.current, lang, name, v)); } catch (x) { setCopied({ text: (x as Error).message, ok: false }); } }}>
+          <option value="">Copy to an indicator…</option>{indicatorNames().map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+        {copied && <span className={'bt-copied ' + (copied.ok ? 'up' : 'down')} role="status">{copied.text}</span>}
+      </div>}
       {open && <div className="bt-setbody">
         {err && <div className="bt-seterr" role="status">The code has an error ({err}). {rows.length ? 'The settings below can be changed again once it is fixed.' : 'The settings show once it is fixed.'}</div>}
         {!rows.length ? (!err && <div className="empty">{loading ? 'Loading Python to read the settings…' : `No settings yet. Put the numbers you may want to change as ${how}. They show here, and the optimizer can try values for them.`}</div>) :

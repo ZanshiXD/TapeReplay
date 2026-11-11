@@ -35,3 +35,7 @@
 html.m .modal.pyed > .pyed-body { grid-template-columns: 1fr; grid-template-rows: minmax(220px, 1fr) auto; overflow: auto; }
 html.m .pyside > section.grow { min-height: 160px; }
 html.m .pyed > header .in { max-width: none; flex: 1; }
+/* Settings: copy them from a strategy */
+.pysetcap { display: flex; align-items: center; gap: 8px; }
+.pycopy { height: 26px; font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 500; max-width: 200px; }
+.pycons .ok { color: var(--up-fg, var(--up)); }

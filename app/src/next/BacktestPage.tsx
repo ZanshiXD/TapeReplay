@@ -307,7 +307,7 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
               </>}
             </section>
             <div className="bt-run" aria-label="Run settings">
-              <StratSettings code={code} lang={lang} onCode={editCode} />
+              <StratSettings code={code} lang={lang} onCode={editCode} name={cur} />
               <section className="card bt-runcard">
                 <h3>Run</h3>
                 <div className="bt-form">
