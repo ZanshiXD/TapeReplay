@@ -12,14 +12,15 @@ const MAIN: Field[] = [['size', 'Account size'], ['fee', 'Evaluation fee'], ['eP
 const FUNDED: Field[] = [['fMll', 'Funded max loss'], ['fTiers', 'Contracts by profit (profit:minis)'], ['fDays', 'Payout days per cycle'], ['fDayMin', 'A payout day makes at least'], ['fPayMin', 'Smallest payout'], ['fPayMax', 'Largest payout'], ['fPayPct', 'Payout: % of profit'], ['split', 'Your share (%)'], ['fPayouts', 'Payouts before live']];
 const LIVE: Field[] = [['lMll', 'Live max loss'], ['lMax', 'Live max contracts (minis)'], ['lBonusPt', 'Bonus: profit needed'], ['lBonusDays', 'Bonus: trading days'], ['lBonus', 'Bonus amount']];
 
-export function PropSetupCard({ value, onChange }: { value: PropConfig; onChange: (c: PropConfig) => void }) {
+/** run: in a backtest's settings, where nobody is there to ask for payouts, so they are taken as soon as allowed */
+export function PropSetupCard({ value, onChange, run }: { value: PropConfig; onChange: (c: PropConfig) => void; run?: boolean }) {
   const [more, setMore] = useState(false);
   const [naming, setNaming] = useState<string | null>(null);
   const saved = pref<Record<string, Partial<PropConfig>>>('propPresets', {});
   const c = value, set = (p: Partial<PropConfig>) => onChange({ ...c, ...p, preset: 'preset' in p ? p.preset! : c.preset && Object.keys(p).some(k => k !== 'unit' && k !== 'auto' && k !== 'fee') ? '' : c.preset });
   const field = ([k, l, tip]: Field) => (
     <label key={k} className="field"><span className="lbl">{l}{tip && <span className="q" title={tip}>?</span>}</span>
-      <input className="in" inputMode={k === 'fTiers' ? 'text' : 'decimal'} value={String(c[k])} onChange={e => set({ [k]: k === 'fTiers' ? e.target.value : Math.max(0, parseFloat(e.target.value) || 0) } as Partial<PropConfig>)} /></label>
+      <input className="in" aria-label={l} inputMode={k === 'fTiers' ? 'text' : 'decimal'} value={String(c[k])} onChange={e => set({ [k]: k === 'fTiers' ? e.target.value : Math.max(0, parseFloat(e.target.value) || 0) } as Partial<PropConfig>)} /></label>
   );
   const presets = { ...PROP_PRESETS, ...saved };
   return (
@@ -31,7 +32,8 @@ export function PropSetupCard({ value, onChange }: { value: PropConfig; onChange
           <label className="field" style={{ width: 240 }}>Rules<select className="in ui" value={c.preset in presets ? c.preset : ''} onChange={e => { const n = e.target.value; if (n) onChange(applyPreset(c, n, presets[n])); }}>
             <option value="">Your own</option>{Object.keys(presets).map(n => <option key={n} value={n}>{n}</option>)}</select></label>
           <div className="field">Contracts you trade<span className="seg"><button className={c.unit === 'micro' ? 'on' : ''} onClick={() => set({ unit: 'micro' })}>Micros</button><button className={c.unit === 'mini' ? 'on' : ''} onClick={() => set({ unit: 'mini' })}>Minis</button></span></div>
-          <label className="chk"><input type="checkbox" checked={c.auto} onChange={e => set({ auto: e.target.checked })} />Take payouts as soon as allowed</label>
+          {run ? <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>Funded payouts are taken as soon as they are allowed.</span>
+            : <label className="chk"><input type="checkbox" checked={c.auto} onChange={e => set({ auto: e.target.checked })} />Take payouts as soon as allowed</label>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>{MAIN.map(field)}</div>
         {c.eDpt > 0 || c.ePt > 0 ? <span className="muted" style={{ fontSize: 12 }}>{dptNote(c)}</span> : null}

@@ -3,9 +3,8 @@
 import RUNTIME from '../python/runtime.py?raw';
 import RUNNER from '../python/runner.py?raw';
 import { loadPython, type PyHost } from '../core/pybridge';
-import { PropSim, simConfig, type PropConfig } from '../core/prop';
-import type { Mode, RunRules } from '../core/backtest';
-import type { Account } from '../core/account';
+import type { PropConfig } from '../core/prop';
+import type { Mode } from '../core/backtest';
 import { PRACTICE } from '../core/practice';
 import { parseTF, tfLabel, tfValid, zoneToUtc, zp, p2 } from '../core/time';
 import { store } from './appstore';
@@ -213,25 +212,5 @@ export function seriesFor(m: MarketSource, progress?: (f: number, step?: string)
   return cache.s.then(s => ({ ...s, inst: { ...s.inst, ...costs } }));
 }
 
-/* ---- the prop simulation in a run (the hook points of the runner) ---- */
-export interface SimRun { sim: PropSim | null; cfg: PropConfig }
-/** rules for runBacktest: a fresh prop simulation on the run's account; a failed account buys a new evaluation when
- * rebuy is on (up to maxEvals, 0 = no limit), else the run ends there */
-export function simRules(c: PropConfig, rebuy: boolean, maxEvals: number, out: SimRun): RunRules {
-  let sim: PropSim, acc: Account;
-  const cfg = simConfig({ ...c, on: true });
-  out.cfg = cfg;
-  return {
-    start(a, log) {
-      acc = a; sim = new PropSim(cfg, a, { resetHour: cfg.resetNY }); out.sim = sim;
-      if (log) sim.onEvent = e => log(e.text, e.up === false ? 'er' : e.up ? 'ok' : 'pr');
-    },
-    idle: t1 => sim.canSkipBar(t1),
-    afterTick() {
-      sim.onTick(acc.quote('').time);
-      const r = sim.rebuy(rebuy, maxEvals);
-      return !r ? null : r.restarted ? { restarted: r.text } : r.text;
-    },
-    block: adds => sim.canOpen(adds),
-  };
-}
+/* ---- the prop simulation in a run: in core (the optimizer's workers use it too) ---- */
+export { simRules, type SimRun } from '../core/prop';

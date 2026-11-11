@@ -8,10 +8,15 @@
 import { optFmt, optLabel, type Mode, type Costs, type Setting } from './backtest';
 import type { Closed } from './account';
 import type { Series } from './series';
+import type { PropConfig, PropStats } from './prop';
 
 export { optFmt, optLabel };
 export const OPT_CAP = 20000, OPT_CAP_SMALL = 300;
 export const OPT_GOALS = { ndd: 'Net ÷ max drawdown', net: 'Net P&L', pf: 'Profit factor', take: 'Payouts − fees' } as const;
+/** a run's prop challenge in an optimization's results */
+export function simRes(st: PropStats, label: string): SimRes {
+  return { attempts: st.attempts, fees: st.fees, income: st.income, take: st.take, label, passed: st.passed, live: st.live, nPay: st.nPay, avgPay: st.avgPay ?? 0, maxPay: st.maxPay ?? 0 };
+}
 export type Goal = keyof typeof OPT_GOALS;
 export type Combo = Record<string, Setting>;
 
@@ -485,6 +490,8 @@ export interface OptJob {
   balance: number; qty?: number; ticksPerBar?: number; hedge?: boolean; costs?: Partial<Costs>;
   /** the chart time zone (setZone), so candles longer than an hour and bar.time follow it */
   zone: string; name?: string;
+  /** a prop firm challenge in every run (payouts taken as soon as allowed): its result is the Payouts − fees goal */
+  prop?: { cfg: PropConfig; rebuy: boolean; maxEvals: number } | null;
 }
 /** a worker, or anything that talks like one (tests run the job handler in the page) */
 export interface Endpoint { postMessage(m: unknown): void; onmessage: ((e: { data: any }) => void) | null; onerror?: ((e: any) => void) | null; terminate(): void }

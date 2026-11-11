@@ -171,6 +171,12 @@ export function computeStats(acc: Account): Stats {
     maxLosingStreak: maxL, maxWinningStreak: maxW, longs, shorts: n - longs, avgHold: n ? hold / n : null, costs,
   };
 }
+/** the stats of some closed trades (one prop account's) from a starting balance; the drawdown is on closed P&L */
+export function histStats(hist: Closed[], start: number): Stats {
+  let bal = start, peak = start, dd = 0, ddp = 0;
+  for (const x of hist) { bal += x.net; if (bal > peak) peak = bal; if (peak - bal > dd) { dd = peak - bal; ddp = dd / peak * 100; } }
+  return computeStats({ hist, start, balance: bal, equity: () => bal, maxDD: dd, maxDDpct: ddp, trades: [] } as unknown as Account);
+}
 /** the stats grid as [label, text] rows */
 export function statsRows(s: Stats): Array<[string, string]> {
   const dur = (x: number) => x >= 86400 ? (x / 86400).toFixed(1) + 'd' : x >= 3600 ? (x / 3600).toFixed(1) + 'h' : Math.round(x / 60) + 'm';

@@ -156,3 +156,18 @@ html.m .bt-setbody { max-height: none; }
 html.m .bt-settable td:last-child { width: auto; white-space: normal; }
 html.m .bt-setin { width: 100%; min-width: 140px; max-width: none; height: 34px; font-size: 15px; }
 @media (max-width: 1100px) { html:not(.m) .bt-list { width: 180px; } }
+/* a prop run's accounts */
+.bt-accts { padding: 0; overflow: hidden; }
+.bt-acchead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); font-size: 12.5px; }
+.bt-acchead b { font-size: 13.5px; }
+.bt-accscroll { max-height: 300px; overflow: auto; }
+.bt-acctable { width: 100%; }
+.bt-acctable th { position: sticky; top: 0; z-index: 1; background: var(--field); }
+.bt-acctable tbody tr { cursor: pointer; }
+.bt-acctable tbody tr:hover td { background: var(--hover); }
+.bt-acctable tbody tr.sel td { background: var(--accent-soft, var(--hover)); }
+.bt-acctable tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.bt-acctable td { white-space: nowrap; }
+.bt-acctable td:last-child { white-space: normal; min-width: 220px; }
+.bt-why { font-size: 12px; }
+.bt-curvecap { font-size: 12px; margin: 2px 0 -6px; }
