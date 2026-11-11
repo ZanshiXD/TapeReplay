@@ -89,7 +89,7 @@ table.t tbody tr:hover td { background: color-mix(in srgb, var(--fg) 4%, transpa
 .work { flex: 1 1 auto; min-height: 0; display: flex; }
 .col { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .charts { flex: 1 1 auto; min-height: 0; display: grid; position: relative; background: var(--panel); }
-.side { width: 330px; flex: none; border-left: 1px solid var(--line); background: var(--panel); overflow: auto; }
+.side { width: var(--side-w, 330px); flex: none; border-left: 1px solid var(--line); background: var(--panel); overflow: auto; }
 .sec { padding: 16px; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid var(--line); }
 .sec h3 { margin: 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
 
@@ -126,12 +126,28 @@ table.t tbody tr:hover td { background: color-mix(in srgb, var(--fg) 4%, transpa
 .tip .acts button + button { color: var(--muted); font-weight: 500; }
 
 /* ---- bottom panel ---- */
-.dock { height: 210px; flex: none; border-top: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; }
+.dock { height: var(--dock-h, 210px); flex: none; border-top: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; }
 .tabs { display: flex; align-items: center; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--line); flex: none; }
 .tabs > button { height: 40px; padding: 0 12px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer; font-weight: 500; }
 .tabs > button:hover { color: var(--fg); }
 .tabs > button.on { color: var(--strong); font-weight: 600; border-bottom-color: var(--accent); }
 .dock .body { flex: 1; overflow: auto; }
+.dock .tabs { overflow-x: auto; scrollbar-width: none; }
+.dock .tabs > button { flex: none; white-space: nowrap; }
+
+/* ---- resize handles (Splitter): a line on the panel's edge, an 8px hit area across it ---- */
+.rsz { position: relative; flex: none; z-index: 25; outline: none; touch-action: none; }
+.rsz-dock { height: 0; }
+.rsz-side { width: 0; }
+.rsz::before { content: ""; position: absolute; }
+.rsz-dock::before { left: 0; right: 0; top: -4px; height: 8px; cursor: row-resize; }
+.rsz-side::before { top: 0; bottom: 0; left: -4px; width: 8px; cursor: col-resize; }
+.rsz::after { content: ""; position: absolute; background: var(--accent); opacity: 0; transition: opacity .12s; pointer-events: none; }
+.rsz-dock::after { left: 0; right: 0; top: -1px; height: 2px; }
+.rsz-side::after { top: 0; bottom: 0; left: -1px; width: 2px; }
+.rsz:hover::after, .rsz:focus-visible::after, html.resizing-dock .rsz-dock::after, html.resizing-side .rsz-side::after { opacity: 1; }
+html.resizing-dock, html.resizing-dock * { cursor: row-resize !important; user-select: none; }
+html.resizing-side, html.resizing-side * { cursor: col-resize !important; user-select: none; }
 
 /* ---- trade panel ---- */
 .qbtn { height: 62px; border: 0; border-radius: 10px; color: #fff; cursor: pointer; display: flex; flex-direction: column; justify-content: center; padding: 0 14px; gap: 2px; }

@@ -7,6 +7,7 @@ import { ChartPane } from './ChartPane';
 import { ReplayBar } from './ReplayBar';
 import { TradePanel } from './TradePanel';
 import { BottomPanel } from './BottomPanel';
+import { Splitter } from './Splitter';
 import { IndicatorsPanel } from './IndicatorsPanel';
 import { pref, setPref, useShape } from './live';
 import { IChev, IInd, ILayout1, ILayout2, ILayout4, IPlus } from './icons';
@@ -167,9 +168,11 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
           {phone && bar}
           <DrawSettings session={s} onToast={onToast} />
           {touring && <Tour onEnd={() => setTouring(false)} />}
+          {!phone && <Splitter kind="dock" />}
           <BottomPanel session={s} onToast={onToast} openJournal={openJournal} />
         </div>
         {ds.tree && <ObjectTree session={s} />}
+        {!phone && <Splitter kind="side" />}
         <TradePanel session={s} onToast={onToast} />
       </div>
     </>

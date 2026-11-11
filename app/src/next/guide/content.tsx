@@ -112,7 +112,7 @@ export const CHAPTERS: Chapter[] = [
       </ul>
     </> },
     { id: 'positions', title: 'Positions, orders and results', body: <>
-      <p>The panel under the chart (the Positions tab on a phone) has four tabs:</p>
+      <p>The panel under the chart (the Positions tab on a phone) has four tabs. On a computer, drag its top edge to make it taller or shorter, or the Trade panel's left edge to make that wider; double-click an edge for the usual size, and the app remembers the sizes.</p>
       <ul>
         <li><b>Positions</b>: open trades. Type a stop or target price straight in; <b>Breakeven</b> moves the stop to the entry so the trade can't lose (apart from costs); <b>Close</b> closes it.</li>
         <li><b>Orders</b>: limit and stop orders waiting to fill. Cancel any of them.</li>
