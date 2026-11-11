@@ -57,7 +57,7 @@ def check(c, m):
     passed += 1
 
 
-async def run(b, cap):
+async def run(b, cap, short=False):
     ctx = await b.new_context(viewport={"width": 1440, "height": 900})
     if cap: await ctx.add_init_script(f"window.__TAPE_MAX_BARS = {cap}")
     pg = await ctx.new_page(); errs = []
@@ -69,6 +69,9 @@ async def run(b, cap):
     await pg.click(".bt-newmenu button:has-text('MA cross'):has-text('JavaScript')")
     await pg.select_option("select[aria-label='Market']", "ds:nqsec")
     await pg.wait_for_function("() => /2026-01-01/.test(document.querySelector('.bt-range')?.textContent || '')", timeout=60000)
+    if short:  # a short span of the same file: it fits, so every 1-second bar
+        await pg.fill("input[aria-label='Start date']", "2026-03-23")
+        await pg.wait_for_function("() => /2026-03-23/.test(document.querySelector('.bt-range')?.textContent || '')", timeout=10000)
     rng_txt = await pg.text_content(".bt-range")
     t1 = time.time()
     await pg.click(".bt-run button:has-text('Run backtest')")
@@ -90,9 +93,12 @@ async def main():
         check("as 1-minute bars" in rng_txt and rng_txt.startswith("2026-01-01") and "2026-03-31" in rng_txt, f"a long span: all of it, as 1-minute bars ({rng_txt})")
         check(status == "Done" and "of 1m data" in run_line and "2026-01-01" in run_line and "2026-03-31" in run_line, f"it runs on the whole span in 1-minute bars ({status}: {run_line} {lines[-3:]})")
         check(not errs, f"no page errors {errs}")
+        rng_txt, run_line, status, secs, errs, lines = await run(b, 500000, short=True)
+        print("short span:", rng_txt, "|", run_line, "|", status, lines[-4:], flush=True)
+        check("minute" not in rng_txt and status == "Done" and "of 1s data" in run_line and "2026-03-23" in run_line, f"a short span of the long file runs on its 1-second bars ({rng_txt}: {run_line})")
         rng_txt, run_line, status, secs, errs, lines = await run(b, 0)
         print("normal:", rng_txt, "|", run_line, "|", status, f"{secs:.0f}s", flush=True)
-        check(rng_txt.endswith("all the data") and "minute" not in rng_txt, f"a span that fits is unchanged ({rng_txt})")
+        check("2026-03-31" in rng_txt and "minute" not in rng_txt, f"a span that fits is unchanged ({rng_txt})")
         check(status == "Done" and "of 1s data" in run_line, f"it runs on the 1-second bars ({status}: {run_line})")
         check(not errs, f"no page errors {errs}")
         await b.close()

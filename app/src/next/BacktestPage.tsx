@@ -29,27 +29,40 @@ import { StratSettings, timeSettings } from './StratSettings';
 import './backtest.css';
 
 type Tab = 'list' | 'code' | 'run' | 'results' | 'opt' | 'rob';
-interface Prefs { name: string; mode: Mode; libs: 'numpy' | 'pandas'; tf: string; rebuy: boolean; maxEvals: number; data: DataChoice; range: [number, number]; agg?: number; base: number;
+interface Prefs { name: string; mode: Mode; libs: 'numpy' | 'pandas'; tf: string; rebuy: boolean; maxEvals: number; data: DataChoice; range: [number, number]; base: number;
+  /** the run's dates inside the data: a start day and time ('' = the start of the data; practice: its last month) and
+   *  an end day and time ('' = the end of the data); days 'YYYY-MM-DD' and times 'HH:MM' in the chart's time zone */
+  start?: string; startTime?: string; end?: string; endTime?: string;
   balance: number; qty: number; costs: RunCosts | null; propOn: boolean; prop: PropConfig | null }
 /** a finished run, as the Results tab shows it */
 export interface RunView { r: RunResult; setup: RunSetup; overrides: Record<string, Setting> | null; sim: SimRun | null; tf: string }
 
 const PRACTICE_RANGE: [number, number] = [PRACTICE_FROM, PRACTICE_TO];
-/** practice data has no end of its own (it is made as it is asked for), so a backtest on it runs its latest month */
-const PRACTICE_DAYS = 30;
-/** a backtest runs on all the data of its market: the whole file (P.range, kept to the file's own span) or practice's latest month */
+/** practice data is made as it is asked for: a run starts its latest month unless told otherwise, and spans at most this */
+const PRACTICE_DAYS = 30, PRACTICE_MAX = 62;
+/** the data the market has: a file's span (P.range) or practice's */
+const dataSpan = (p: Prefs): [number, number] => p.data.kind === 'practice' ? PRACTICE_RANGE : p.range;
+/** a day and a time of day in the chart's time zone */
+function dayAt(day: string, hhmm: string | undefined) { const [h, m] = (hhmm || '00:00').split(':'); return ymdUtc(day) + (+h || 0) * 3600 + (+m || 0) * 60; }
+/** the run's span [t0, t1): from the start day and time (or the start of the data) to the end day and time (or the
+ *  end of the data), inside the data */
 function runRange(p: Prefs): [number, number] {
-  if (p.data.kind === 'practice') { const t1 = ymdUtc(ymd(PRACTICE_TO), 1); return [t1 - PRACTICE_DAYS * 86400, t1]; }
-  return [ymdUtc(ymd(p.range[0])), ymdUtc(ymd(p.range[1]), 1)];
+  const [d0, d1] = dataSpan(p), last = ymdUtc(ymd(d1), 1);
+  const t1 = Math.min(last, p.end ? dayAt(p.end, p.endTime || '23:59') + 60 : last);
+  const t0 = Math.max(ymdUtc(ymd(d0)), p.start ? dayAt(p.start, p.startTime) : p.data.kind === 'practice' ? t1 - PRACTICE_DAYS * 86400 : d0);
+  return [t0, t1];
 }
-/** a data file's span to backtest, all of it, and for a long backtest (more bars than the app loads at once, like
- *  years of 1-second data) the bar length its bars are grouped into as they load: 0 keeps them as stored, so spans that
- *  fit (a few years) run on every bar as before */
+/** how long a span is, in words */
+function spanWords(sec: number) {
+  const d = sec / 86400;
+  return d >= 365 ? `${(d / 365.25).toFixed(1).replace(/\.0$/, '')} years` : d >= 60 ? `${Math.round(d / 30.44)} months` : d >= 1 ? `${Math.round(d)} day${Math.round(d) === 1 ? '' : 's'}` : `${Math.round(sec / 3600)} hours`;
+}
+/** for a long backtest (more bars than the app loads at once, like years of 1-second data) the bar length a long
+ *  file's bars are grouped into as they load; 0 keeps them as stored, so spans that fit (a few years) run on every bar */
 const AGGS = [60, 300, 900, 1800, 3600, 4 * 3600];
-function fitSpan(ix: SeriesIndex | null, from: number, to: number): { range: [number, number]; agg: number } {
-  if (!ix || !ix.blocks.length || sectionBars(ix, from, to) <= maxBars() * 0.9) return { range: [from, to], agg: 0 };
-  const agg = AGGS.find(a => a > ix.base && aggBars(ix, from, to, a) <= maxBars() * 0.9) ?? AGGS[AGGS.length - 1];
-  return { range: [from, to], agg };
+function aggFor(ix: SeriesIndex | null, from: number, to: number): number {
+  if (!ix || !ix.blocks.length || sectionBars(ix, from, to) <= maxBars() * 0.9) return 0;
+  return AGGS.find(a => a > ix.base && aggBars(ix, from, to, a) <= maxBars() * 0.9) ?? AGGS[AGGS.length - 1];
 }
 const aggName = (a: number) => a >= 3600 ? `${a / 3600}-hour` : `${a / 60}-minute`;
 const MAX_LINES = 1500;
@@ -164,7 +177,11 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
   /* ---- the market and the run's settings ---- */
   const inst = instOf(P.data);
   const costs: RunCosts = P.costs || { comm: inst.comm, spreadTicks: inst.spreadTicks, slipTicks: inst.slipTicks };
-  const tfs = useMemo(() => stratTfs(P.base), [P.base]);
+  // the long file's index (for how long a span is in bars), the run's span, and the bars it runs on
+  const [lix, setLix] = useState<{ id: string; ix: SeriesIndex } | null>(null);
+  const [t0, t1] = runRange(P), [d0, d1] = dataSpan(P);
+  const agg = P.data.kind === 'dataset' && lix?.id === P.data.id ? aggFor(lix.ix, t0, t1) : 0;
+  const tfs = useMemo(() => stratTfs(agg || P.base), [P.base, agg]);
   const prop = P.prop || defaultProp();
   async function chooseData(v: string) {
     if (v.startsWith('practice:')) { const sym = v.slice(9), i = PRACTICE[sym]; return set({ data: { kind: 'practice', sym }, range: PRACTICE_RANGE, base: 1, costs: { comm: i.comm, spreadTicks: i.spreadTicks, slipTicks: i.slipTicks } }); }
@@ -175,9 +192,9 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
       const i0 = datasetInstrument(meta, o.pick, o.contracts, o.prec), mem = pref<Record<string, { pv?: number; comm: number; spread: number; slip: number }>>('costs', {})[i0.sym];
       const i = datasetInstrument(meta, o.pick, o.contracts, o.prec, mem ? { pv: mem.pv } : undefined);
       const c = { comm: mem?.comm ?? (i.pv > 1 ? 2.1 : 0), spreadTicks: mem?.spread ?? i.spreadTicks, slipTicks: mem?.slip ?? 0 };
-      const f = fitSpan(o.index, o.from, o.to), base = f.agg || o.base;
-      set({ data: { kind: 'dataset', id: meta.id, name: meta.name, pick: o.pick, inst: { ...i, ...c }, long: !!o.index }, range: f.range, agg: f.agg, base,
-            costs: c, tf: stratTfs(base).includes(P.tf) ? P.tf : stratTfs(base)[0] });
+      if (o.index) setLix({ id: meta.id, ix: o.index });
+      set({ data: { kind: 'dataset', id: meta.id, name: meta.name, pick: o.pick, inst: { ...i, ...c }, long: !!o.index }, range: [o.from, o.to], base: o.base,
+            costs: c, tf: stratTfs(o.base).includes(P.tf) ? P.tf : stratTfs(o.base)[0] });
     } catch (e) { onToast(`${meta.name}: ${(e as Error).message}`, 'err'); }
     finally { onBusy(null); }
   }
@@ -190,15 +207,15 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
     (async () => {
       try {
         const meta = (await store.listDatasets()).find(x => x.id === dsKey); if (!meta || gone) return;
-        let f: { range: [number, number]; agg: number; base?: number } | null = null;
-        if (meta.chunked) { const ix = await store.seriesIndex(meta.id); f = { ...fitSpan(ix, ix.from, ix.to), base: ix.base }; }
-        else if (meta.from != null && meta.to != null) f = { range: [meta.from, meta.to], agg: 0 };
+        let f: { range: [number, number]; base?: number } | null = null;
+        if (meta.chunked) { const ix = await store.seriesIndex(meta.id); if (gone) return; setLix({ id: meta.id, ix }); f = { range: [ix.from, ix.to], base: ix.base }; }
+        else if (meta.from != null && meta.to != null) f = { range: [meta.from, meta.to] };
         if (!f || gone) return;
         const nf = f;
         setP(p => {
-          if (p.data.kind !== 'dataset' || p.data.id !== dsKey || (p.range[0] === nf.range[0] && p.range[1] === nf.range[1] && (p.agg || 0) === nf.agg)) return p;
-          const base = nf.agg || nf.base || p.base, n = { ...p, range: nf.range, agg: nf.agg, base, tf: stratTfs(base).includes(p.tf) ? p.tf : stratTfs(base)[0] };
-          setPref('strat', n); return n;
+          const base = nf.base || p.base;
+          if (p.data.kind !== 'dataset' || p.data.id !== dsKey || (p.range[0] === nf.range[0] && p.range[1] === nf.range[1] && p.base === base)) return p;
+          const n = { ...p, range: nf.range, base }; setPref('strat', n); return n;
         });
       } catch { /* keep the range there is */ }
     })();
@@ -206,12 +223,13 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
   }, [dsKey]);
   /** the run's settings, or what is wrong with them */
   function setupNow(c = code, name = cur, lg = lang): RunSetup | string {
-    const [t0, t1] = runRange(P);
-    if (!isFinite(t0) || !isFinite(t1) || t0 >= t1) return 'This market has no data to run on. Pick another one.';
+    if (!isFinite(t0) || !isFinite(t1) || !isFinite(d0)) return 'This market has no data to run on. Pick another one.';
+    if (t0 >= t1) return P.end ? 'The start is after the end: pick an earlier start or a later end.' : 'The start is after the end of the data: pick an earlier start.';
+    if (P.data.kind === 'practice' && t1 - t0 > PRACTICE_MAX * 86400) return `Practice data is made as you ask for it: pick at most ${PRACTICE_MAX} days.`;
     const libs = lg === 'py' && P.libs === 'pandas' ? ['numpy', 'pandas'] : ['numpy'];
     const pe = lg === 'py' ? pandasErr(c, libs) : null; if (pe) return pe;
     const tf = tfs.includes(P.tf) ? P.tf : tfs[0];
-    return { name, lang: lg, code: c, mode: P.mode, libs, tf, data: P.data, market: marketFor(P.data, t0, t1, costs, P.data.kind === 'dataset' ? P.agg || 0 : 0), t0, t1, balance: P.propOn ? prop.size : P.balance, qty: P.qty, costs,
+    return { name, lang: lg, code: c, mode: P.mode, libs, tf, data: P.data, market: marketFor(P.data, t0, t1, costs, agg), t0, t1, balance: P.propOn ? prop.size : P.balance, qty: P.qty, costs,
              dataName: P.data.kind === 'practice' ? PRACTICE[P.data.sym].name : P.data.name, prop: P.propOn ? { cfg: prop, rebuy: P.rebuy, maxEvals: P.maxEvals } : null };
   }
 
@@ -349,8 +367,18 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
                     {P.data.kind === 'dataset' && !datasets.some(d => d.id === (P.data as { id: string }).id) && <option value={'ds:' + P.data.id}>{P.data.name}</option>}
                     {datasets.map(d => <option key={d.id} value={'ds:' + d.id}>{d.name}</option>)}
                   </select></label>
-                  <div className="field bt-wide"><span className="lbl">Dates <span className="q" title={P.data.kind === 'practice' ? `Practice data is made as it is asked for, so a backtest on it runs its latest ${PRACTICE_DAYS} days.` : P.agg ? `All the file's years have more bars than the app holds at once, so for this backtest each month's bars are grouped into ${aggName(P.agg)} bars as they load (slower to load; fills inside a bar are simulated from its open, high, low and close). Spans that fit, like a few years of seconds data, run on every bar.` : 'A backtest runs on all the data in the file.'}>?</span></span>
-                    <span className="bt-range" aria-label="Dates">{(([a, b]) => `${ymd(a)} to ${ymd(b - 1)}`)(runRange(P))} · {P.data.kind === 'practice' ? `the latest ${PRACTICE_DAYS} days` : P.agg ? `all the data, as ${aggName(P.agg)} bars` : 'all the data'}</span></div>
+                  <div className="field bt-wide bt-dates"><span className="lbl">Dates <span className="q" title={`From a day and time (the chart's time zone) to the end of the data or a day and time of your own, within ${ymd(d0)} to ${ymd(d1)}.${P.data.kind === 'practice' ? ` Practice data is made as it is asked for: at most ${PRACTICE_MAX} days.` : ''} A span with more bars than the app holds at once, like years of 1-second data, is grouped into longer bars as it loads (slower to load; fills inside a bar are simulated from its open, high, low and close).`}>?</span></span>
+                    <div className="bt-daterow">
+                      <span className="bt-dt"><input className="in" type="date" aria-label="Start date" value={ymd(t0)} min={ymd(d0)} max={ymd(d1)} onChange={e => e.target.value && set({ start: e.target.value })} />
+                        <input className="in" type="time" aria-label="Start time" value={P.start ? P.startTime || '00:00' : '00:00'} onChange={e => set({ start: ymd(t0), startTime: e.target.value || '00:00' })} /></span>
+                      <span className="bt-to">to</span>
+                      <span className="bt-dt"><select className="in ui" aria-label="End" value={P.end ? 'day' : 'end'} onChange={e => set(e.target.value === 'end' ? { end: '' } : { end: ymd(d1), endTime: '23:59' })}>
+                        <option value="end">End of data</option><option value="day">A day and time</option></select>
+                        {P.end && <><input className="in" type="date" aria-label="End date" value={P.end} min={ymd(d0)} max={ymd(d1)} onChange={e => e.target.value && set({ end: e.target.value })} />
+                          <input className="in" type="time" aria-label="End time" value={P.endTime || '23:59'} onChange={e => set({ endTime: e.target.value || '23:59' })} /></>}</span>
+                    </div>
+                    <span className="bt-range" aria-label="Dates">{t0 < t1 ? `${ymd(t0)} to ${ymd(t1 - 1)} · ${spanWords(t1 - t0)}` : 'No dates in between'}{agg ? `, as ${aggName(agg)} bars` : ''}
+                      {(P.start || P.end) && <button className="linkbtn" onClick={() => set({ start: '', end: '' })}>{P.data.kind === 'practice' ? 'Latest month' : 'All the data'}</button>}</span></div>
                   <label className="field"><span className="lbl">Candles <span className="q" title="The strategy's on_bar runs when each candle of this size closes.">?</span></span>
                     <select className="in ui" aria-label="Candles" value={tfs.includes(P.tf) ? P.tf : tfs[0]} onChange={e => set({ tf: e.target.value })}>{tfs.map(t => <option key={t} value={t}>{t}</option>)}</select></label>
                   <div className="field bt-wide"><span className="lbl">The strategy runs <span className="q" title="At bar close: on_bar when each candle closes (fast). Every tick: on_tick on every simulated price move too, for trailing stops and the like (slower).">?</span></span>
