@@ -78,7 +78,7 @@ export function sessionDoc(L: Live) {
     v: 2, app: 'next', id: L.id, name: L.name, created: L.created, updated: Date.now(),
     status: s.atEnd ? 'finished' : 'in progress', tf: tfLabel(s.tf),
     datasetId: ds ? ds.id : 'practice-generated', datasetName: ds ? ds.name : 'Practice markets',
-    start: L.start, balance: L.balance, risk: L.risk, markets: L.markets, state: s.state(),
+    start: L.start, balance: L.balance, risk: L.risk, markets: L.markets, state: s.state(false),
     summary: {
       app: 'next', markets: s.feeds.map(f => f.s.inst.sym).join(' + '), from: L.start, to: s.now, tf: tfLabel(s.tf),
       trades: h.length, net: a.balance - a.start, winRate: h.length ? wins / h.length : null, maxDD: a.maxDD,

@@ -47,6 +47,8 @@ if (TOUCH) {
   };
   addEventListener('pointerdown', (e: PointerEvent) => {
     swallowUntil = 0; // a new tap: only the rest of the one that closed a sheet is swallowed
+    // a dialog opened from a menu (the Python editor from Indicators) sits above it: taps in it leave the menu be
+    if ((e.target as Element).closest?.('.modal-back')) return;
     let any = false, sheet = false;
     for (const p of document.querySelectorAll<HTMLElement>(OPEN)) {
       if (!outside(p, e)) continue;

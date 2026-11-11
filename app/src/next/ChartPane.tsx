@@ -114,6 +114,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       ms.sort((a, b) => (a.time as number) - (b.time as number));
       cs.setMarkers(ms);
     };
+    const overlays: Array<(() => void) & { failed?: boolean }> = [() => layer.render(), () => studies.render(), () => py.render(), () => { if (py.marksChanged()) syncMarkers(); }];
     const draw = (now: number) => {
       const arr = feed.candles, F = feed.F;
       if (feed.version !== ver || arr.length < count || arr.length - count > 400) { full(); syncMarkers(); }
@@ -130,8 +131,8 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       }
       if (session.account.version !== accVer) { accVer = session.account.version; syncLines(); syncMarkers(); labelsAt = now; }
       else if (now - labelsAt > 250) { labelsAt = now; syncLines(); } // open P&L on the entry lines
-      layer.render(); studies.render(); py.render();
-      if (py.marksChanged()) syncMarkers();
+      // the layers over the candles, each on its own: one that fails leaves the candles and the others drawing
+      for (const r of overlays) { try { r(); } catch (e) { if (!r.failed) { r.failed = true; console.warn('Tape Replay: a chart layer failed to draw', e); } } }
     };
     frameHooks.add(draw);
     draw(performance.now());

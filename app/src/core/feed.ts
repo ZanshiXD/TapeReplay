@@ -8,6 +8,8 @@ import { makeInd, type Ind, type IndSpec } from './indicators';
 
 /** the chart keeps the most recent candles only (indicators still see all of history) */
 let MAX_CANDLES = 40000, CANDLE_SLACK = 5000;
+/** candles built before the ones the chart keeps when the candles are rebuilt, for the indicators to settle */
+const WARM_CANDLES = 2000;
 /** fewer candles kept on phones and tablets, which have less memory and slower drawing */
 export function setCandleCap(max: number, slack: number) { MAX_CANDLES = max; CANDLE_SLACK = slack; }
 
@@ -136,7 +138,16 @@ export class Feed {
     this.candles = []; this.F = null;
     const daily = tfSeconds(this.tf) >= 86400;
     this.inds = this.indSpecs.filter(x => x.on).map(spec => ({ spec, ind: makeInd(spec, { daily, hasVol: s.hasVol }), vals: [] }));
-    if (this.chart) for (let j = 0; j < this.i; j++) this.aggBar(s.t[j], s.o[j], s.h[j], s.l[j], s.c[j], s.v[j]);
+    if (this.chart) {
+      // only the bars the chart can keep (and some before, so the indicators settle): a step back or a new
+      // timeframe on a long series costs the same as on a short one
+      let j0 = 0;
+      if (this.i > 0) {
+        const T0 = this.bucket(s.t[this.i - 1] - (MAX_CANDLES + WARM_CANDLES) * tfSeconds(this.tf));
+        let b = this.i - 1; while (j0 < b) { const m = (j0 + b) >> 1; if (s.t[m] < T0) j0 = m + 1; else b = m; }
+      }
+      for (let j = j0; j < this.i; j++) this.aggBar(s.t[j], s.o[j], s.h[j], s.l[j], s.c[j], s.v[j]);
+    }
     if (this.P) this.aggBar(s.t[this.i], this.P.o, this.P.h, this.P.l, this.P.c, this.P.v);
     this.version++;
   }
