@@ -89,8 +89,8 @@ async def setup(pg, phone):
     # price zones and an RSI in Python
     await act(".mctx [aria-label='Indicators']" if phone else "button:has-text('Indicators')")
     await act("button:has-text('Price zones')")
-    await act("button:has-text('+ New Python indicator')")
-    await act(".pytpl[role=listitem]:has-text('RSI')")
+    await act("button:has-text('+ New indicator')")
+    await act("[aria-label='Python templates'] button:has-text('RSI')")
     await act(".pyed button:has-text('Add to chart')")
     await pg.wait_for_function("() => !document.querySelector('.pyed') || /On the chart/.test(document.querySelector('.pyed').textContent)", timeout=60000)
     await act(".pyed [aria-label='Close']")
