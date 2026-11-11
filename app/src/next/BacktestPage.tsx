@@ -25,32 +25,40 @@ import { usePhone } from './phone';
 import { TEMPLATES, TICK_TEMPLATES, freeName, instOf, loadStrats, marketFor, python, pyReady, saveStrats, seriesFor, simRules, stratTfs, ymd, ymdUtc,
          type DataChoice, type Lang, type RunCosts, type RunSetup, type SimRun, type Strat } from './backtest';
 import { OptimizePanel } from './OptimizePanel';
+import { StratSettings } from './StratSettings';
 import './backtest.css';
 
 type Tab = 'list' | 'code' | 'run' | 'results' | 'opt' | 'rob';
 interface Prefs { name: string; mode: Mode; libs: 'numpy' | 'pandas'; tf: string; rebuy: boolean; maxEvals: number; data: DataChoice; range: [number, number]; base: number;
-  from: string; to: string; balance: number; qty: number; costs: RunCosts | null; propOn: boolean; prop: PropConfig | null }
+  balance: number; qty: number; costs: RunCosts | null; propOn: boolean; prop: PropConfig | null }
 /** a finished run, as the Results tab shows it */
 export interface RunView { r: RunResult; setup: RunSetup; overrides: Record<string, Setting> | null; sim: SimRun | null; tf: string }
 
 const PRACTICE_RANGE: [number, number] = [PRACTICE_FROM, PRACTICE_TO];
-const MAX_PRACTICE_DAYS = 62;
+/** practice data has no end of its own (it is made as it is asked for), so a backtest on it runs its latest month */
+const PRACTICE_DAYS = 30;
+/** a backtest runs on all the data of its market: the whole file (its latest ten years at most) or practice's latest month */
+function runRange(p: Prefs): [number, number] {
+  if (p.data.kind === 'practice') { const t1 = ymdUtc(ymd(PRACTICE_TO), 1); return [t1 - PRACTICE_DAYS * 86400, t1]; }
+  const t1 = ymdUtc(ymd(p.range[1]), 1);
+  return [Math.max(ymdUtc(ymd(p.range[0])), t1 - 3653 * 86400), t1];
+}
 const MAX_LINES = 1500;
+/** the console keeps a run's first lines (Python ready, Running …) when a long run fills it */
+const KEEP_HEAD = 4;
 const phone = () => document.documentElement.classList.contains('m');
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
 
 function defaults(live: Live | null): Prefs {
   const saved = pref<Partial<Prefs>>('strat', {});
   const p: Prefs = { name: 'MA cross', mode: 'bar', libs: 'numpy', tf: '5m', rebuy: false, maxEvals: 0, data: { kind: 'practice', sym: 'NQ' }, range: PRACTICE_RANGE, base: 1,
-    from: '2026-04-06', to: '2026-04-10', balance: 50000, qty: 1, costs: null, propOn: false, prop: null, ...saved };
-  // with a session open, its market and its first days
+    balance: 50000, qty: 1, costs: null, propOn: false, prop: null, ...saved };
+  // with a session open, its market
   const m = live?.markets[0];
   if (m) {
-    const t = live!.start, days = 4;
     if (m.kind === 'practice') { p.data = { kind: 'practice', sym: m.sym }; p.range = PRACTICE_RANGE; p.base = 1; p.costs = { ...m.costs }; }
     else { const s = live!.session.feeds[0]?.s; p.data = { kind: 'dataset', id: m.id, name: m.name, pick: m.pick, inst: m.inst, long: !!m.window }; p.costs = { comm: m.inst.comm, spreadTicks: m.inst.spreadTicks, slipTicks: m.inst.slipTicks };
       if (s) { p.range = [s.t[0], s.t[s.n - 1]]; p.base = s.base; } }
-    p.from = ymd(t); p.to = ymd(Math.min(t + days * 86400, p.range[1]));
   }
   return p;
 }
@@ -111,12 +119,13 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
   const rename = (to: string) => {
     setRenaming(false); to = to.trim(); if (!to || to === cur) return;
     if (to in strats) return onToast(`There is a strategy called “${to}” already.`, 'err');
+    clearTimeout(saveT.current); // a save still waiting would bring the old name back
     const s: Record<string, Strat> = {};
     for (const [k, v] of Object.entries(strats)) s[k === cur ? to : k] = k === cur ? { code, lang } : v;
     storeStrats(s); set({ name: to });
   };
   const remove = () => {
-    setConfirmDel(false);
+    setConfirmDel(false); clearTimeout(saveT.current);
     const s = { ...strats }; delete s[cur];
     if (!Object.keys(s).length) s[freeName('MA cross', s)] = { ...TEMPLATES['MA cross'] };
     storeStrats(s); const next = Object.keys(s)[0]; set({ name: next }); setCode(s[next].code);
@@ -125,7 +134,7 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
 
   /* ---- the console ---- */
   const log = (ls: LogLine[]) => {
-    const L = lines.current; for (const l of ls) for (const t of l[0].split('\n')) L.push([t, l[1]]); if (L.length > MAX_LINES) L.splice(0, L.length - MAX_LINES);
+    const L = lines.current; for (const l of ls) for (const t of l[0].split('\n')) L.push([t, l[1]]); if (L.length > MAX_LINES) { const head = L.slice(0, KEEP_HEAD), tail = L.slice(L.length - (MAX_LINES - KEEP_HEAD - 1)); L.length = 0; L.push(...head, ['… earlier lines left out …', 'pr'], ...tail); }
     if (ls.length) setConsOpenS(true); // what the run says is shown, without changing the remembered choice
     setCv(v => v + 1);
   };
@@ -147,19 +156,15 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
       const i0 = datasetInstrument(meta, o.pick, o.contracts, o.prec), mem = pref<Record<string, { pv?: number; comm: number; spread: number; slip: number }>>('costs', {})[i0.sym];
       const i = datasetInstrument(meta, o.pick, o.contracts, o.prec, mem ? { pv: mem.pv } : undefined);
       const c = { comm: mem?.comm ?? (i.pv > 1 ? 2.1 : 0), spreadTicks: mem?.spread ?? i.spreadTicks, slipTicks: mem?.slip ?? 0 };
-      const to = Math.min(o.to, o.from + 365 * 86400 * 10), from = Math.max(o.from, o.to - 30 * 86400);
       set({ data: { kind: 'dataset', id: meta.id, name: meta.name, pick: o.pick, inst: { ...i, ...c }, long: !!o.index }, range: [o.from, o.to], base: o.base, costs: c,
-            from: ymd(from), to: ymd(to), tf: stratTfs(o.base).includes(P.tf) ? P.tf : stratTfs(o.base)[0] });
+            tf: stratTfs(o.base).includes(P.tf) ? P.tf : stratTfs(o.base)[0] });
     } catch (e) { onToast(`${meta.name}: ${(e as Error).message}`, 'err'); }
     finally { onBusy(null); }
   }
   /** the run's settings, or what is wrong with them */
   function setupNow(c = code, name = cur, lg = lang): RunSetup | string {
-    const t0 = ymdUtc(P.from), t1 = ymdUtc(P.to, 1);
-    if (!isFinite(t0) || !isFinite(t1)) return 'Pick the From and To dates.';
-    if (t0 >= t1) return 'Pick a From date on or before the To date.';
-    if (t1 <= P.range[0] || t0 > P.range[1]) return `The data runs from ${ymd(P.range[0])} to ${ymd(P.range[1])}. Pick dates in between.`;
-    if (P.data.kind === 'practice' && t1 - t0 > MAX_PRACTICE_DAYS * 86400) return `Practice data is made as you ask for it: pick at most ${MAX_PRACTICE_DAYS} days.`;
+    const [t0, t1] = runRange(P);
+    if (!isFinite(t0) || !isFinite(t1) || t0 >= t1) return 'This market has no data to run on. Pick another one.';
     const libs = lg === 'py' && P.libs === 'pandas' ? ['numpy', 'pandas'] : ['numpy'];
     const pe = lg === 'py' ? pandasErr(c, libs) : null; if (pe) return pe;
     const tf = tfs.includes(P.tf) ? P.tf : tfs[0];
@@ -291,6 +296,7 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
               </>}
             </section>
             <div className="bt-run" aria-label="Run settings">
+              <StratSettings code={code} lang={lang} onCode={editCode} />
               <section className="card bt-runcard">
                 <h3>Run</h3>
                 <div className="bt-form">
@@ -299,8 +305,8 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
                     {P.data.kind === 'dataset' && !datasets.some(d => d.id === (P.data as { id: string }).id) && <option value={'ds:' + P.data.id}>{P.data.name}</option>}
                     {datasets.map(d => <option key={d.id} value={'ds:' + d.id}>{d.name}</option>)}
                   </select></label>
-                  <label className="field">From<input className="in" type="date" aria-label="From" value={P.from} min={ymd(P.range[0])} max={ymd(P.range[1])} onChange={e => set({ from: e.target.value })} /></label>
-                  <label className="field">To<input className="in" type="date" aria-label="To" value={P.to} min={ymd(P.range[0])} max={ymd(P.range[1])} onChange={e => set({ to: e.target.value })} /></label>
+                  <div className="field bt-wide"><span className="lbl">Dates <span className="q" title={P.data.kind === 'practice' ? `Practice data is made as it is asked for, so a backtest on it runs its latest ${PRACTICE_DAYS} days.` : 'A backtest runs on all the data in the file (its latest ten years at most).'}>?</span></span>
+                    <span className="bt-range" aria-label="Dates">{(([a, b]) => `${ymd(a)} to ${ymd(b - 1)}`)(runRange(P))} · {P.data.kind === 'practice' ? `the latest ${PRACTICE_DAYS} days` : 'all the data'}</span></div>
                   <label className="field"><span className="lbl">Candles <span className="q" title="The strategy's on_bar runs when each candle of this size closes.">?</span></span>
                     <select className="in ui" aria-label="Candles" value={tfs.includes(P.tf) ? P.tf : tfs[0]} onChange={e => set({ tf: e.target.value })}>{tfs.map(t => <option key={t} value={t}>{t}</option>)}</select></label>
                   <div className="field bt-wide"><span className="lbl">The strategy runs <span className="q" title="At bar close: on_bar when each candle closes (fast). Every tick: on_tick on every simulated price move too, for trailing stops and the like (slower).">?</span></span>
@@ -433,7 +439,7 @@ function EqCurve({ eq, start }: { eq: Array<{ time: number; value: number }>; st
     const ch = createChart(el.current!, { autoSize: true, layout: { background: { color: 'transparent' }, textColor: C.text, fontSize: 10 }, grid: { vertLines: { visible: false }, horzLines: { color: C.grid } },
       rightPriceScale: { borderVisible: false }, timeScale: { visible: false, borderVisible: false }, handleScroll: false, handleScale: false, crosshair: { horzLine: { visible: false } } });
     const s = ch.addAreaSeries({ lineColor: col, topColor: col + '33', bottomColor: col + '00', lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
-    // evenly spaced, as the classic curve (the market is closed half the time)
+    // evenly spaced (the market is closed half the time)
     s.setData(eq.map((p, i) => ({ time: (i + 1) as UTCTimestamp, value: p.value })));
     s.createPriceLine({ price: start, color: C.text, lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: '' });
     ch.timeScale().fitContent();

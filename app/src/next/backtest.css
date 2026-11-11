@@ -95,6 +95,21 @@ html.m .bt-head > b, html.m .bt-head .bt-runbtn { display: none; }
 .bt-size { margin-left: 8px; background: var(--hover); color: var(--muted); font-size: 10px; }
 .bt-vals { height: 30px; font-size: 12.5px; min-width: 200px; }
 .bt-vals.bad { border-color: var(--down); }
+/* the dates a run covers (all the data) */
+.bt-range { display: flex; align-items: center; min-height: 32px; font-size: 12.5px; color: var(--fg2); }
+/* the strategy's own settings (above Run) */
+.bt-set[data-open="true"] > .bt-foldhead { border-bottom: 1px solid var(--line-soft); }
+.bt-setbody { max-height: 520px; overflow: auto; }
+.bt-setbody > .empty { padding: 14px 16px; font-size: 12.5px; }
+.bt-settable { width: 100%; }
+.bt-settable th { background: var(--field); position: sticky; top: 0; z-index: 1; }
+.bt-settable td { vertical-align: middle; padding-top: 6px; padding-bottom: 6px; }
+.bt-settable td:last-child { width: 1%; white-space: nowrap; }
+.bt-settable tr.off td { color: var(--muted); }
+.bt-setin { height: 28px; font-size: 12.5px; width: 130px; min-width: 130px; box-sizing: border-box; }
+.bt-setin.bad { border-color: var(--down); }
+.bt-setbad { font-size: 11.5px; margin-top: 3px; white-space: normal; max-width: 180px; }
+.bt-seterr { padding: 8px 14px; font-size: 12.5px; color: var(--down); border-bottom: 1px solid var(--line-soft); }
 .bt-optrow { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
 .bt-rules { height: 62px; padding: 8px 12px; resize: vertical; font-size: 12.5px; }
 .bt-optrun { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
@@ -137,4 +152,7 @@ html.m .bt-ta { font-size: 12px; }
 html.m .bt-perf { grid-template-columns: 1fr; }
 html.m .bt-item { padding: 12px 10px; font-size: 14px; }
 html.m .bt-vals { min-width: 150px; }
+html.m .bt-setbody { max-height: none; }
+html.m .bt-settable td:last-child { width: auto; white-space: normal; }
+html.m .bt-setin { width: 100%; min-width: 140px; max-width: none; height: 34px; font-size: 15px; }
 @media (max-width: 1100px) { html:not(.m) .bt-list { width: 180px; } }

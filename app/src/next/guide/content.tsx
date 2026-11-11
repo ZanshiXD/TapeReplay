@@ -337,12 +337,13 @@ export const CHAPTERS: Chapter[] = [
 
   { id: 'backtest', title: 'Strategies and backtesting', sections: [
     { id: 'bt-start', title: 'The Backtest page', body: <>
-      <p>A strategy is a script that trades by itself. The Backtest page runs it over the dates you choose, as fast as it can, and shows how it did.</p>
+      <p>A strategy is a script that trades by itself. The Backtest page runs it over all the data of the market you pick, as fast as it can, and shows how it did.</p>
       <ul>
-        <li>On a computer your strategies are listed on the left; beside them, one page has the code, the Run settings and the console, each in a card you can fold, with Results, Optimize and Robustness as tabs. On a phone the strategies, the code and the Run settings are tabs of their own.</li>
+        <li>On a computer your strategies are listed on the left; beside them, one page has the code, the strategy's settings, the Run settings and the console, each in a card you can fold, with Results, Optimize and Robustness as tabs. On a phone the strategies, the code and the Run settings are tabs of their own (the strategy's settings are at the top of Run).</li>
         <li><b>Strategies</b>: your scripts, saved as you type. <b>New</b> starts one from a template (MA cross, Opening range breakout, Breakout with trailing stop, or Blank in Python; MA cross or Blank in JavaScript). Double-click a name (or <b>Rename</b>) to rename it; the bin deletes it.</li>
         <li><b>Code</b>: the editor. Fold it to a one-line summary to give the settings the room, or drag its bottom edge to make it taller; it remembers both. <kbd>Ctrl</kbd> + <kbd>Enter</kbd> runs. JavaScript strategies run several times faster than Python, which helps long optimizations; Python ones can use numpy (and pandas). <b>Guide</b> opens this reference beside it.</li>
-        <li><b>Run</b>: the market (a practice market or one of your data files), the dates (from and to), the candle size the strategy sees, and:
+        <li><b>Settings</b>: the strategy's own settings, the names at the top of its code with a plain value (<code>FAST = 9  # candles</code> in Python, <code>const FAST = 9; // candles</code> in JavaScript), with the comment under each name. Change one here and only that value changes in the code (its comments and layout stay); change it in the code and the card follows. Numbers are boxes, True/False a tick box, text with its choices in quotes in the comment (<code>SIDE = "both"  # "long", "short" or "both"</code>) a list, and times like <code>"09:30"</code> a box that takes HH:MM. While the code has an error the card keeps the last settings it read, and they can't be changed until it is fixed. These are the settings the optimizer tries.</li>
+        <li><b>Run</b>: the market (a practice market or one of your data files; there are no dates to pick: a run covers all of a file's data, its latest ten years at most, or the latest 30 days of practice data, which is made as it is asked for, and the dates show under Market), the candle size the strategy sees, and:
           <ul>
             <li><b>The strategy runs</b>: <i>At bar close</i> calls on_bar when each candle closes (fast). <i>Every tick</i> also calls on_tick on every simulated price move, for trailing stops and the like (slower).</li>
             <li><b>Libraries</b>: numpy, or numpy + pandas (pandas takes a few seconds to load).</li>
@@ -435,7 +436,7 @@ export const CHAPTERS: Chapter[] = [
       <Ex ex={STRAT_JS_ORB} lang="javascript" />
     </> },
     { id: 'optimize', title: 'The optimizer', body: <>
-      <p>The optimizer runs a strategy many times with different settings, on the market and dates of the Run panel, and ranks the results.</p>
+      <p>The optimizer runs a strategy many times with different settings, on the market of the Run panel (all its data), and ranks the results.</p>
       <Steps items={[
         <>Tick the settings to try and say which values: a range (<C>5..30</C>), a range with a step (<C>15..60 step 5</C>, or <C>15..60/5</C>), or a list (<C>9, 14, 21</C>); True/False and text settings list their choices. <b>Narrow</b>, <b>Normal</b> and <b>Wide</b> fill in ranges around the current values. Settings that set money or size (names with RISK, USD, DOLLAR, CASH, BALANCE, ACCOUNT, QTY, SIZE, LOTS, CONTRACTS, or ending in STEP) are marked <i>size</i> and left unticked.</>,
         <>Choose <b>how to search</b>: <i>Smart</i> finds a near-best in about a tenth of the runs (a coarse look over the whole range, then closer looks around the best); <i>All combinations</i> tries every one (up to 20,000); <i>Random sample</i> tries as many as you say.</>,
