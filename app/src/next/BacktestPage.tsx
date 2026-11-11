@@ -20,7 +20,8 @@ import { pref, setPref } from './live';
 import { C } from './look';
 import { datasetInstrument, type Live, type Opening } from './sessions';
 import { defaultProp, PropSetupCard } from './PropPanel';
-import { IPlus, ITrash } from './icons';
+import { IChev, IPlus, ITrash } from './icons';
+import { usePhone } from './phone';
 import { TEMPLATES, TICK_TEMPLATES, freeName, instOf, loadStrats, marketFor, python, pyReady, saveStrats, seriesFor, simRules, stratTfs, ymd, ymdUtc,
          type DataChoice, type Lang, type RunCosts, type RunSetup, type SimRun, type Strat } from './backtest';
 import { OptimizePanel } from './OptimizePanel';
@@ -36,6 +37,7 @@ const PRACTICE_RANGE: [number, number] = [PRACTICE_FROM, PRACTICE_TO];
 const MAX_PRACTICE_DAYS = 62;
 const MAX_LINES = 1500;
 const phone = () => document.documentElement.classList.contains('m');
+const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
 
 function defaults(live: Live | null): Prefs {
   const saved = pref<Partial<Prefs>>('strat', {});
@@ -72,13 +74,22 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
   const [renaming, setRenaming] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [newMenu, setNewMenu] = useState(false);
-  const [more, setMore] = useState(false);
+  const [codeOpen, setCodeOpenS] = useState(() => pref('btCodeOpen', true));
+  const setCodeOpen = (b: boolean) => { setCodeOpenS(b); setPref('btCodeOpen', b); };
+  const [codeH, setCodeH] = useState(() => pref('btCodeH', 420));
+  const [consOpen, setConsOpenS] = useState(() => pref('btConsOpen', true));
+  const setConsOpen = (b: boolean) => { setConsOpenS(b); setPref('btConsOpen', b); };
+  /** a line of the code to show (an error's), and a counter so the same line can be shown again */
+  const [goto, setGoto] = useState<{ line: number; n: number } | null>(null);
+  const isPhone = usePhone();
+  const newRef = useRef<HTMLDivElement>(null);
   const lines = useRef<LogLine[]>([]);
   const [, setCv] = useState(0);
   const stopRef = useRef(false);
   const saveT = useRef(0);
 
   const set = (x: Partial<Prefs>) => setP(p => { const n = { ...p, ...x }; setPref('strat', n); return n; });
+  useDismiss(newRef, newMenu, () => setNewMenu(false));
   useEffect(() => { store.listDatasets().then(setDatasets).catch(() => {}); }, [hidden]);
   // a saved optimization opened from the Library
   useEffect(() => { if (openOptim) setTab('opt'); }, [openOptim]);
@@ -113,7 +124,13 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
   };
 
   /* ---- the console ---- */
-  const log = (ls: LogLine[]) => { const L = lines.current; for (const l of ls) for (const t of l[0].split('\n')) L.push([t, l[1]]); if (L.length > MAX_LINES) L.splice(0, L.length - MAX_LINES); setCv(v => v + 1); };
+  const log = (ls: LogLine[]) => {
+    const L = lines.current; for (const l of ls) for (const t of l[0].split('\n')) L.push([t, l[1]]); if (L.length > MAX_LINES) L.splice(0, L.length - MAX_LINES);
+    if (ls.length) setConsOpenS(true); // what the run says is shown, without changing the remembered choice
+    setCv(v => v + 1);
+  };
+  /** an error in the strategy: the code opens at its line (the last line of the strategy the traceback names) */
+  const showErr = (text: string) => { const m = [...text.matchAll(/line (\d+)/g)].pop(); if (!m) return; setCodeOpenS(true); setGoto(g => ({ line: +m[1], n: (g?.n || 0) + 1 })); };
   const clearLog = () => { lines.current = []; setCv(v => v + 1); };
 
   /* ---- the market and the run's settings ---- */
@@ -166,11 +183,11 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
         const host = await python(su.libs);
         if (first) log([[`Python ready in ${((performance.now() - t0) / 1000).toFixed(1)} s`, 'pr']]);
         const err = pyCheck(host, su.code);
-        if (err) { log([[err, 'er']]); setStatus({ text: 'Fix the error and run again', p: null, kind: 'er' }); return; }
+        if (err) { log([[err, 'er']]); showErr(err); setStatus({ text: 'Fix the error and run again', p: null, kind: 'er' }); return; }
         bridge = pyStrategy(host, su.code);
       } else {
         const err = jsCheck(su.code);
-        if (err) { log([[err, 'er']]); setStatus({ text: 'Fix the error and run again', p: null, kind: 'er' }); return; }
+        if (err) { log([[err, 'er']]); showErr(err); setStatus({ text: 'Fix the error and run again', p: null, kind: 'er' }); return; }
         bridge = jsStrategy(su.code);
       }
       setStatus({ text: 'Preparing the market data…', p: 0 });
@@ -184,6 +201,7 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
       if (sim?.sim) log([[sim.sim.summaryLine(), sim.sim.stats().take >= 0 ? 'ok' : 'er']]);
       const v: RunView = { r, setup: su, overrides: o.overrides || null, sim, tf: su.tf };
       setStatus(r.stopped ? { text: 'Stopped', p: null } : r.ended ? { text: 'Ended: the account failed', p: null, kind: 'er' } : r.fail ? { text: 'Stopped by an error in the strategy', p: null, kind: 'er' } : { text: 'Done', p: null, kind: 'ok' });
+      if (r.fail) showErr(r.fail);
       if (!r.fail || r.account.hist.length) setView(v);
       if (!r.fail && !r.ended) { if (o.chart) await showOnChart(v); else setTab('results'); }
     } catch (e) {
@@ -220,6 +238,7 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
   const tabs: Array<[Tab, string, string]> = [['list', 'Strategies', 'mo'], ['code', 'Code', ''], ['run', 'Run', 'mo'], ['results', 'Results', ''], ['opt', 'Optimize', ''], ['rob', 'Robustness', '']];
   const codeView = tab === 'list' || tab === 'code' || tab === 'run';
   const nLines = code.split('\n').length;
+  const summary = (code.split('\n').find(l => /^\s*(#|\/\/)/.test(l)) || '').replace(/^\s*(#|\/\/)\s*/, '').slice(0, 140) || 'Show the code';
   return (
     <div className="page bt" style={hidden ? { display: 'none' } : undefined}>
       <header className="ctx bt-head">
@@ -231,77 +250,87 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
       </header>
       {codeView && <div className="bt-work" data-mv={tab}>
         <aside className="bt-list" aria-label="Strategies">
-          <div className="bt-listhead"><b>Strategies</b>
-            <span style={{ position: 'relative' }}><button className="btn sm" onClick={() => setNewMenu(!newMenu)}><IPlus width={13} height={13} /> New</button>
-              {newMenu && <div className="pop menu bt-newmenu" onMouseLeave={() => setNewMenu(false)}>
-                <h5>Start from</h5>
-                {Object.entries(TEMPLATES).map(([k, t]) => <button key={k} onClick={() => addNew(k)}>{k.replace(' (JavaScript)', '')}<span>{t.lang === 'py' ? 'Python' : 'JavaScript'}</span></button>)}
-              </div>}
-            </span>
+          <div className="bt-listhead" ref={newRef}><b>Strategies</b>
+            <button className="btn sm" aria-haspopup="menu" aria-expanded={newMenu} onClick={() => setNewMenu(!newMenu)}><IPlus width={13} height={13} /> New</button>
+            {newMenu && <div className="pop menu bt-newmenu" role="menu">
+              <h5>Start from</h5>
+              {Object.entries(TEMPLATES).map(([k, t]) => <button key={k} role="menuitem" onClick={() => addNew(k)}>{k.replace(' (JavaScript)', '')}<span>{t.lang === 'py' ? 'Python' : 'JavaScript'}</span></button>)}
+            </div>}
           </div>
           <div className="bt-items">
             {Object.entries(strats).map(([k, s]) => <button key={k} className={'bt-item' + (k === cur ? ' on' : '')} onClick={() => pick(k)}><span className="nm">{k}</span><span className={'tag ' + s.lang}>{s.lang === 'py' ? 'Py' : 'JS'}</span></button>)}
           </div>
           <p className="muted bt-hint">Strategies are saved as you type. Python strategies can use numpy (and pandas); JavaScript ones run faster.</p>
         </aside>
-        <section className="bt-code" aria-label="Code">
-          <div className="bt-codehead">
-            {renaming ? <input className="in ui" autoFocus defaultValue={cur} aria-label="Strategy name" style={{ height: 30, maxWidth: 280 }} onBlur={e => rename(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') rename((e.target as HTMLInputElement).value); if (e.key === 'Escape') setRenaming(false); }} />
-              : <b className="bt-name" title="Double-click to rename" onDoubleClick={() => setRenaming(true)}>{cur}</b>}
-            <span className="tag" style={{ background: 'var(--hover)' }}>{lang === 'py' ? 'Python' : 'JavaScript'}</span>
-            <span className="spacer" />
-            <button className="btn sm" title="How to write a strategy, and everything ctx can do" onClick={() => openGuide(lang === 'js' ? 'st-js' : 'st-api')}>Guide</button>
-            <button className="btn sm" onClick={() => setRenaming(true)}>Rename</button>
-            {confirmDel ? <><button className="btn sm danger" onClick={remove}>Delete it</button><button className="btn sm" onClick={() => setConfirmDel(false)}>Keep it</button></>
-              : <button className="ib" aria-label={`Delete ${cur}`} title="Delete this strategy" onClick={() => setConfirmDel(true)}><ITrash width={16} height={16} /></button>}
-          </div>
-          {confirmDel && <div className="warnline" style={{ padding: '0 14px 8px' }}>Delete “{cur}”? Its code is gone for good.</div>}
-          <Editor code={code} lines={nLines} indent={lang === 'py' ? '    ' : '  '} opener={lang === 'py' ? /:\s*(#.*)?$/ : /[{(\[]\s*$/} onChange={editCode} />
-          <Console lines={lines.current} status={status} running={running} />
-        </section>
-        <aside className="bt-run" aria-label="Run settings">
-          <div className="sec">
-            <h3>Run</h3>
-            <label className="field">Market<select className="in ui" aria-label="Market" value={P.data.kind === 'practice' ? 'practice:' + P.data.sym : 'ds:' + P.data.id} onChange={e => chooseData(e.target.value)}>
-              <option value="practice:NQ">Practice Nasdaq-100 (NQ)</option><option value="practice:ES">Practice S&amp;P 500 (ES)</option>
-              {P.data.kind === 'dataset' && !datasets.some(d => d.id === (P.data as { id: string }).id) && <option value={'ds:' + P.data.id}>{P.data.name}</option>}
-              {datasets.map(d => <option key={d.id} value={'ds:' + d.id}>{d.name}</option>)}
-            </select></label>
-            <div className="bt-2">
-              <label className="field">From<input className="in" type="date" aria-label="From" value={P.from} min={ymd(P.range[0])} max={ymd(P.range[1])} onChange={e => set({ from: e.target.value })} /></label>
-              <label className="field">To<input className="in" type="date" aria-label="To" value={P.to} min={ymd(P.range[0])} max={ymd(P.range[1])} onChange={e => set({ to: e.target.value })} /></label>
+        <div className="bt-main">
+          <div className="page-in bt-mainin">
+            <div className="bt-codehead">
+              {renaming ? <input className="in ui" autoFocus defaultValue={cur} aria-label="Strategy name" style={{ height: 34, maxWidth: 320 }} onBlur={e => rename(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') rename((e.target as HTMLInputElement).value); if (e.key === 'Escape') setRenaming(false); }} />
+                : <h1 className="bt-name" title="Double-click to rename" onDoubleClick={() => setRenaming(true)}>{cur}</h1>}
+              <span className="tag" style={{ background: 'var(--hover)' }}>{lang === 'py' ? 'Python' : 'JavaScript'}</span>
+              <span className="spacer" />
+              <button className="btn sm" title="How to write a strategy, and everything ctx can do" onClick={() => openGuide(lang === 'js' ? 'st-js' : 'st-api')}>Guide</button>
+              <button className="btn sm" onClick={() => setRenaming(true)}>Rename</button>
+              {confirmDel ? <><button className="btn sm danger" onClick={remove}>Delete it</button><button className="btn sm" onClick={() => setConfirmDel(false)}>Keep it</button></>
+                : <button className="ib" aria-label={`Delete ${cur}`} title="Delete this strategy" onClick={() => setConfirmDel(true)}><ITrash width={16} height={16} /></button>}
             </div>
-            <label className="field"><span className="lbl">Candles <span className="q" title="The strategy's on_bar runs when each candle of this size closes.">?</span></span>
-              <select className="in ui" aria-label="Candles" value={tfs.includes(P.tf) ? P.tf : tfs[0]} onChange={e => set({ tf: e.target.value })}>{tfs.map(t => <option key={t} value={t}>{t}</option>)}</select></label>
-            <div className="field"><span className="lbl">The strategy runs <span className="q" title="At bar close: on_bar when each candle closes (fast). Every tick: on_tick on every simulated price move too, for trailing stops and the like (slower).">?</span></span>
-              <span className="seg full"><button className={P.mode === 'bar' ? 'on' : ''} onClick={() => set({ mode: 'bar' })}>At bar close</button><button className={P.mode === 'tick' ? 'on' : ''} onClick={() => set({ mode: 'tick' })}>Every tick</button></span></div>
-            {lang === 'py' && <div className="field">Libraries<span className="seg full"><button className={P.libs === 'numpy' ? 'on' : ''} onClick={() => set({ libs: 'numpy' })}>numpy</button><button className={P.libs === 'pandas' ? 'on' : ''} onClick={() => set({ libs: 'pandas' })}>numpy + pandas</button></span></div>}
-            <div className="bt-2">
-              <label className="field">Starting balance<span className="suffix"><input className="in" inputMode="numeric" aria-label="Starting balance" disabled={P.propOn} value={P.propOn ? prop.size : P.balance} onChange={e => set({ balance: Math.max(100, parseFloat(e.target.value) || 0) })} /><span>$</span></span></label>
-              <label className="field"><span className="lbl">Order size <span className="q" title="Contracts per order when the strategy gives no size (ctx.default_qty).">?</span></span><input className="in" inputMode="decimal" aria-label="Order size" value={P.qty} onChange={e => set({ qty: Math.max(0.0001, parseFloat(e.target.value) || 1) })} /></label>
-            </div>
-            <button className="linkbtn" style={{ alignSelf: 'flex-start' }} onClick={() => setMore(!more)}>{more ? 'Hide' : 'Show'} costs and prop challenge</button>
-            {!more && <span className="muted" style={{ fontSize: 12 }}>Costs: ${costs.comm.toFixed(2)} a side, {costs.spreadTicks} tick spread, {costs.slipTicks} tick slippage{P.propOn ? ` · prop challenge: ${prop.preset || 'your rules'}` : ''}</span>}
-            {more && <>
-              <div className="bt-3">
-                <label className="field">Commission<span className="suffix"><input className="in" inputMode="decimal" aria-label="Commission" value={costs.comm} onChange={e => set({ costs: { ...costs, comm: Math.max(0, parseFloat(e.target.value) || 0) } })} /><span>$ a side</span></span></label>
-                <label className="field"><span className="lbl">Spread <span className="q" title="Buys pay this many ticks above the price.">?</span></span><span className="suffix"><input className="in" inputMode="numeric" aria-label="Spread" value={costs.spreadTicks} onChange={e => set({ costs: { ...costs, spreadTicks: Math.max(0, parseInt(e.target.value) || 0) } })} /><span>ticks</span></span></label>
-                <label className="field"><span className="lbl">Slippage <span className="q" title="Market and stop fills are this many ticks worse.">?</span></span><span className="suffix"><input className="in" inputMode="numeric" aria-label="Slippage" value={costs.slipTicks} onChange={e => set({ costs: { ...costs, slipTicks: Math.max(0, parseInt(e.target.value) || 0) } })} /><span>ticks</span></span></label>
+            {confirmDel && <div className="warnline">Delete “{cur}”? Its code is gone for good.</div>}
+            <section className="card bt-code bt-fold" aria-label="Code" data-open={codeOpen || isPhone}>
+              <button className="bt-foldhead" aria-expanded={codeOpen || isPhone} onClick={() => setCodeOpen(!codeOpen)}>
+                <IChev className="chev" /><b>Code</b>
+                {!codeOpen && !isPhone && <span className="muted bt-sum">{summary}</span>}
+                <span className="spacer" /><span className="muted bt-meta">{lang === 'py' ? 'Python' : 'JavaScript'} · {nLines} lines</span>
+              </button>
+              {(codeOpen || isPhone) && <>
+                <Editor code={code} lines={nLines} height={isPhone ? null : codeH} indent={lang === 'py' ? '    ' : '  '} opener={lang === 'py' ? /:\s*(#.*)?$/ : /[{(\[]\s*$/} onChange={editCode} onRun={() => run()} goto={goto} />
+                {!isPhone && <div className="bt-grip" role="separator" aria-orientation="horizontal" aria-label="Drag to resize the code" title="Drag to make the code taller or shorter"
+                  onPointerDown={e => { e.preventDefault(); const y0 = e.clientY, h0 = codeH;
+                    const mv = (ev: PointerEvent) => setCodeH(Math.max(140, Math.min(1400, Math.round(h0 + ev.clientY - y0))));
+                    const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); setCodeH(h => { setPref('btCodeH', h); return h; }); };
+                    addEventListener('pointermove', mv); addEventListener('pointerup', up); }} />}
+              </>}
+            </section>
+            <div className="bt-run" aria-label="Run settings">
+              <section className="card bt-runcard">
+                <h3>Run</h3>
+                <div className="bt-form">
+                  <label className="field bt-wide">Market<select className="in ui" aria-label="Market" value={P.data.kind === 'practice' ? 'practice:' + P.data.sym : 'ds:' + P.data.id} onChange={e => chooseData(e.target.value)}>
+                    <option value="practice:NQ">Practice Nasdaq-100 (NQ)</option><option value="practice:ES">Practice S&amp;P 500 (ES)</option>
+                    {P.data.kind === 'dataset' && !datasets.some(d => d.id === (P.data as { id: string }).id) && <option value={'ds:' + P.data.id}>{P.data.name}</option>}
+                    {datasets.map(d => <option key={d.id} value={'ds:' + d.id}>{d.name}</option>)}
+                  </select></label>
+                  <label className="field">From<input className="in" type="date" aria-label="From" value={P.from} min={ymd(P.range[0])} max={ymd(P.range[1])} onChange={e => set({ from: e.target.value })} /></label>
+                  <label className="field">To<input className="in" type="date" aria-label="To" value={P.to} min={ymd(P.range[0])} max={ymd(P.range[1])} onChange={e => set({ to: e.target.value })} /></label>
+                  <label className="field"><span className="lbl">Candles <span className="q" title="The strategy's on_bar runs when each candle of this size closes.">?</span></span>
+                    <select className="in ui" aria-label="Candles" value={tfs.includes(P.tf) ? P.tf : tfs[0]} onChange={e => set({ tf: e.target.value })}>{tfs.map(t => <option key={t} value={t}>{t}</option>)}</select></label>
+                  <div className="field bt-wide"><span className="lbl">The strategy runs <span className="q" title="At bar close: on_bar when each candle closes (fast). Every tick: on_tick on every simulated price move too, for trailing stops and the like (slower).">?</span></span>
+                    <span className="seg full"><button className={P.mode === 'bar' ? 'on' : ''} onClick={() => set({ mode: 'bar' })}>At bar close</button><button className={P.mode === 'tick' ? 'on' : ''} onClick={() => set({ mode: 'tick' })}>Every tick</button></span></div>
+                  {lang === 'py' && <div className="field bt-wide">Libraries<span className="seg full"><button className={P.libs === 'numpy' ? 'on' : ''} onClick={() => set({ libs: 'numpy' })}>numpy</button><button className={P.libs === 'pandas' ? 'on' : ''} onClick={() => set({ libs: 'pandas' })}>numpy + pandas</button></span></div>}
+                  <label className="field">Starting balance<span className="suffix"><input className="in" inputMode="numeric" aria-label="Starting balance" disabled={P.propOn} value={P.propOn ? prop.size : P.balance} onChange={e => set({ balance: Math.max(100, parseFloat(e.target.value) || 0) })} /><span>$</span></span></label>
+                  <label className="field"><span className="lbl">Order size <span className="q" title="Contracts per order when the strategy gives no size (ctx.default_qty).">?</span></span><input className="in" inputMode="decimal" aria-label="Order size" value={P.qty} onChange={e => set({ qty: Math.max(0.0001, parseFloat(e.target.value) || 1) })} /></label>
+                  <label className="field">Commission<span className="suffix"><input className="in" inputMode="decimal" aria-label="Commission" value={costs.comm} onChange={e => set({ costs: { ...costs, comm: Math.max(0, parseFloat(e.target.value) || 0) } })} /><span>$ a side</span></span></label>
+                  <label className="field"><span className="lbl">Spread <span className="q" title="Buys pay this many ticks above the price.">?</span></span><span className="suffix"><input className="in" inputMode="numeric" aria-label="Spread" value={costs.spreadTicks} onChange={e => set({ costs: { ...costs, spreadTicks: Math.max(0, parseInt(e.target.value) || 0) } })} /><span>ticks</span></span></label>
+                  <label className="field"><span className="lbl">Slippage <span className="q" title="Market orders, closes and stop fills are this many ticks worse.">?</span></span><span className="suffix"><input className="in" inputMode="numeric" aria-label="Slippage" value={costs.slipTicks} onChange={e => set({ costs: { ...costs, slipTicks: Math.max(0, parseInt(e.target.value) || 0) } })} /><span>ticks</span></span></label>
+                </div>
+                <span className="muted" style={{ fontSize: 12 }}>{inst.sym}: ${inst.pv} a point, ticks of {+inst.tick.toPrecision(6)}</span>
+              </section>
+              <section className="bt-propcard">
+                <PropSetupCard value={{ ...prop, on: P.propOn }} onChange={c => set({ propOn: c.on, prop: c })} />
+                {P.propOn && <div className="card bt-rebuy">
+                  <label className="chk"><input type="checkbox" checked={P.rebuy} onChange={e => set({ rebuy: e.target.checked })} />Buy a new evaluation when one fails</label>
+                  {P.rebuy && <label className="field">At most this many evaluations (blank: no limit)<input className="in" inputMode="numeric" value={P.maxEvals || ''} onChange={e => set({ maxEvals: Math.max(0, parseInt(e.target.value) || 0) })} /></label>}
+                  <span className="muted" style={{ fontSize: 12 }}>Each new evaluation costs {money(prop.fee || 0)} (the fee above).</span>
+                </div>}
+              </section>
+              <div className="bt-runbar">
+                {running ? <button className="btn danger" onClick={() => { stopRef.current = true; }}>Stop</button>
+                  : <button className="btn primary" title={`Run backtest (${MOD}+Enter in the code)`} onClick={() => run()}>Run backtest</button>}
+                <Status status={status} />
               </div>
-              <span className="muted" style={{ fontSize: 12 }}>{inst.sym}: ${inst.pv} a point, ticks of {+inst.tick.toPrecision(6)}</span>
-              <PropSetupCard value={{ ...prop, on: P.propOn }} onChange={c => set({ propOn: c.on, prop: c })} />
-              {P.propOn && <div className="field">
-                <label className="chk"><input type="checkbox" checked={P.rebuy} onChange={e => set({ rebuy: e.target.checked })} />Buy a new evaluation when one fails</label>
-                {P.rebuy && <label className="field">At most this many evaluations (blank: no limit)<input className="in" inputMode="numeric" value={P.maxEvals || ''} onChange={e => set({ maxEvals: Math.max(0, parseInt(e.target.value) || 0) })} /></label>}
-                <span className="muted" style={{ fontSize: 12 }}>Each new evaluation costs {money(prop.fee || 0)} (the fee above).</span>
-              </div>}
-            </>}
-            {running ? <button className="btn danger" onClick={() => { stopRef.current = true; }}>Stop</button>
-              : <button className="btn primary" style={{ height: 40 }} onClick={() => run()}>Run backtest</button>}
-            <Status status={status} />
+            </div>
+            <Console lines={lines.current} status={status} running={running} open={consOpen || isPhone} onToggle={() => setConsOpen(!consOpen)} onClear={clearLog} />
           </div>
-          <div className="bt-mcons"><Console lines={lines.current} status={status} running={running} /></div>
-        </aside>
+        </div>
       </div>}
       {tab === 'results' && <Results view={view} running={running} onShow={() => view && showOnChart(view)} onEdit={edit} onRun={() => run()} onToast={onToast} />}
       <OptimizePanel active={tab === 'opt' || tab === 'rob'} which={tab === 'rob' ? 'rob' : 'opt'} code={code} lang={lang} name={cur} setup={setupNow} busy={running}
@@ -312,8 +341,20 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
 }
 
 /* ---- the code editor: a plain text area with line numbers; Tab indents, Enter keeps the indent ---- */
-function Editor({ code, lines, indent, opener, onChange }: { code: string; lines: number; indent: string; opener: RegExp; onChange: (c: string) => void }) {
+function Editor({ code, lines, height, indent, opener, onChange, onRun, goto }: { code: string; lines: number; height: number | null; indent: string; opener: RegExp;
+  onChange: (c: string) => void; onRun: () => void; goto: { line: number; n: number } | null }) {
   const ta = useRef<HTMLTextAreaElement>(null), gut = useRef<HTMLDivElement>(null);
+  // an error's line: selected and scrolled into view
+  useEffect(() => {
+    const el = ta.current; if (!el || !goto) return;
+    const ls = el.value.split('\n'), k = Math.max(0, Math.min(ls.length - 1, goto.line - 1));
+    let a = 0; for (let i = 0; i < k; i++) a += ls[i].length + 1;
+    el.focus({ preventScroll: true }); el.setSelectionRange(a, a + ls[k].length);
+    const lh = parseFloat(getComputedStyle(el).lineHeight) || 19;
+    el.scrollTop = Math.max(0, k * lh - el.clientHeight / 3);
+    if (gut.current) gut.current.scrollTop = el.scrollTop;
+    el.closest('.bt-code')?.scrollIntoView({ block: 'nearest' });
+  }, [goto]);
   const insert = (text: string) => {
     const el = ta.current!; el.focus();
     // execCommand keeps the browser's undo; setRangeText where it is gone
@@ -321,6 +362,7 @@ function Editor({ code, lines, indent, opener, onChange }: { code: string; lines
   };
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const el = e.currentTarget;
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); onRun(); return; }
     if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
       const a = el.selectionStart, b = el.selectionEnd, v = el.value;
@@ -337,7 +379,7 @@ function Editor({ code, lines, indent, opener, onChange }: { code: string; lines
     }
   };
   return (
-    <div className="bt-editor">
+    <div className="bt-editor" style={height ? { height } : undefined}>
       <div className="bt-gutter" ref={gut} aria-hidden="true">{Array.from({ length: lines }, (_, i) => <div key={i}>{i + 1}</div>)}</div>
       <textarea ref={ta} className="bt-ta" aria-label="Strategy code" value={code} spellCheck={false} autoCorrect="off" autoCapitalize="off" autoComplete="off" wrap="off"
         onChange={e => onChange(e.target.value)} onKeyDown={onKey} onScroll={e => { if (gut.current) gut.current.scrollTop = e.currentTarget.scrollTop; }} />
@@ -353,17 +395,33 @@ function Status({ status }: { status: { text: string; p: number | null; kind?: s
     </div>
   );
 }
-function Console({ lines, status, running }: { lines: LogLine[]; status: { text: string; p: number | null; kind?: string }; running: boolean }) {
+function Console({ lines, status, running, open, onToggle, onClear }: { lines: LogLine[]; status: { text: string; p: number | null; kind?: string }; running: boolean;
+  open: boolean; onToggle: () => void; onClear: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => { const b = box.current; if (b) b.scrollTop = b.scrollHeight; });
   return (
-    <div className="bt-cons">
-      <div className="bt-conshead"><b>Console</b><span className="spacer" /><Status status={status} />{running && <span className="muted" style={{ fontSize: 11.5 }}>running</span>}</div>
-      <div className="bt-lines" ref={box} aria-label="Console" aria-live="off">
-        {lines.length ? lines.map((l, i) => <div key={i} className={l[1]}>{l[0] || ' '}</div>) : <div className="muted">print() output, errors and the run's summary show here.</div>}
+    <section className="card bt-cons bt-fold" aria-label="Console" data-open={open}>
+      <div className="bt-conshead">
+        <button className="bt-foldhead" aria-expanded={open} onClick={onToggle}><IChev className="chev" /><b>Console</b>{!open && lines.length > 0 && <span className="muted bt-sum">{lines.length} line{lines.length === 1 ? '' : 's'}</span>}</button>
+        <span className="spacer" /><Status status={status} />{running && <span className="muted" style={{ fontSize: 11.5 }}>running</span>}
+        {open && lines.length > 0 && !running && <button className="btn sm" onClick={onClear}>Clear</button>}
       </div>
-    </div>
+      {open && <div className="bt-lines" ref={box} aria-label="Console output" aria-live="off">
+        {lines.length ? lines.map((l, i) => <div key={i} className={l[1]}>{l[0] || ' '}</div>) : <div className="muted">print() output, errors and the run's summary show here.</div>}
+      </div>}
+    </section>
   );
+}
+
+/** closes a menu on a press outside its box (the box holds its button too) and on Escape */
+function useDismiss(ref: React.RefObject<HTMLElement | null>, open: boolean, close: () => void) {
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: Event) => { if (ref.current && !ref.current.contains(e.target as Node)) close(); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    addEventListener('mousedown', down); addEventListener('touchstart', down); addEventListener('keydown', key, true);
+    return () => { removeEventListener('mousedown', down); removeEventListener('touchstart', down); removeEventListener('keydown', key, true); };
+  }, [open]);
 }
 
 /* ---- results ---- */
