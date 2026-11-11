@@ -2,7 +2,7 @@
 //   npx tsx tests/backtest.test.ts        (Python: public/pyodide, from npm run pyodide)
 import { computeStats, runBacktest, statsRows, tradesCsv, type Bridge, type RunConfig, type RunResult } from '../src/core/backtest';
 import { jsApply, jsCheck, jsParams, jsStrategy } from '../src/core/jsstrategy';
-import { pandasErr, pyClassicStrategy, pyParams, pySetValues, pyStrategy, type PyHost } from '../src/core/pybridge';
+import { pandasErr, pyPerCallStrategy, pyParams, pySetValues, pyStrategy, type PyHost } from '../src/core/pybridge';
 import { practiceSeries } from '../src/core/practice';
 import { Feed } from '../src/core/feed';
 import { parseTF, setZone } from '../src/core/time';
@@ -41,7 +41,7 @@ function on_bar(ctx, bar) {
 }
 function on_fill(ctx, fill) { print(String(fill), ctx.closes().length); }
 `;
-  for (const [name, b] of [['python', pyStrategy(host, py)], ['classic python', pyClassicStrategy(host, py)], ['js', jsStrategy(js)]] as const) {
+  for (const [name, b] of [['python', pyStrategy(host, py)], ['per-call python', pyPerCallStrategy(host, py)], ['js', jsStrategy(js)]] as const) {
     const r = await run({ series: s, startIdx: 1, ticksPerBar: 4 }, b);
     const h = r.account.hist, st = r.stats;
     check(!r.fail, `${name}: runs (${r.fail})`);
@@ -56,7 +56,7 @@ function on_fill(ctx, fill) { print(String(fill), ctx.closes().length); }
   }
 }
 
-/* ---- the classic checks: a market order fills at the next open + spread; on_fill sees 3 candles; rejections ---- */
+/* ---- the basic checks: a market order fills at the next open + spread; on_fill sees 3 candles; rejections ---- */
 {
   const s = walk(400);
   const py = `
@@ -70,17 +70,17 @@ def on_bar(ctx, bar):
 def on_fill(ctx, fill):
     print("fill", fill.price, len(ctx.closes()))
 `;
-  for (const b of [pyStrategy(host, py), pyClassicStrategy(host, py)]) {
+  for (const b of [pyStrategy(host, py), pyPerCallStrategy(host, py)]) {
     const r = await run({ series: s, startIdx: 10, endIdx: 30 }, b);
     const fill = r.account.trades[0];
     check(fill.entry === s.o[13] + 0.25 + 0.25, `market buy from on_bar fills at the next bar's open + spread + slippage (${fill.entry} vs ${s.o[13]})`);
     check(r.log.some(x => x[0] === `fill ${fill.entry} 3`), 'on_fill sees 3 candles');
     const rej = r.log.filter(x => x[0].includes('Order rejected: A sell limit must be above the bid'));
-    check(rej.length === 1 && /^\d{4}-\d\d-\d\d \d\d:\d\d Order rejected: A sell limit must be above the bid \(\d+\.\d\d\)\. Use a stop order to sell below it\.$/.test(rej[0][0]), `wrong-side limit rejected exactly once, in the classic words (${rej[0]?.[0]})`);
+    check(rej.length === 1 && /^\d{4}-\d\d-\d\d \d\d:\d\d Order rejected: A sell limit must be above the bid \(\d+\.\d\d\)\. Use a stop order to sell below it\.$/.test(rej[0][0]), `wrong-side limit rejected exactly once, in the strategy wording (${rej[0]?.[0]})`);
   }
 }
 
-/* ---- parity: batched Python == classic Python == JavaScript, with orders of every kind ---- */
+/* ---- parity: batched Python == per-call Python == JavaScript, with orders of every kind ---- */
 const PY_SINK = `
 FAST, SLOW = 5, 20
 STOP, TARGET = 12, 24
@@ -141,9 +141,9 @@ function on_fill(ctx, fill) { ctx.n_fills++; }
   const s = walk(6000, 11);
   for (const mode of ['bar', 'tick'] as const) for (const t of ['1m', '5m']) {
     const cfg = { series: s, tf: tf(t), mode, startIdx: 50 };
-    const a = await run(cfg, pyStrategy(host, PY_SINK)), b = await run(cfg, pyClassicStrategy(host, PY_SINK)), c = await run(cfg, jsStrategy(JS_SINK));
+    const a = await run(cfg, pyStrategy(host, PY_SINK)), b = await run(cfg, pyPerCallStrategy(host, PY_SINK)), c = await run(cfg, jsStrategy(JS_SINK));
     check(!a.fail && !b.fail && !c.fail, `${mode} ${t}: all run (${a.fail || b.fail || c.fail})`);
-    check(a.account.hist.length > 30 && sig(a) === sig(b), `${mode} ${t}: batched Python makes the same trades as the classic calls (${a.account.hist.length} trades)`);
+    check(a.account.hist.length > 30 && sig(a) === sig(b), `${mode} ${t}: batched Python makes the same trades as the per-call functions (${a.account.hist.length} trades)`);
     check(sig(a) === sig(c), `${mode} ${t}: and so does the JavaScript strategy`);
     check(lines(a).join('\n') === lines(b).join('\n'), `${mode} ${t}: and prints the same, in the same order`);
     check(a.account.hist.some(h => h.how === 'Stop fill') && a.account.hist.some(h => h.reason === 'Stop loss') && a.account.hist.some(h => h.reason === 'Strategy close'), `${mode} ${t}: stops, stop losses and closes all happened`);
@@ -151,7 +151,7 @@ function on_fill(ctx, fill) { ctx.n_fills++; }
   }
 }
 
-/* ---- bars where nothing can fill are skipped whole: the same as the classic path, best and worst prices too ---- */
+/* ---- bars where nothing can fill are skipped whole: the same as the plain path, best and worst prices too ---- */
 {
   const s = walk(8000, 23);
   const always = `
@@ -163,7 +163,7 @@ function on_bar(ctx, bar) {
   else if (f / FAST < s / SLOW && ctx.position >= 0) { if (ctx.position) ctx.close(); ctx.sell_stop(bar.low - 1, { sl: bar.close + 15 }); }
 }`;
   for (const code of [always, JS_SINK]) {
-    const a = await run({ series: s, tf: tf('5m') }, jsStrategy(code)), b = await run({ series: s, tf: tf('5m'), classicPath: true }, jsStrategy(code));
+    const a = await run({ series: s, tf: tf('5m') }, jsStrategy(code)), b = await run({ series: s, tf: tf('5m'), plainPath: true }, jsStrategy(code));
     const mx = (r: RunResult) => r.account.hist.map(h => `${h.best} ${h.worst}`).join();
     check(a.account.hist.length > 20 && sig(a) === sig(b) && mx(a) === mx(b) && a.account.maxDD === b.account.maxDD && JSON.stringify(a.eq) === JSON.stringify(b.eq), `quiet bars skipped == played tick by tick (${a.account.hist.length} trades)`);
   }
@@ -188,8 +188,8 @@ def on_fill(ctx, fill):
     print("f", fill, ctx.ticks_seen)
 `;
   const cfg = { series: s, mode: 'tick' as const, startIdx: 1, tf: tf('5m'), ticksPerBar: 10 };
-  const a = await run(cfg, pyStrategy(host, py)), b = await run(cfg, pyClassicStrategy(host, py));
-  check(!a.fail && sig(a) === sig(b) && a.account.hist.length > 3, `every tick: batched == classic (${a.account.hist.length} trades)`);
+  const a = await run(cfg, pyStrategy(host, py)), b = await run(cfg, pyPerCallStrategy(host, py));
+  check(!a.fail && sig(a) === sig(b) && a.account.hist.length > 3, `every tick: batched == per-call (${a.account.hist.length} trades)`);
   check(lines(a).join('\n') === lines(b).join('\n'), 'every tick: the same hooks in the same order');
   // on_tick ran on every tick: as many as the feed plays
   const lastBar = lines(a).filter(l => l.startsWith('b ')).pop()!, fd = new Feed(s, 1, tf('5m'), 10, [], false);
@@ -202,7 +202,7 @@ def on_bar(ctx, bar):
 def on_tick(ctx, tick):
     pass
 `;
-  const x = await run({ series: s, startIdx: 1, mode: 'bar' }, pyStrategy(host, quietPy)), y = await run({ series: s, startIdx: 1, mode: 'tick' }, pyClassicStrategy(host, quietPy));
+  const x = await run({ series: s, startIdx: 1, mode: 'bar' }, pyStrategy(host, quietPy)), y = await run({ series: s, startIdx: 1, mode: 'tick' }, pyPerCallStrategy(host, quietPy));
   check(sig(x) === sig(y) && x.account.maxDD === y.account.maxDD && x.account.hist.length > 3, 'skipping flat bars == playing their ticks (trades, drawdown)');
 }
 
@@ -218,7 +218,7 @@ def on_bar(ctx, bar):
     if bar.index == 0: print("cfg", FAST, SLOW, SPAN, VOL, MODE)
 `;
   const r = await run({ series: s, overrides: { FAST: 7, VOL: 3.0, MODE: 'candle' } }, pyStrategy(host, code));
-  check(r.log.some(x => x[0] === 'cfg 7 30 23 3 candle'), 'overrides rewrite the settings, and constants follow them (3.0 arrives as JSON 3, as in the classic app)');
+  check(r.log.some(x => x[0] === 'cfg 7 30 23 3 candle'), 'overrides rewrite the settings, and constants follow them (3.0 arrives as JSON 3, as in the per-call functions)');
   check(r.log[0][0].endsWith('with FAST=7, VOL=3, MODE=candle.'), `the start line names the overrides (${r.log[0][0]})`);
   const bad = await run({ series: s, overrides: { NOPE: 1 } }, pyStrategy(host, code));
   check(bad.fail === 'NameError: The setting NOPE is not in the code any more.', `unknown setting (${bad.fail})`);
@@ -272,7 +272,7 @@ def on_bar(ctx, bar):
   const L = lines(r);
   check(L.filter(l => l.includes('Order rejected: A buy limit must be below the ask')).length === 1, 'a rejection kind is printed once');
   check(L.some(l => l === 'Order rejected 10 times so far: A buy limit must be below the ask (' + l.split('(')[1]) && L.some(l => l.startsWith('Order rejected 1000 times so far')), 'then counted at 10, 100, 1000');
-  check(L.some(l => /^\d{4}-\d\d-\d\d \d\d:\d\d Order rejected: The stop loss must be below the order price\.$/.test(l)), 'a market order checked when it executes, in the classic words');
+  check(L.some(l => /^\d{4}-\d\d-\d\d \d\d:\d\d Order rejected: The stop loss must be below the order price\.$/.test(l)), 'a market order checked when it executes, in the strategy wording');
   const T = Date.UTC(2026, 0, 5, 14, 30) / 1000, s2 = walk(20000, 9, T);
   let slices = 0, stopAt = 0;
   const stopped = await runBacktest({ series: s2, tf: tf('1m'), mode: 'tick', balance: 50000 }, pyStrategy(host, 'def on_bar(ctx, bar):\n    pass\ndef on_tick(ctx, tick):\n    pass\n'),
@@ -290,22 +290,22 @@ def on_bar(ctx, bar):
   let streak = 0, mx = 0; for (const x of h) { streak = x.net <= 0 ? streak + 1 : 0; mx = Math.max(mx, streak); }
   check(st.maxLosingStreak === mx && st.largestLoss === Math.min(...losses.map(x => x.net)) && st.longs + st.shorts === h.length, 'streak, largest loss, long / short');
   check(near(st.avgHold!, h.reduce((a, x) => a + x.exitTime - x.time, 0) / h.length) && near(st.costs, h.reduce((a, x) => a + x.comm, 0)), 'average hold, costs');
-  check(statsRows(st).map(x => x[0]).join() === 'Net P&L,Trades,Win rate,Profit factor,Avg win,Avg loss,Expectancy / trade,Largest win,Largest loss,Max losing streak,Long / short,Avg hold,Costs paid,Max drawdown', 'the classic stats grid');
+  check(statsRows(st).map(x => x[0]).join() === 'Net P&L,Trades,Win rate,Profit factor,Avg win,Avg loss,Expectancy / trade,Largest win,Largest loss,Max losing streak,Long / short,Avg hold,Costs paid,Max drawdown', 'the stats grid');
   check(r.eq.length >= 200 && r.eq.length <= 205 && r.eq[0].value === 50000 && r.eq.every((p, k) => !k || p.time > r.eq[k - 1].time), `equity curve, about 200 points (${r.eq.length})`);
   const csv = tradesCsv(h).split('\n');
-  check(csv[0] === 'id,side,size,entry_time,entry,exit_time,exit,exit_by,stop_loss,take_profit,gross,costs,net' && csv.length === h.length + 1 && /^\d+,(long|short),\d+,2026-\d\d-\d\d \d\d:\d\d:\d\d,/.test(csv[1]), 'trades as CSV, the classic columns');
+  check(csv[0] === 'id,side,size,entry_time,entry,exit_time,exit,exit_by,stop_loss,take_profit,gross,costs,net' && csv.length === h.length + 1 && /^\d+,(long|short),\d+,2026-\d\d-\d\d \d\d:\d\d:\d\d,/.test(csv[1]), 'trades as CSV, its columns');
   check(r.log[r.log.length - 1][0] === `${st.trades} trades, net ${st.net >= 0 ? '+' : '−'}$${Math.abs(st.net).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${st.open ? `, ${st.open} still open` : ''}.`, 'the summary line');
 }
 
-/* ---- the classic app's templates on practice data: the batched runner gives the classic calls' results ---- */
+/* ---- the Python templates on practice data: the batched runner gives the per-call functions' results ---- */
 {
-  const src = readFileSync(APP + 'src/app.ts', 'utf8') as string, tpl = (name: string) => {
-    const m = src.match(new RegExp(`'${name}': \`([\\s\\S]*?)\`,\\n`)); if (!m) throw new Error('no template ' + name); return m[1];
+  const src = readFileSync(APP + 'src/next/backtest.ts', 'utf8') as string, tpl = (name: string) => {
+    const m = src.match(new RegExp(`'${name}': \\{ lang: 'py', code: \`([\\s\\S]*?)\` \\},\\n`)); if (!m) throw new Error('no template ' + name); return m[1];
   };
   const T0 = Date.UTC(2026, 3, 1, 4) / 1000, [nq] = await practiceSeries(['NQ'], T0, T0 + 2 * 86400);
   for (const [name, mode, t] of [['MA cross', 'bar', '5m'], ['Opening range breakout', 'bar', '5m'], ['Breakout with trailing stop', 'tick', '5m']] as const) {
     const code = tpl(name), cfg = { series: nq, mode, tf: tf(t), qty: 2 };
-    const a = await run(cfg, pyStrategy(host, code)), b = await run({ ...cfg, classicPath: true }, pyClassicStrategy(host, code));
+    const a = await run(cfg, pyStrategy(host, code)), b = await run({ ...cfg, plainPath: true }, pyPerCallStrategy(host, code));
     check(!a.fail && !b.fail && a.account.hist.length >= 2 && sig(a) === sig(b) && lines(a).join('\n') === lines(b).join('\n') && a.account.maxDD === b.account.maxDD,
       `template "${name}": the same trades, console and drawdown (${a.account.hist.length} trades, ${a.account.hist[0].qty} contracts, ${a.secs.toFixed(2)} s vs ${b.secs.toFixed(2)} s)`);
   }

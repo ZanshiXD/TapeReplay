@@ -136,7 +136,7 @@ async def main():
         lines = await pg.evaluate(CONSOLE)
         check(st == "Done", f"the run finishes ({st}): {lines[-5:]}")
         check(any(l.startswith("Python ready in") for l in lines), "Python loads on the first run")
-        check(any(l.startswith("Running ") and "on 5m candles" in l for l in lines), f"the classic Running line ({[l for l in lines if l.startswith('Running')]})")
+        check(any(l.startswith("Running ") and "on 5m candles" in l for l in lines), f"the Running line ({[l for l in lines if l.startswith('Running')]})")
         check(any(l.startswith("Finished in") for l in lines) and any(" trades, net " in l for l in lines), "Finished and the summary line")
         check(any("Market" in l and "@" in l for l in lines), "on_fill prints reach the console")
         await pg.click(".bt-head .tabs button:has-text('Results')")

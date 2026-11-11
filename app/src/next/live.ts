@@ -15,7 +15,7 @@ export function useLive() {
 export const frameHooks = new Set<(now: number) => void>();
 
 /* ---- preferences ----
- * Kept with the app's settings (the same file the classic view uses, under "next"), so they survive however the
+ * Kept with the app's settings (under "next"), so they survive however the
  * app is opened; a copy in this browser makes them available at once while the app's copy loads. */
 let P: Record<string, unknown> = {};
 try { P = JSON.parse(localStorage.getItem('tr-next-prefs') || 'null') || {}; } catch { /* private window */ }

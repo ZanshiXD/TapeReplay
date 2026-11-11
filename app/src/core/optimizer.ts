@@ -1,6 +1,6 @@
 // The optimizer: a strategy run many times with different settings, in parallel workers (opt.worker.ts), ranked by
-// a goal. Ported from the classic app (app.ts:6111-6676): the values tried for each setting, the rules combinations
-// must meet, grid and random search with the classic caps, the goals, scores, minimum trades, Check period (out of
+// a goal: the values tried for each setting, the rules combinations
+// must meet, grid and random search with caps on their size, the goals, scores, minimum trades, Check period (out of
 // sample by exit time), sorting, zoom-in and CSV. New: a smart search (coarse grid, then a pattern search around the
 // best, then crossover of the best) that finds about the grid's best with about a tenth of the runs; the default.
 // Everything is deterministic for a seed: the smart search decides each batch from the results of the batches
@@ -162,7 +162,7 @@ function compileRule(src: string, names: string[]): Ev {
   if (p !== toks.length) throw new RuleSyntax();
   return e;
 }
-/** the rules (one per line; blank and # lines ignored) as a test of a combination, or the classic error */
+/** the rules (one per line; blank and # lines ignored) as a test of a combination, or the error */
 export function parseRules(rules: string[], ticked: string[]): { ok: (c: Combo) => boolean } | { error: string } {
   const list = rules.map(r => r.trim()).filter(r => r && !r.startsWith('#'));
   const fns: Ev[] = [];
@@ -178,7 +178,7 @@ export function parseRules(rules: string[], ticked: string[]): { ok: (c: Combo) 
 /* ---- combinations ---- */
 export interface Space { params: Array<{ name: string; values: Setting[] }>; rules?: string[] }
 export const comboTotal = (sp: Space) => sp.params.reduce((s, p) => s * p.values.length, 1);
-/** combination number i, the last setting varying fastest (the classic order) */
+/** combination number i, the last setting varying fastest */
 export function comboAt(sp: Space, i: number): Combo {
   const d: Combo = {};
   for (let k = sp.params.length - 1; k >= 0; k--) { const p = sp.params[k], s = p.values.length; d[p.name] = p.values[i % s]; i = Math.floor(i / s); }
@@ -186,8 +186,8 @@ export function comboAt(sp: Space, i: number): Combo {
   return out;
 }
 export const mulberry32 = (seed: number) => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
-/** grid or random combinations, as the classic _tr_combos: {combos, total, skipped} or {error}. Random order comes
- * from mulberry32(seed) (the classic used Python's random.Random: the same idea, other picks). */
+/** grid or random combinations, as Python's _tr_combos: {combos, total, skipped} or {error}. Random order comes
+ * from mulberry32(seed) (Python's version uses random.Random: the same idea, other picks). */
 export function combos(sp: Space & { mode: 'grid' | 'random'; n?: number; seed?: number; cap?: number }): { combos: Combo[]; idx: number[]; total: number; skipped: number } | { error: string; total?: number } {
   const params = sp.params.filter(p => p.values.length);
   const space = { params }, total = comboTotal(space), cap = sp.cap ?? OPT_CAP;
@@ -228,7 +228,7 @@ export function seg(hist: ArrayLike<Closed> | Closed[], lo: number, hi: number):
   }
   return { trades, net, win: trades ? w / trades * 100 : null, pf: gl > 0 ? gw / gl : gw > 0 ? 1e9 : null, dd };
 }
-/** a worker run's result (the classic totals) */
+/** a worker run's result (the totals) */
 export function totals(hist: Closed[], open: number, splitT: number | null, withTrades = false): OptRes {
   const a = seg(hist, -Infinity, splitT == null ? Infinity : splitT), b = splitT == null ? null : seg(hist, splitT, Infinity);
   const res: OptRes = { a, b, sim: null, open };
@@ -246,7 +246,7 @@ export function optScore(res: OptRes | null | undefined, goal: Goal, minT: numbe
   return a.dd > 0 ? a.net / a.dd : a.net > 0 ? 1e9 : a.net;
 }
 export interface OptRow { i: number; res: OptRes; score?: number }
-/** rows sorted as the classic table: failures last, then by key (score, p:NAME, a.net, b.pf, sim.take...), ties by
+/** rows sorted for the results table: failures last, then by key (score, p:NAME, a.net, b.pf, sim.take...), ties by
  * combination number; dir -1 descending */
 export function optSorted(rows: OptRow[], combos: Combo[], goal: Goal, minT: number, key = 'score', dir = -1): OptRow[] {
   for (const r of rows) r.score = optScore(r.res, goal, minT);
@@ -263,7 +263,7 @@ export function optSorted(rows: OptRow[], combos: Combo[], goal: Goal, minT: num
   });
 }
 export const optScoreTxt = (x: number, goal: Goal, money: (x: number) => string) => !isFinite(x) ? '—' : x >= 1e8 ? '∞' : goal === 'net' || goal === 'take' ? money(x) : x.toFixed(2);
-/** all results as CSV, in the order given (the classic columns) */
+/** all results as CSV, in the order given */
 export function optCsv(sorted: OptRow[], combos: Combo[], names: string[], split: boolean): string {
   const head = ['rank', ...names, 'goal', 'trades', 'net', 'win_pct', 'profit_factor', 'max_dd', ...(split ? ['check_trades', 'check_net', 'check_pf', 'check_dd'] : []), 'evaluations', 'passed', 'went_live', 'payouts', 'avg_payout', 'largest_payout', 'payouts_minus_fees', 'error'];
   const f = (x: number | null | undefined) => x == null || !isFinite(x) ? '' : x >= 1e8 ? 'inf' : +x.toFixed(4);
@@ -380,7 +380,7 @@ export interface OptConfig extends Space {
   cache?: Map<string, OptRes>;
 }
 export interface OptOutput {
-  /** what ran, in order: combos[i] has rows' result i (the classic document's combos and rows) */
+  /** what ran, in order: combos[i] has rows' result i (the saved document's combos and rows) */
   combos: Combo[]; rows: OptRow[];
   total: number; skipped: number; error?: string; firstErr: string; stopped: boolean;
   best: OptRow | null;
@@ -423,7 +423,7 @@ export async function optimize(cfg: OptConfig, runTasks: RunTasks, hooks: { prog
     return out;
   }
   const rules = parseRules(cfg.rules || [], params.map(p => p.name)); if ('error' in rules) return { ...out, error: rules.error };
-  // axes: numbers in ascending order, the rest as categories; a point's key is its classic grid number
+  // axes: numbers in ascending order, the rest as categories; a point's key is its grid number
   const order = params.map(p => p.values.every(v => typeof v === 'number') ? p.values.map((_, j) => j).sort((a, b) => (p.values[a] as number) - (p.values[b] as number)) : p.values.map((_, j) => j));
   const categorical = params.map(p => !p.values.every(v => typeof v === 'number'));
   const sizes = params.map(p => p.values.length);
@@ -462,7 +462,7 @@ export function workerCount(o: { bytes?: number; shared?: boolean; phone?: boole
   if (o.python && mem) n = Math.max(1, Math.min(n, Math.floor(mem * 1024 / 200)));
   return n;
 }
-/** the bars a run needs, from the bar before the start to end (exclusive), as the classic optData: shared memory
+/** the bars a run needs, from the bar before the start to end (exclusive): shared memory
  * when the page is cross-origin isolated, else copies. The job then runs from bar 1 to data.n. */
 export function seriesSlice(s: Series, start: number, end: number): { data: Series; bytes: number; shared: boolean } {
   const a = Math.max(0, start - 1), n = end - a, shared = (globalThis as any).crossOriginIsolated === true && typeof SharedArrayBuffer === 'function';

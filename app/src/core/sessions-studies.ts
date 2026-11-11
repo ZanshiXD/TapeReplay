@@ -1,4 +1,4 @@
-// Session opens (Sydney, Tokyo, London, New York), ported from the classic app (app.ts, "session opens"). Each session
+// Session opens (Sydney, Tokyo, London, New York). Each session
 // keeps its own city's hours, so it follows that city's daylight saving; screens show them in the chart time zone.
 import { localToUtc, tzOffset, zoneToUtc, zp, p2 } from './time';
 
@@ -27,7 +27,7 @@ export const SESS_DEF: SessDef[] = [
 ].map(s => ({ ...s, open: SESS_STD.exchange.hours[s.name][0], close: SESS_STD.exchange.hours[s.name][1] }));
 export const CITY: Record<string, string> = { 'Australia/Sydney': 'Sydney', 'Asia/Tokyo': 'Tokyo', 'Europe/London': 'London', 'America/New_York': 'New York' };
 
-/** settings with the classic defaults filled in */
+/** settings with the defaults filled in */
 export function sessPrefs(p: Partial<SessPrefs> = {}): SessPrefs {
   return { added: p.added ?? false, on: p.on ?? true, sessions: Array.isArray(p.sessions) && p.sessions.length ? p.sessions.map(s => ({ ...s })) : SESS_DEF.map(s => ({ ...s })), shade: p.shade ?? false, labels: p.labels ?? true };
 }

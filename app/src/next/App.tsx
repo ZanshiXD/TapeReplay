@@ -16,13 +16,13 @@ import { place, setTicket } from './ticket';
 import { ds, setDs } from './draw/state';
 import { layers } from './draw/overlay';
 import { TOOLS } from './draw/tools';
-import { store, classicHref } from './appstore';
+import { store } from './appstore';
 import { contAhead, datasetInstrument, loadMarket, openLive, practiceSource, reopen, sessionDoc, type Live, type MarketSource, type Opening, type SessionDoc } from './sessions';
 import { UpdateButton } from './Update';
 import { BacktestPage } from './BacktestPage';
 import { OptimList } from './OptimizePanel';
 import type { SessionState } from '../core/session';
-import { IBacktest, IClassic, IGuide, IJournal, ILibrary, IPlus, IReplay, ISettings, Logo } from './icons';
+import { IBacktest, IGuide, IJournal, ILibrary, IPlus, IReplay, ISettings, Logo } from './icons';
 import { Guide } from './guide/Guide';
 
 type Page = 'replay' | 'journal' | 'backtest' | 'library' | 'settings' | 'new' | 'guide';
@@ -197,7 +197,7 @@ export function App() {
     setBusy({ text: 'Opening the session', p: 0 });
     try {
       const doc = await store.getSession(id) as SessionDoc;
-      if (doc.app !== 'next') throw new Error('This session was made in the classic view. Open it there.');
+      if (doc.app !== 'next') throw new Error('This session was saved by an older version of Tape Replay and cannot be opened.');
       const L = await reopen(store, doc, progress('Opening the session'));
       applyReplayPrefs(L.session, true);
       setTicket(startTicket(L.risk));
@@ -260,7 +260,6 @@ export function App() {
         {nav.map(([k, l, ic]) => <button key={k} className={'item' + (page === k ? ' on' : '')} aria-current={page === k ? 'page' : undefined} disabled={!session && (k === 'replay' || k === 'journal')} onClick={() => setPage(k)}>{ic}{l}</button>)}
         <span className="spacer" />
         <UpdateButton beforeInstall={async () => { if (live) { live.session.pause(); await store.saveSession(live.id, sessionDoc(live)); } }} />
-        <a className="item" href={classicHref} title="The classic Tape Replay, with everything not moved over yet" style={{ textDecoration: 'none' }}><IClassic />Classic</a>
         <button className="new" aria-label="New session" title="New session" onClick={() => { setWithData(null); setPage('new'); }}><IPlus /></button>
       </nav>
       <div className="main">
@@ -298,7 +297,6 @@ function PhoneNav({ page, mview, hasSession, badge, go, more, setMore }: { page:
       <button onClick={() => go('backtest')}>Backtest</button>
       <button onClick={() => go('guide')}>Guide: how everything works</button>
       <button onClick={() => go('settings')}>Settings</button>
-      <a className="btn" style={{ margin: '6px 10px' }} href={classicHref}>Open the classic view</a>
     </div></div>}
     <nav className="mnav" aria-label="Main">
       {hasSession ? <>

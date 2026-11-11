@@ -1,7 +1,6 @@
 // Backtests on the new core: a strategy (Python in Pyodide, or JavaScript) trading one market, its Feed and an
-// Account driven directly (not through Session, which snapshots the account at every candle). Ported from the
-// classic app's strategy runner (app.ts stratCore, stratApi, execPending, deliverFills), which it follows exactly in
-// what a strategy sees and when:
+// Account driven directly (not through Session, which snapshots the account at every candle). What a strategy
+// sees and when:
 //   - per tick: the engine's fills (working orders, stops, targets), then the strategy's queued market orders and
 //     close() at this tick's price, then on_fill for every fill of the tick, then on_tick, then on_bar when the tick
 //     closed a candle of the strategy's timeframe
@@ -19,12 +18,12 @@ export type Setting = number | boolean | string;
 export type LogKind = 'pr' | 'er' | 'ok';
 export type LogLine = [text: string, kind: LogKind];
 
-/** costs per side: commission in dollars per contract; spread and slippage in ticks of the instrument. The classic
- * app's price-unit settings convert as spreadTicks = spread / tick and slipTicks = slip / tick (its percent
+/** costs per side: commission in dollars per contract; spread and slippage in ticks of the instrument. Price-unit
+ * settings convert as spreadTicks = spread / tick and slipTicks = slip / tick (a percent
  * commission has no equivalent here: per contract only). */
 export interface Costs { comm: number; spreadTicks: number; slipTicks: number }
 
-/** prop rules and the prop simulation, when they come to the core: checked like the classic app's propTick/simTick */
+/** prop rules and the prop simulation, when they come to the core: checked at each tick like a replay's */
 export interface RunRules {
   /** once, before the first bar: the run's account (its quote has the price and time), and the console (lines get
    * the time in front) */
@@ -60,8 +59,8 @@ export interface RunConfig {
   /** about how many points the equity curve keeps, default 5000 */
   eqPoints?: number;
   rules?: RunRules;
-  /** skip bars whole only when there are no orders and no trades, as the classic app (comparisons, benchmarks) */
-  classicPath?: boolean;
+  /** skip bars whole only when there are no orders and no trades, the plain path (comparisons, benchmarks) */
+  plainPath?: boolean;
 }
 
 export interface Progress { done: number; time: number; trades: number; status: string }
@@ -97,7 +96,7 @@ export interface HistOut { id: number; side: 'long' | 'short'; qty: number; entr
 /** the account for a strategy: version, net position and average, balance, closed trade count, open trades
  * [id, side, qty, entry, sl, tp] and working orders [id, side, type, price, qty, sl, tp] */
 export interface StateOut { v: number; pos: number; avg: number | null; bal: number; nh: number; tr: Array<[number, number, number, number, number | null, number | null]>; od: Array<[number, number, string, number, number, number | null, number | null]> }
-/** what the strategy's ctx calls (the classic stratApi, with objects instead of JSON) */
+/** what the strategy's ctx calls (objects, not JSON) */
 export interface StratApi {
   submit(side: number, type: string, price: number | null | undefined, sl: number | null | undefined, tp: number | null | undefined, qty: number): { ok?: boolean; id?: number; error?: string };
   closeAll(): void;
@@ -107,7 +106,7 @@ export interface StratApi {
   trades(): TradeOut[];
   history(from: number): HistOut[];
   state(): StateOut;
-  /** [position, average or null, equity, balance], as the classic _tr_* calls take it */
+  /** [position, average or null, equity, balance], as the per-call _tr_* functions take it */
   state4(): [number, number | null, number, number];
   /** inside a batch: play the engine up to item i (candle or tick) before an order is checked */
   sync(i: number): void;
@@ -126,7 +125,7 @@ export interface Bridge {
   flush(): LogLine[];
 }
 
-/* ---- formatting, as the classic app ---- */
+/* ---- formatting ---- */
 /** "YYYY-MM-DD HH:MM:SS" in the chart zone */
 export const fmtDT = (s: number) => isFinite(s) ? new Date((s + zoneOff(s)) * 1000).toISOString().slice(0, 19).replace('T', ' ') : '—';
 export const fmtDay = (s: number) => isFinite(s) ? fmtDT(s).slice(0, 16) : '—';
@@ -152,7 +151,7 @@ export interface Stats {
   /** mean seconds from entry to exit */
   avgHold: number | null; costs: number;
 }
-/** the classic computeStats and stats grid (app.ts:3282-3311) over closed trades; losses are trades with net <= 0 */
+/** the stats over closed trades; losses are trades with net <= 0 */
 export function computeStats(acc: Account): Stats {
   const h = acc.hist, n = h.length;
   let wins = 0, gw = 0, gl = 0, lw: number | null = null, ll: number | null = null, streak = 0, maxL = 0, ws = 0, maxW = 0, longs = 0, hold = 0, costs = 0;
@@ -172,7 +171,7 @@ export function computeStats(acc: Account): Stats {
     maxLosingStreak: maxL, maxWinningStreak: maxW, longs, shorts: n - longs, avgHold: n ? hold / n : null, costs,
   };
 }
-/** the classic stats grid as [label, text] rows */
+/** the stats grid as [label, text] rows */
 export function statsRows(s: Stats): Array<[string, string]> {
   const dur = (x: number) => x >= 86400 ? (x / 86400).toFixed(1) + 'd' : x >= 3600 ? (x / 3600).toFixed(1) + 'h' : Math.round(x / 60) + 'm';
   return [
@@ -185,13 +184,13 @@ export function statsRows(s: Stats): Array<[string, string]> {
     ['Max drawdown', s.maxDD ? `${money(s.maxDD)} (${s.maxDDpct.toFixed(1)}%)` : '$0.00'],
   ];
 }
-/** closed trades as CSV, the classic columns (copyTrades): times in the chart zone */
+/** closed trades as CSV: times in the chart zone */
 export function tradesCsv(hist: Closed[]): string {
   const rows: Array<Array<string | number>> = [['id', 'side', 'size', 'entry_time', 'entry', 'exit_time', 'exit', 'exit_by', 'stop_loss', 'take_profit', 'gross', 'costs', 'net']];
   for (const h of hist) rows.push([h.id, h.side > 0 ? 'long' : 'short', h.qty, fmtDT(h.time), h.entry, fmtDT(h.exitTime), h.exit, h.reason, h.sl ?? '', h.tp ?? '', h.gross.toFixed(2), h.comm.toFixed(2), h.net.toFixed(2)]);
   return rows.map(r => r.join(',')).join('\n');
 }
-/** the run's summary line, as the classic console's last line */
+/** the run's summary line, the console's last line */
 export const summaryLine = (s: Stats): LogLine => [`${s.trades} trades, net ${smoney(s.net)}${s.open ? `, ${s.open} still open` : ''}.`, s.net >= 0 ? 'ok' : 'er'];
 
 const MAX_LOG = 1500, SLICE_MS = 30;
@@ -210,7 +209,7 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
 
   const feed = new Feed(s, start, tf, cfg.ticksPerBar ?? 20, [], false);
   const account = new Account(cfg.balance);
-  account.hedge = !!cfg.hedge; account.wording = 'classic';
+  account.hedge = !!cfg.hedge; account.wording = 'strategy';
   const q: Quote = { price: feed.price, spread, slip, pv: inst.pv, comm: costs.comm, time: feed.time, barTime: feed.barTime, round: x => feed.round(x) };
   const sync = () => { q.price = feed.price; q.time = feed.time; q.barTime = feed.barTime; };
   account.quote = () => q;
@@ -305,10 +304,10 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
   /* ---- bars where nothing can fill, and batches ---- */
   // A bar is quiet when no working order, stop or target lies within its price range (its rounded high and low, the
   // close before it): its ticks can fill nothing, so it is skipped whole (Feed.skipBar), the same end state as
-  // playing them. The classic app skipped only bars with no orders and no trades (cfg.classicPath).
+  // playing them. cfg.plainPath skips only bars with no orders and no trades.
   const quiet0 = (j: number, pLo: number, pHi: number) => {
     if (!account.orders.length && !account.trades.length) return true;
-    if (cfg.classicPath) return false;
+    if (cfg.plainPath) return false;
     const l = s.l[j], h = s.h[j];
     return !account.wouldFill(sym, Math.min(pLo, l, feed.round(l)), Math.max(pHi, h, feed.round(h)), false);
   };

@@ -21,7 +21,7 @@ export interface PyDraw { id: number; kind: 'box' | 'line' | 'label'; [k: string
 interface Out { meta?: Meta[]; plots?: Record<string, Array<[number, number | null, string?]>>; hlines?: HLine[]; fills?: Array<[string, string, Array<[number, number, number, string | null]>]>;
   bg?: Array<[number, string]>; marks?: Mark[]; draw?: PyDraw[]; del?: number[]; error?: string }
 
-/** the classic app's indicator colors: a plot without a color takes the next one */
+/** the indicator colors: a plot without a color takes the next one */
 const COLORS = ['#e2a63c', '#7f9cf5', '#2db38a', '#e5554c', '#c158dc', '#26c6da'];
 let nextIid = 1, bumpT = 0, lastToast = '';
 /** the legend and the lists again soon (not on every answer while the tape plays fast) */

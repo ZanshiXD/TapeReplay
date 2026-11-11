@@ -1,7 +1,6 @@
 // One market's replay: a cursor over its bars, the simulated ticks inside each bar, and the candles at the chart's
-// timeframe. Ported from the classic app's replay engine (buildTicks, processTick, rebuild), unchanged in how a bar
-// plays: open, then low and high (in the order the bar's direction makes likely), then close, on an even grid of
-// ticks with the turning points kept exactly.
+// timeframe. How a bar plays: open, then low and high (in the order the bar's direction makes likely), then close, on
+// an even grid of ticks with the turning points kept exactly.
 import type { Candle, Series } from './series';
 import { makeBucket, tfSeconds, type TF } from './time';
 import { makeInd, type Ind, type IndSpec } from './indicators';

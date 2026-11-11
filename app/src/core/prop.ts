@@ -1,5 +1,4 @@
-// Prop firm rules on the account, ported from the classic app (app.ts, "prop firm rules" and "prop simulation") with
-// its numbers, rules and words. Two engines; a session runs one of them:
+// Prop firm rules on the account. Two engines; a session runs one of them:
 //  - PropSim, the prop simulation: one account's whole course in one session. Pass the evaluation and a fresh funded
 //    account opens at the same size; each funded payout comes out of the balance and locks the max loss; after the
 //    last one the account moves to live (opening at $0 profit, payouts any day). Breaking a max loss ends that account;
@@ -18,7 +17,7 @@
 //    funds the account at sim.size and counts the first fee; pass `opts.state` to reopen a saved one (the account is
 //    then left as it is).
 //  - prop.onEvent = e => { if (e.pause) { this.stop = true; this.playing = false; } this.emit(...e.text as a toast...) }
-//    (pause is set where the classic app paused the replay; strategy runs ignore it).
+//    (pause is set where the replay pauses; strategy runs ignore it).
 //  - tickOne: right after `this.account.onTick(sym, from, to, jump)`, call `this.prop?.onTick(f.time)`, f being the
 //    feed that just ticked (its time is the tick's).
 //  - order(): before account.submit, `const err = this.prop?.check(sym, side, qty)`; if err, report it as an
@@ -104,7 +103,7 @@ export function dptNote(c: Pick<PropConfig, 'ePt' | 'eCons' | 'eDpt'>): string {
 /** what reaches the screens: a breach ends an account (sim) and 'fail' ends the plain-rules evaluation; 'pass' an
  *  evaluation passed; 'payout' a payout or the live bonus; 'live' the move to live; 'lock' trading locked for the day
  *  (daily loss limit, daily profit target); 'info' the rest (max loss locked, contract limit, a new evaluation,
- *  flat-by). up: true good news, false bad, unset neutral. pause: stop the replay, as the classic app did. */
+ *  flat-by). up: true good news, false bad, unset neutral. pause: stop the replay. */
 export interface PropEvent { kind: 'breach' | 'pass' | 'payout' | 'live' | 'lock' | 'fail' | 'info'; text: string; up?: boolean; pause?: boolean }
 export interface PropOpts<S> {
   /** the trading day's start hour, New York time; by default the config's */
@@ -180,7 +179,7 @@ const newStage = (start: number) => ({ start, day: null as number | null, daySta
   days: {} as Record<string, number>, cycle: 0, cycleStart: start, tierProfit: 0, paid: 0, nPay: 0, bonusPaid: false, checked: null as number | null });
 export const newSimState = (cfg: PropConfig, t = 0): PropState => ({ stage: 'eval', attempt: 1, fees: cfg.fee || 0, income: 0, payouts: [], log: [], over: '',
   nPassed: 0, nLive: 0, nFail: { eval: 0, funded: 0, live: 0 }, dptHits: 0, ...newStage(cfg.size), t });
-// a state saved by an older version (or the classic app): the counters it lacks are counted from its log
+// a state saved by an older version: the counters it lacks are counted from its log
 function normSim(x: Partial<PropState>, cfg: PropConfig): PropState {
   const log = x.log || [], has = (re: RegExp) => log.filter(l => re.test(l.text)).length;
   const s = { ...newSimState(cfg), ...clone(x) } as PropState;
@@ -239,7 +238,7 @@ export interface SimView {
   /** the button the card offers: restart (failed), payout (funded, the full allowed amount), payoutAmount (live,
    *  amount box prefilled with `amount`) */
   action: { kind: 'restart' | 'payout' | 'payoutAmount'; label: string; enabled: boolean; hint: string; amount: number | null } | null;
-  /** the card's rows, as the classic card */
+  /** the card's rows */
   rows: PropRow[];
   /** the summary under the card: [label, value] */
   summary: Array<[string, string]>;
@@ -587,7 +586,7 @@ export class PropRules implements PropEngine {
     const f = (P.mllType === 'eod' ? s.eodPeak : s.peak) - P.mll;
     return P.mllLock ? Math.min(f, start) : f;
   }
-  // closed trades and fills into the per-day books (the classic app wrote them as trades closed)
+  // closed trades and fills into the per-day books (written as trades close)
   private book() {
     const s = this.s, A = this.account;
     if (s.nh > A.hist.length) s.nh = A.hist.length;

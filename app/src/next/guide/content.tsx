@@ -186,7 +186,7 @@ export const CHAPTERS: Chapter[] = [
   { id: 'data', title: 'Your sessions and data', sections: [
     { id: 'library', title: 'The Library', body: <>
       <ul>
-        <li><b>Sessions</b> save themselves every 10 seconds, when you pause and when you leave; the chart's header (Chart options on a phone) says when it last saved. <b>Back to it</b> reopens one exactly where you left it: the clock, the trades, the orders, the drawings, the indicators and the journal. Rename or delete them here. The New session page also offers to pick up where you left off. Sessions saved in the classic view open there.</li>
+        <li><b>Sessions</b> save themselves every 10 seconds, when you pause and when you leave; the chart's header (Chart options on a phone) says when it last saved. <b>Back to it</b> reopens one exactly where you left it: the clock, the trades, the orders, the drawings, the indicators and the journal. Rename or delete them here. The New session page also offers to pick up where you left off.</li>
         <li><b>Data files</b> are your own market data, kept in the app and read only once. <b>New session with it</b> starts a replay on it.</li>
         <li><b>Optimizations</b> are saved automatically when they finish; open one to look at its results again or test its robustness.</li>
       </ul>
@@ -468,7 +468,7 @@ export const CHAPTERS: Chapter[] = [
   { id: 'more', title: 'More', sections: [
     { id: 'phone', title: 'Phones and tablets', body: <>
       <ul>
-        <li>The tab bar at the bottom has the <b>Chart</b>, the <b>Trade</b> ticket, your <b>Positions</b>, the <b>Journal</b>, and <b>More</b> (new session, Library, Backtest, this guide, Settings and the classic view).</li>
+        <li>The tab bar at the bottom has the <b>Chart</b>, the <b>Trade</b> ticket, your <b>Positions</b>, the <b>Journal</b>, and <b>More</b> (new session, Library, Backtest, this guide and Settings).</li>
         <li>The chart's header has the timeframe, indicators, drawing tools and chart options (one or two charts, adding a market, which market to trade).</li>
         <li>The replay bar sits under the chart: back, play, forward, the clock, the speed and Jump. Drag the thin timeline along its top to move in time.</li>
         <li>Buy and sell from the row under the chart. Hold a finger on the chart for an order at that price. Pinch to zoom, drag to scroll.</li>

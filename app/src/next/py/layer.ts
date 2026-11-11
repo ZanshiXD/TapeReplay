@@ -1,4 +1,4 @@
-// What the Python indicators draw on one chart, as the classic app drew it: plots are chart series (lines, steps,
+// What the Python indicators draw on one chart: plots are chart series (lines, steps,
 // dashes, dots, points or histograms, with per-candle colors and gaps); plots with pane="lower" share a pane of their
 // own under the candles; levels, fills, background tints, boxes, lines and labels go on a canvas under the drawings;
 // markers join the trade markers (ChartPane asks for them). The canvas redraws only when something it shows changed.

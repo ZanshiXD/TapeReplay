@@ -1,6 +1,5 @@
-// The trading account: orders, open trades and closed ones, on one or more markets. Ported from the classic app's
-// trading code, which it follows exactly in how orders fill: market orders at the bid or ask (buys pay the spread),
-// limits at their price, stops at their price plus slippage, a gap through either at the price it gapped to; stop
+// The trading account: orders, open trades and closed ones, on one or more markets. How orders fill: market
+// orders at the bid or ask (buys pay the spread), limits at their price, stops at their price plus slippage, a gap through either at the price it gapped to; stop
 // losses checked before take profits. Netting: one position per market, like futures brokers.
 
 export type Side = 1 | -1;
@@ -36,8 +35,8 @@ export class Account {
   nextId = 1; peak: number; maxDD = 0;
   /** the largest drawdown as a percent of the peak it fell from (when it was the largest in dollars) */
   maxDDpct = 0;
-  /** 'classic': the classic app's order messages and fill reasons (Limit fill, Stop fill), for strategy runs */
-  wording: 'app' | 'classic' = 'app';
+  /** 'strategy': the order messages and fill reasons strategies see (Limit fill, Stop fill), for strategy runs */
+  wording: 'app' | 'strategy' = 'app';
   /** every fill is its own trade instead of netting into one position per market */
   hedge = false;
   /** pause the replay when an order or a stop or target fills */
@@ -166,7 +165,7 @@ export class Account {
     }
   }
 
-  private fillHow(type: 'limit' | 'stop') { return this.wording === 'classic' ? (type === 'limit' ? 'Limit fill' : 'Stop fill') : (type === 'limit' ? 'Limit order' : 'Stop order'); }
+  private fillHow(type: 'limit' | 'stop') { return this.wording === 'strategy' ? (type === 'limit' ? 'Limit fill' : 'Stop fill') : (type === 'limit' ? 'Limit order' : 'Stop order'); }
   /** true when a tick from `from` to `to` would fill a working order or hit a stop or target on this market (the
    * same tests as onTick, changing nothing): backtests batch the ticks before it */
   wouldFill(sym: string, from: number, to: number, jump: boolean): boolean {
@@ -189,7 +188,7 @@ export class Account {
   check(sym: string, side: Side, type: 'market' | 'limit' | 'stop', price: number, sl: number | null, tp: number | null): string | null {
     const b = this.bid(sym), a = this.ask(sym);
     if (b == null || a == null) return 'Press play or step forward first, so the market has a price.';
-    if (this.wording === 'classic') return this.checkClassic(sym, side, type, price, sl, tp, b, a);
+    if (this.wording === 'strategy') return this.checkStrategy(sym, side, type, price, sl, tp, b, a);
     const ref = side > 0 ? a : b;
     if (type === 'limit' && (side > 0 ? price >= ref : price <= ref)) return side > 0 ? `A buy limit waits below the price (${ref}). To buy above it, use a stop order.` : `A sell limit waits above the price (${ref}). To sell below it, use a stop order.`;
     if (type === 'stop' && (side > 0 ? price <= ref : price >= ref)) return side > 0 ? `A buy stop goes above the price (${ref}). To buy below it, use a limit order.` : `A sell stop goes below the price (${ref}). To sell above it, use a limit order.`;
@@ -198,8 +197,8 @@ export class Account {
     if (tp != null && (side > 0 ? tp <= entry : tp >= entry)) return side > 0 ? 'When buying, the take profit goes above the entry.' : 'When selling, the take profit goes below the entry.';
     return null;
   }
-  // the classic app's wording (orderErr, then bracketErr for market orders), which strategies and their tests expect
-  private checkClassic(sym: string, side: Side, type: 'market' | 'limit' | 'stop', price: number, sl: number | null, tp: number | null, b: number, a: number): string | null {
+  // the strategy wording (orderErr, then bracketErr for market orders), which strategies and their tests expect
+  private checkStrategy(sym: string, side: Side, type: 'market' | 'limit' | 'stop', price: number, sl: number | null, tp: number | null, b: number, a: number): string | null {
     const ref = side > 0 ? a : b, nm = side > 0 ? 'ask' : 'bid', S = side > 0 ? 'buy' : 'sell', fp = (x: number) => x.toFixed(this.prec(sym));
     if (type === 'market') price = ref;
     if (type === 'limit' && (side > 0 ? price >= ref : price <= ref)) return `A ${S} limit must be ${side > 0 ? 'below' : 'above'} the ${nm} (${fp(ref)}). Use a stop order to ${S} ${side > 0 ? 'above' : 'below'} it.`;

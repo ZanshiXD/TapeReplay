@@ -1,4 +1,4 @@
-// The numbers a set of closed trades adds up to, as the classic Performance tab shows them.
+// The numbers a set of closed trades adds up to, as the Performance tab shows them.
 import type { Closed } from './account';
 
 export interface Stats {
@@ -28,7 +28,7 @@ export function computeStats(hist: Closed[], start: number): Stats {
     maxDD: dd, maxDDpct: ddp, ret: start ? net / start * 100 : 0, curve,
   };
 }
-/** the trades as CSV, with the classic columns */
+/** the trades as CSV */
 export function tradesCsv(hist: Closed[], prec: (sym: string) => number) {
   const iso = (t: number) => new Date(t * 1000).toISOString().replace('.000Z', 'Z');
   const rows = hist.map((h, k) => { const n = prec(h.sym); return [k + 1, h.side > 0 ? 'long' : 'short', h.qty, iso(h.time), h.entry.toFixed(n), iso(h.exitTime), h.exit.toFixed(n), JSON.stringify(h.reason || ''), h.sl0 != null ? h.sl0.toFixed(n) : '', h.tp != null ? h.tp.toFixed(n) : '', h.gross.toFixed(2), (h.gross - h.net).toFixed(2), h.net.toFixed(2), h.sym].join(','); });

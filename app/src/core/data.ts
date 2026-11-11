@@ -1,7 +1,6 @@
 // Reading market data: CSV files of any layout and Databento DBN files, of any size, in chunks; the contracts a file
 // holds and a continuous series that rolls to the busiest contract; a binary cache so a file reopens without being
-// read again; and the futures contracts the app knows (point value, tick). Ported from the classic app, unchanged
-// in what it reads and how.
+// read again; and the futures contracts the app knows (point value, tick).
 import type { Instrument, Series } from './series';
 
 /* ---- sources: a file in the browser, or a file the app holds ---- */

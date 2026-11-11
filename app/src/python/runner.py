@@ -1,6 +1,6 @@
 # The new core's backtest runner (app/src/core/backtest.ts) talks to strategies through these _tb_* functions. Run
 # after runtime.py, in the same namespace: scripts see the same ctx members, Bar, Tick and Fill, the same errors and
-# rejection messages as with the classic _tr_* calls, but the work crosses between JS and Python far less often:
+# rejection messages as with the per-call _tr_* functions, but the work crosses between JS and Python far less often:
 #   - candles and ticks arrive in batches (a flat buffer); a batch stops after the first one whose hook acted
 #     (placed, canceled or closed something), and JS plays the engine up to that point first (api.sync(i))
 #   - datetimes (ctx.time, bar.time, tick.time, fill.time) are built only when read
@@ -34,7 +34,7 @@ def _tb_flush():
 
 
 def _jn(x):
-    # numbers print as the classic calls showed them (JS numbers: 100, not 100.0)
+    # numbers print as JS shows them (JS numbers: 100, not 100.0)
     return int(x) if isinstance(x, float) and x.is_integer() else x
 
 

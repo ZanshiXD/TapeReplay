@@ -12,7 +12,7 @@ import urllib.request
 
 DEST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public", "pyodide")
 # Python for strategy backtests: Pyodide (CPython compiled to WebAssembly). Keep the version in step with
-# PYODIDE_VER in src/app.ts. The core comes from the GitHub release, the packages from Pyodide's CDN.
+# PYODIDE_VER in src/next/backtest.ts and PY_CDN in src/next/py/client.ts. The core comes from the GitHub release, the packages from Pyodide's CDN.
 PYODIDE_VERSION = "0.27.7"
 PYODIDE_CORE_URL = f"https://github.com/pyodide/pyodide/releases/download/{PYODIDE_VERSION}/pyodide-core-{PYODIDE_VERSION}.tar.bz2"
 PYODIDE_CDN = f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/"

@@ -1,5 +1,5 @@
 // Time: bars are stored in UTC seconds; what people see (the chart axis, the clock, day and week candles) follows the
-// chart time zone. Ported from the classic app (app.ts, "chart time zone" and "timeframes").
+// chart time zone.
 
 const tzFmt: Record<string, Intl.DateTimeFormat> = {};
 /** seconds east of UTC in time zone `tz` at UTC time `utc` */

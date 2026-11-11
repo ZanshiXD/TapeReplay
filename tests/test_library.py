@@ -1,7 +1,7 @@
 """The new app's Library (app/index.html), in Chromium, two ways: through the desktop app's own server (as in the
 Windows app) and in a plain browser (IndexedDB). A CSV is added to the Library, a session made from it, a trade and a
 drawing made, the page closed and opened again: the session continues exactly where it was. Then rename and delete.
-Build the page first (desktop/web, see test_browser.py), then:
+Build the page first (desktop/web: cd app && npm run build, then copy dist there), then:
     python tests/test_library.py [folder for screenshots]
 """
 import asyncio

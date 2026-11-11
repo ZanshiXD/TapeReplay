@@ -160,7 +160,7 @@ export function OptimizePanel({ active, which, code, lang, name, setup, busy, on
   async function open(id: string) {
     try {
       const d = await store.getOptim(id) as OptDoc;
-      if (!d || d.v !== 1 || !d.market) throw new Error('This optimization was made in the classic view. Open it there.');
+      if (!d || d.v !== 1 || !d.market) throw new Error('This optimization was saved by an older version of Tape Replay and cannot be opened.');
       setDoc(d); setGoal(d.goal || 'ndd'); setMinT(d.minTrades ?? 10); setSplit(d.split ?? 30); setRules((d.spec?.rules || []).join('\n')); setSel(null); setSort({ key: 'score', dir: -1 });
       setStatus({ text: `Opened “${d.name}” from your Library.` });
     } catch (e) { onToast((e as Error).message, 'err'); }

@@ -1,5 +1,5 @@
 // Prop firm challenge: the settings in New session, and the card beside the chart that follows the account through
-// the evaluation, funded and live stages (as the classic view's simulation, with its numbers and words).
+// the evaluation, funded and live stages.
 import { useState } from 'react';
 import type { Session } from '../core/session';
 import { PROP_PRESETS, SIM_DEF, applyPreset, dptNote, simConfig, type PropConfig, type PropSim, type PropRules } from '../core/prop';

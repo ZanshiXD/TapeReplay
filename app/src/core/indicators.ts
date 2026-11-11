@@ -1,5 +1,5 @@
 // Built-in indicators, computed one candle at a time: push() a closed candle and get its value; peek() the value the
-// forming candle would give. Ported from the classic app.
+// forming candle would give.
 import type { Candle } from './series';
 import { tradingDay } from './time';
 

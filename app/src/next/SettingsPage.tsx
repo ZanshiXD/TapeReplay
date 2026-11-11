@@ -7,7 +7,7 @@ import { LOCAL_TZ, tzOffset } from '../core/time';
 import { bump, pref, setPref, useLive } from './live';
 import { setTicket } from './ticket';
 import { CANDLE_SETS, C, FIXED_OFFSETS, PALETTES, THEME_DEF, ZONES, activePalette, applyLook, fixedId, palOf, theme, type Palette, type Theme } from './look';
-import { store, classicHref } from './appstore';
+import { store } from './appstore';
 
 /* ---- replay and orders ---- */
 export const ticksPref = () => Math.max(4, Math.min(600, Math.round(pref('ticks', 20)) || 20));
@@ -195,9 +195,9 @@ export function SettingsPage({ session, onKeys, onToast }: { session: Session | 
 
         <Group id="sAbout" title="About">
           <Row title="Tape Replay" hint={version || ' '}>
-            <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button className="btn sm primary" onClick={() => openGuide()}>Open the guide</button><a className="btn sm" href={classicHref}>Open the classic view</a></span>
+            <button className="btn sm primary" onClick={() => openGuide()}>Open the guide</button>
           </Row>
-          <p className="muted" style={{ margin: 0, fontSize: 12.5 }}>The guide explains every part of the app, with the full reference for Python indicators and for strategies. The classic view is the previous version of the app, kept for sessions saved there. Practice markets are generated, not real market data. Trades are simulated; nothing here is financial advice.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 12.5 }}>The guide explains every part of the app, with the full reference for Python indicators and for strategies. Practice markets are generated, not real market data. Trades are simulated; nothing here is financial advice.</p>
           <Credit />
         </Group>
       </div>

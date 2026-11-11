@@ -1,7 +1,7 @@
 # Checks for pull requests. Nothing here is published or signed.
 #   strategies  the Python strategy and indicator runtimes, the page's type check and build (app/, Vite +
-#               TypeScript), then the page in Chromium with real Python (strategies and indicators), and
-#               optimization in workers (tests/)
+#               TypeScript), the core's tests, then the app in Chromium with real Python (strategies, indicators,
+#               optimization in workers) and through the Windows app's server (tests/)
 #   windows     imports DBN and CSV data through the app's server (tests/test_import.py), then
 #               builds TapeReplay.exe like the release does, kept for a week as a download on the run's page
 #   ios         compiles the iOS app (with Python bundled) for the simulator, unsigned
@@ -72,31 +72,14 @@ jobs:
           python tests/test_dropdowns.py "$RUNNER_TEMP/shots"
           python tests/test_freeze.py "$RUNNER_TEMP/shots"
 
-      - name: Strategies in the browser
+      - name: Strategies, the optimizer and robustness tests in the browser
+        run: TAPE_SKIP_BUILD=1 python tests/test_backtest_ui.py "$RUNNER_TEMP/shots"
+
+      - name: The Windows app's server and update prompt
         run: |
-          python tests/test_browser.py "$RUNNER_TEMP/shots"
-          TAPE_SKIP_BUILD=1 python tests/test_backtest_ui.py "$RUNNER_TEMP/shots"
-
-      - name: Python indicators in the browser
-        run: python tests/test_indicator_browser.py "$RUNNER_TEMP/shots"
-
-      - name: Strategies through the desktop app's server (Library)
-        run: python tests/test_store.py "$RUNNER_TEMP/shots"
-
-      - name: Optimization through the desktop app's server (workers, parity with the chart)
-        run: python tests/test_optimize.py "$RUNNER_TEMP/shots"
-
-      - name: Playing on to the end of a long series (Windows app)
-        run: python tests/test_playon.py "$RUNNER_TEMP/shots"
-
-      - name: Robustness tests after an optimization (out of sample, walk-forward, Monte Carlo)
-        run: python tests/test_robust.py "$RUNNER_TEMP/shots"
-
-      - name: The Windows app's update prompt
-        run: |
-          python tests/test_update.py "$RUNNER_TEMP/shots" > "$RUNNER_TEMP/update.log" 2>&1 || {
-            echo "::error::$(tail -c 3000 "$RUNNER_TEMP/update.log" | sed ':a;N;$!ba;s/\n/%0A/g')"; exit 1; }
-          tail -1 "$RUNNER_TEMP/update.log"
+          python tests/test_desktop.py "$RUNNER_TEMP/shots" > "$RUNNER_TEMP/desktop.log" 2>&1 || {
+            echo "::error::$(tail -c 3000 "$RUNNER_TEMP/desktop.log" | sed ':a;N;$!ba;s/\n/%0A/g')"; exit 1; }
+          tail -1 "$RUNNER_TEMP/desktop.log"
 
       - name: Keep the screenshots
         if: always()
