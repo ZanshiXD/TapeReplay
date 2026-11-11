@@ -106,8 +106,8 @@ async def wait_for(pg, fn, what, timeout=60000):
 
 
 async def new_from(pg, tpl):
-    await pg.click(f"{POP} button:has-text('+ New Python indicator')")
-    await pg.click(f"{POP} [aria-label='Templates'] button:has-text('{tpl}')")
+    await pg.click(f"{POP} button:has-text('+ New indicator')")
+    await pg.click(f"{POP} [aria-label='Python templates'] button:has-text('{tpl}')")
     await pg.wait_for_selector(ED)
 
 

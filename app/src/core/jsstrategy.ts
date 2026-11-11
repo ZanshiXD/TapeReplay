@@ -75,9 +75,13 @@ const last2 = (a: ArrayLike<number>, b: number | ArrayLike<number>) => {
   const B = typeof b === 'number' ? [b, b] : [b[b.length - 2], b[b.length - 1]];
   return a.length >= 2 && (typeof b === 'number' || b.length >= 2) ? [a[a.length - 2], a[a.length - 1], B[0], B[1]] : null;
 };
+/** a class usable as in Python, ta.EMA(20), and with new, new ta.EMA(20) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const either = <C extends new (...a: any[]) => any>(K: C) => function (...a: ConstructorParameters<C>) { return new K(...a); } as unknown as C & ((...a: ConstructorParameters<C>) => InstanceType<C>);
+class STDEV extends Win { constructor(n: number) { super(n, std); } }
 export const ta = {
-  SMA, EMA, RMA, RSI, ATR, STDEV: class extends Win { constructor(n: number) { super(n, std); } },
-  HIGHEST: (n: number) => new Win(n, w => Math.max(...w)), LOWEST: (n: number) => new Win(n, w => Math.min(...w)),
+  SMA: either(SMA), EMA: either(EMA), RMA: either(RMA), RSI: either(RSI), ATR: either(ATR), STDEV: either(STDEV),
+  HIGHEST: function (n: number) { return new Win(n, w => Math.max(...w)); }, LOWEST: function (n: number) { return new Win(n, w => Math.min(...w)); },
   sma: (x: ArrayLike<number>, n: number) => roll(x, n, a => { let s = 0; for (let k = 0; k < a.length; k++) s += a[k]; return s / a.length; }),
   ema: (x: ArrayLike<number>, n: number) => ewm(x, n, 2 / (n + 1)),
   rma: (x: ArrayLike<number>, n: number) => ewm(x, n, 1 / n),

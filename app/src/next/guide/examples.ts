@@ -154,6 +154,117 @@ def on_bar(ctx, bar):
 
 export const INDICATORS = [IND_FIRST, IND_RSI, IND_BANDS, IND_ORB, IND_LEVELS];
 
+/* ---- the same indicators in JavaScript (tests/jsindicator.test.ts checks they draw what the Python ones draw) ---- */
+export const JS_IND_FIRST: Example = { id: 'jsind-first', title: 'Your first indicator', what: 'A 20-candle average of the close, drawn on the price.', code: `// A 20-candle average of the close, drawn on the price.
+const LENGTH = 20;   // candles
+
+function init(ctx) {
+  ctx.avg = ta.SMA(LENGTH);
+}
+
+function on_bar(ctx, bar) {
+  ctx.plot(ctx.avg.update(bar.close), "Average", { color: "accent" });
+}
+` };
+
+export const JS_IND_RSI: Example = { id: 'jsind-rsi', title: 'RSI with signals', what: IND_RSI.what, code: `// RSI in a pane under the chart, with its levels, and an arrow where it turns back from one.
+const LENGTH = 14;          // candles
+const OB = 70, OS = 30;     // overbought and oversold
+
+function init(ctx) {
+  ctx.rsi = ta.RSI(LENGTH);
+  ctx.prev = null;
+  ctx.hline(OB, "Overbought", { color: "down", pane: "lower" });
+  ctx.hline(OS, "Oversold", { color: "up", pane: "lower" });
+}
+
+function on_bar(ctx, bar) {
+  const r = ctx.rsi.update(bar.close);
+  ctx.plot(r, "RSI", { color: "#c158dc", pane: "lower" });
+  if (r !== null && ctx.prev !== null) {
+    if (ctx.prev > OB && OB >= r) {              // back down through 70
+      ctx.marker("", { shape: "arrow_down", position: "above", color: "down" });
+    } else if (ctx.prev < OS && OS <= r) {       // back up through 30
+      ctx.marker("", { shape: "arrow_up", position: "below", color: "up" });
+    }
+  }
+  ctx.prev = r;
+}
+` };
+
+export const JS_IND_ORB: Example = { id: 'jsind-orb', title: 'Opening range box', what: IND_ORB.what, code: `// The opening range (Central Time) as a box that runs on through the day, and a label where price
+// first closes outside it.
+const OPEN_TIME = "08:30";   // Central Time
+const RANGE_END = "09:00";   // Central Time
+const FLAT_TIME = "15:00";   // Central Time
+
+${JS_TO_CT}
+
+function init(ctx) {
+  ctx.openT = ctx.at(OPEN_TIME); ctx.rangeT = ctx.at(RANGE_END); ctx.flatT = ctx.at(FLAT_TIME);
+  ctx.day = null; ctx.box_ = null; ctx.broke = false;
+}
+
+function on_bar(ctx, bar) {
+  const ct = toCT(bar.time), day = ct.date(), t = ct.time();
+  if (day !== ctx.day) {                              // a new day in Central Time
+    ctx.day = day; ctx.box_ = null; ctx.broke = false;
+  }
+  if (ctx.openT <= t && t < ctx.rangeT) {             // building the range
+    if (ctx.box_ === null) {
+      ctx.box_ = ctx.box(bar.index, bar.high, bar.index, bar.low, { text: "Opening range" });
+    } else {
+      const b = ctx.box_;
+      b.set({ top: Math.max(b.top, bar.high), bottom: Math.min(b.bottom, bar.low), right: bar.index });
+    }
+  } else if (ctx.box_ !== null && ctx.rangeT <= t && t < ctx.flatT) {
+    const b = ctx.box_;
+    b.right = bar.index;                              // the box runs on with the day
+    if (!ctx.broke && (bar.close > b.top || bar.close < b.bottom)) {
+      ctx.broke = true;
+      const above = bar.close > b.top;
+      ctx.label(bar.index, above ? bar.high : bar.low, "Breakout",
+                { color: above ? "up" : "down", style: above ? "down" : "up" });
+    }
+  }
+}
+` };
+
+export const JS_IND_LEVELS: Example = { id: 'jsind-levels', title: "Yesterday's high and low", what: IND_LEVELS.what, code: `// The previous trading day's high and low as lines running right, replaced each day.
+// A trading day starts at 5 PM Central Time, as futures do.
+const DAY_STARTS = 17;       // hour, Central Time
+const SHOW_LABELS = true;    // names on the lines
+
+${JS_TO_CT}
+
+function init(ctx) {
+  ctx.day = null; ctx.hi = null; ctx.lo = null;
+  ctx.drawn = [];
+}
+
+function on_bar(ctx, bar) {
+  const ct = toCT(bar.time), day = ct.tz(ct.off - DAY_STARTS * 3600).date();
+  if (day !== ctx.day) {
+    if (ctx.day !== null) {                           // yesterday is complete: draw it
+      for (const d of ctx.drawn) d.delete();
+      ctx.drawn = [
+        ctx.line(bar.index, ctx.hi, bar.index + 1, ctx.hi, { color: "up", style: "dashed", extend: "right" }),
+        ctx.line(bar.index, ctx.lo, bar.index + 1, ctx.lo, { color: "down", style: "dashed", extend: "right" }),
+      ];
+      if (SHOW_LABELS) {
+        ctx.drawn.push(ctx.label(bar.index, ctx.hi, "Yesterday's high", { color: "up", style: "text" }));
+        ctx.drawn.push(ctx.label(bar.index, ctx.lo, "Yesterday's low", { color: "down", style: "text" }));
+      }
+    }
+    ctx.day = day; ctx.hi = bar.high; ctx.lo = bar.low;
+  } else {
+    ctx.hi = Math.max(ctx.hi, bar.high); ctx.lo = Math.min(ctx.lo, bar.low);
+  }
+}
+` };
+
+export const JS_INDICATORS = [JS_IND_FIRST, JS_IND_RSI, JS_IND_ORB, JS_IND_LEVELS];
+
 /* ---- strategies ---- */
 export const STRAT_FIRST: Example = { id: 'st-first', title: 'Your first strategy', what: 'Buys when the close crosses above its 20-candle average, with a stop and a target in ticks. One position at a time.', code: `# Buy when the close crosses above its 20-candle average, with a stop and a target in ticks.
 LENGTH = 20               # candles
