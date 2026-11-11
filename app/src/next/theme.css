@@ -410,6 +410,26 @@ table.t td input.in { height: 26px; width: 96px; font-size: 12.5px; padding: 0 6
 .dsitem .t b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dsitem .t span { font-size: 12px; color: var(--muted); }
 select.in { appearance: auto; }
+/* the open list of a select: the theme's colors, not the system's (light text on white in dark themes on Windows) */
+select option, select optgroup { background-color: var(--raise); color: var(--fg); }
+select option:disabled { color: var(--muted); }
+/* menus fitted on screen by popfit.ts scroll on their own when they are taller than the room */
+.pop { scrollbar-width: thin; }
+/* a chart with a menu open (its order menu, a drawing's toolbar menus or right-click menu) comes above the replay bar */
+.pane:has(.pop) { z-index: 12; }
+.speedpop .chips { display: flex; gap: 4px; }
+.speedpop .chips > button { flex: 1; }
+/* a narrow chart (a small window, or two and four charts): the replay bar keeps Jump to in reach, the speed presets
+   move into the … popover, and the clock drops its "days left" */
+html:not(.m) .charts { container: charts / inline-size; }
+@container charts (max-width: 720px) {
+  .rbar > .chips > button:not(:last-child):not(.on) { display: none; }
+  .rbar .tl { min-width: 110px; }
+}
+@container charts (max-width: 560px) {
+  .rbar .tl .lbl > .muted { display: none; }
+  .rbar .sep { display: none; }
+}
 @media (max-width: 900px) { .librow { flex-wrap: wrap; } .librow .cell { width: auto; } }
 @media (max-width: 900px) {
   body { overflow: auto; }

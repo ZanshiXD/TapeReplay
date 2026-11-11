@@ -51,7 +51,7 @@ export function ReplayBar({ session, onJump }: { session: Session; onJump: (t: n
   );
   const speedPop = (style: React.CSSProperties) => (
     <div className="pop speedpop" style={{ ...style, minWidth: 260, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }} onMouseLeave={() => setCustom(false)}>
-      {phone && <div className="chips" role="group" aria-label="Speed presets">{SPEEDS.map(([v, l]) => <button key={v} className={s.speed === v ? 'on' : ''} onClick={() => { setSpeed(v); setCustom(false); }}>{l}</button>)}</div>}
+      {<div className="chips" role="group" aria-label="Speed presets">{SPEEDS.map(([v, l]) => <button key={v} className={s.speed === v ? 'on' : ''} onClick={() => { setSpeed(v); setCustom(false); }}>{l}</button>)}</div>}
       <span className="row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}><span className="muted">Speed</span><b className="num">{s.speed}× · {s.speed < 60 ? `${s.speed} s` : spanText(s.speed)} a second</b></span>
       <input type="range" min={0} max={1000} value={toSlider(s.speed)} aria-label="Speed" onChange={e => setSpeed(fromSlider(+e.target.value))} style={{ accentColor: 'var(--accent)' }} />
     </div>
@@ -103,12 +103,12 @@ export function ReplayBar({ session, onJump }: { session: Session; onJump: (t: n
       <div className="sep" />
       <div className="chips" role="group" aria-label="Speed">
         {SPEEDS.map(([v, l]) => <button key={v} className={s.speed === v ? 'on' : ''} title={`${l}: ${v === 1 ? 'real time' : `${v} seconds of market per second`}`} onClick={() => setSpeed(v)}>{l}</button>)}
-        <button className={!isPreset ? 'on' : ''} title="Any speed (↑ and ↓ change it too)" aria-label="Custom speed" onClick={() => setCustom(!custom)}>{isPreset ? '…' : `${s.speed}×`}</button>
+        <button className={!isPreset ? 'on' : ''} title="Any speed (↑ and ↓ change it too)" aria-label="Custom speed" aria-haspopup="dialog" aria-expanded={custom} onClick={() => { setMenu(false); setCustom(!custom); }}>{isPreset ? '…' : `${s.speed}×`}</button>
       </div>
       {custom && speedPop({ bottom: 64, right: 120 })}
       <div style={{ position: 'relative' }}>
-        <button className="ib txt" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>Jump to <IChev /></button>
-        {menu && jumpMenu({ bottom: 44, right: 0 })}
+        <button className="ib txt" aria-haspopup="menu" aria-expanded={menu} onClick={() => { setCustom(false); setMenu(!menu); }}>Jump to <IChev /></button>
+        {menu && jumpMenu({ bottom: 44, right: 0, minWidth: 330 })}
       </div>
     </div>
   );
