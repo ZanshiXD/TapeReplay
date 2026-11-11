@@ -395,9 +395,13 @@ async def main():
         check(await pg.evaluate(TILE, "Your result") is not None and ev and "passed" in ev, f"prop tiles ({ev})")
         await pg.screenshot(path=f"{OUT}/backtest-5-prop.png")
         # each account on its own
-        evs = int(ev.split(" ")[0])
-        rows = await pg.locator(".bt-acctable tbody tr").count()
-        check(rows == evs + 1, f"an Accounts table: All accounts and one row per account ({rows} rows, {evs} evaluations)")
+        # one row per account: each evaluation, a funded account for each one passed, a live one for each that went live
+        evs, npass = int(ev.split(" ")[0]), int(ev.split("·")[1].split()[0])
+        live = int(await pg.evaluate("() => [...document.querySelectorAll('.sgrid > div')].find(d => d.querySelector('span').textContent === 'Went live')?.querySelector('b').textContent || '0'"))
+        names = await pg.locator(".bt-acctable tbody tr td:first-child").all_inner_texts()
+        kinds = (sum(n.startswith("Evaluation") for n in names), sum(n.startswith("Funded") for n in names), sum(n.startswith("Live") for n in names))
+        check(names[0] == "All accounts" and kinds == (evs, npass, live) and len(names) == 1 + evs + npass + live,
+              f"an Accounts table: All accounts and one row per account ({len(names)} rows; evaluations, funded, live {kinds} vs {(evs, npass, live)})")
         res = await pg.locator(".bt-acctable tbody tr").nth(1).locator("td").last.inner_text()
         check(res.startswith("Failed") or res.startswith("Passed") or res.startswith("Open"), f"how the first account ended ({res})")
         all_tr = await pg.locator(".bt-trades tbody tr").count()
