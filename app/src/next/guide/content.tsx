@@ -332,18 +332,19 @@ export const CHAPTERS: Chapter[] = [
     { id: 'bt-start', title: 'The Backtest page', body: <>
       <p>A strategy is a script that trades by itself. The Backtest page runs it over the dates you choose, as fast as it can, and shows how it did.</p>
       <ul>
-        <li>On a computer the strategies, the code and the Run panel sit side by side, with Results, Optimize and Robustness as tabs; on a phone each is a tab of its own.</li>
+        <li>On a computer your strategies are listed on the left; beside them, one page has the code, the Run settings and the console, each in a card you can fold, with Results, Optimize and Robustness as tabs. On a phone the strategies, the code and the Run settings are tabs of their own.</li>
         <li><b>Strategies</b>: your scripts, saved as you type. <b>New</b> starts one from a template (MA cross, Opening range breakout, Breakout with trailing stop, or Blank in Python; MA cross or Blank in JavaScript). Double-click a name (or <b>Rename</b>) to rename it; the bin deletes it.</li>
-        <li><b>Code</b>: the editor. Python strategies can use numpy (and pandas); JavaScript ones run several times faster, which helps long optimizations. <b>Guide</b> opens this reference beside it.</li>
+        <li><b>Code</b>: the editor. Fold it to a one-line summary to give the settings the room, or drag its bottom edge to make it taller; it remembers both. <kbd>Ctrl</kbd> + <kbd>Enter</kbd> runs. JavaScript strategies run several times faster than Python, which helps long optimizations; Python ones can use numpy (and pandas). <b>Guide</b> opens this reference beside it.</li>
         <li><b>Run</b>: the market (a practice market or one of your data files), the dates (from and to), the candle size the strategy sees, and:
           <ul>
             <li><b>The strategy runs</b>: <i>At bar close</i> calls on_bar when each candle closes (fast). <i>Every tick</i> also calls on_tick on every simulated price move, for trailing stops and the like (slower).</li>
             <li><b>Libraries</b>: numpy, or numpy + pandas (pandas takes a few seconds to load).</li>
             <li><b>Starting balance</b>, and the <b>order size</b> used when the strategy gives none.</li>
-            <li><b>Show costs and prop challenge</b>: commission, spread and slippage; and a prop challenge the run trades under, with the same rules as in a session. Tick <i>Buy a new evaluation when one fails</i> to keep going after a failure (at most a number of evaluations, if you set one); the results then show your payouts, the fees and the evaluations bought.</li>
+            <li><b>Costs</b>: commission per side, spread and slippage.</li>
+            <li><b>Prop challenge</b>, in its own card: a prop challenge the run trades under, with the same rules as in a session. Tick <i>Buy a new evaluation when one fails</i> to keep going after a failure (at most a number of evaluations, if you set one); the results then show your payouts, the fees and the evaluations bought.</li>
           </ul>
         </li>
-        <li><b>Run backtest</b> runs it; <b>Stop</b> stops it part way. The <b>console</b> shows print() output, errors (with the line of your code that failed) and a summary.</li>
+        <li><b>Run backtest</b> runs it; <b>Stop</b> stops it part way. The <b>console</b> card opens when the run prints: print() output, errors and a summary. An error opens the code at the line that failed.</li>
         <li><b>Results</b>: net P&amp;L, trades, win rate, profit factor, max drawdown, average trade and more, the equity curve and the trades (the latest 500; <b>Copy trades (CSV)</b> has them all). <b>Edit and run again</b> goes back to the code.</li>
         <li><b>Show on chart</b> opens the run as a new replay session (its name ends in "Automated"): the same market, its trades on the chart and in the account, the tape at the point where the run ended, so you can see what it did and keep replaying from there.</li>
       </ul>
