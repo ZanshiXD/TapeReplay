@@ -20,7 +20,8 @@ export async function addData(store: Store, from: { file: File } | { picked: Pic
   const src = 'file' in from ? fileSource(from.file) : store.pickedSource(from.picked);
   const r = await readInto(null, src, { id: '', name }, null, null, (f, s) => progress(f * 0.85, s));
   const d = r.d!;
-  const meta: Partial<DatasetMeta> = { name, bars: d.n, base: d.base, from: d.t[0], to: d.t[d.n - 1], contracts: r.C ? r.C.list.length : 1 };
+  const { ROLL_V } = await import('../core/data');
+  const meta: Partial<DatasetMeta> = { name, bars: d.n, base: d.base, from: d.t[0], to: d.t[d.n - 1], contracts: r.C ? r.C.list.length : 1, rollV: ROLL_V };
   progress(0.9, 'Saving it to your Library');
   const m = 'file' in from ? await store.addFile(from.file, meta) : await store.adopt(from.picked.id, meta);
   // the parsed copy goes with it, so opening it later is instant

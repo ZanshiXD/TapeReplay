@@ -112,9 +112,11 @@ export function App() {
       else if (e.text) toast(e.text);
     });
     store.listDatasets().then(setLibList).catch(() => {});
+    const relist = () => { store.listDatasets().then(setLibList).catch(() => {}); };
+    addEventListener('tape:datasets', relist);
     // a new time zone or trading day start: the candles are rebuilt on the new clock
     const offLook = onLook(w => { if (w.time) s.setTf(s.tf); });
-    return () => { cancelAnimationFrame(raf); off(); offLook(); };
+    return () => { cancelAnimationFrame(raf); off(); offLook(); removeEventListener('tape:datasets', relist); };
   }, [live]);
 
   // saving: whenever something changed, every few seconds and when the replay pauses; at once as the window closes

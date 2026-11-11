@@ -123,6 +123,7 @@ jobs:
           python -m playwright install chromium
           (cd app && npm ci)
           python tests/test_long_backtest.py
+          python tests/test_stale_range.py
 
       - name: Build the app
         working-directory: desktop

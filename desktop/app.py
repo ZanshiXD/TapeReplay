@@ -921,6 +921,24 @@ class Handler(BaseHTTPRequestHandler):
                 write_atomic(fp, json.dumps(doc).encode("utf-8"))
                 write_atomic(mp, json.dumps(meta).encode("utf-8"))
             return self.send(200, {"ok": True})
+        if len(parts) == 2 and parts[0] == "datasets":
+            # what reading the file showed: its first and last bar and how many (a Library entry saved from an
+            # earlier, wrong reading is put right)
+            try:
+                patch = json.loads(self.body().decode("utf-8"))
+            except ValueError:
+                return self.fail(400, "Bad JSON")
+            keep = {k: patch[k] for k in ("from", "to", "bars", "rollV") if isinstance(patch.get(k), (int, float)) and not isinstance(patch.get(k), bool)}
+            with LOCK:
+                mp = os.path.join(DATASETS, parts[1] + ".json")
+                if not os.path.isfile(mp):
+                    return self.fail(404, "That data file is no longer in the Library.")
+                meta = read_json(mp)
+                if meta.get("builtin") or "list" in meta:
+                    return self.fail(400, "Built-in data can't be changed.")
+                meta.update(keep)
+                write_atomic(mp, json.dumps(meta).encode("utf-8"))
+            return self.send(200, {"ok": True})
         self.fail(404, "Not found")
 
     def do_DELETE(self):

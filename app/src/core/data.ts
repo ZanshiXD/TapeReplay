@@ -190,6 +190,8 @@ export const pickLabel = (p: string) => p === '*auto' ? 'continuous' : p;
 // the continuous copy's key changed when it learned that contract symbols come round again (copies kept before
 // stopped at the first reused symbol, NQH0 in March 2020), so those are read from the file again
 export const cacheKey = (p: string) => p === '*auto' ? 'auto2' : p ? p.replace(/[^A-Za-z0-9-]/g, '_').slice(0, 40) : 'all';
+/** the roll a Library entry's dates were taken with: entries from before are put right when the file is next read */
+export const ROLL_V = 2;
 function decimalsOf(x: number) { for (let d = 0; d <= 8; d++) { const m = x * 10 ** d; if (Math.abs(m - Math.round(m)) < 1e-6) return d; } return 8; }
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 

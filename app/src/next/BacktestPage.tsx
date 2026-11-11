@@ -11,6 +11,7 @@ import { pandasErr, pyCheck, pySetValues, pyStrategy } from '../core/pybridge';
 import { money, smoney, fmtQty } from '../core/account';
 import { PRACTICE, PRACTICE_FROM, PRACTICE_TO } from '../core/practice';
 import { aggBars, maxBars, openDataset, sectionBars } from '../core/library';
+import { ROLL_V } from '../core/data';
 import { parseTF } from '../core/time';
 import type { DatasetMeta, SeriesIndex } from '../core/store';
 import type { SessionState } from '../core/session';
@@ -209,7 +210,12 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
         const meta = (await store.listDatasets()).find(x => x.id === dsKey); if (!meta || gone) return;
         let f: { range: [number, number]; base?: number } | null = null;
         if (meta.chunked) { const ix = await store.seriesIndex(meta.id); if (gone) return; setLix({ id: meta.id, ix }); f = { range: [ix.from, ix.to], base: ix.base }; }
-        else if (meta.from != null && meta.to != null) f = { range: [meta.from, meta.to] };
+        else if ((meta.contracts ?? 1) > 1 && meta.rollV !== ROLL_V) {
+          // dates saved before the continuous series was put right (a 2010-2026 file stopped in 2020): read it again
+          onBusy({ text: `Reading ${meta.name} again`, p: 0 });
+          try { const o = await openDataset(store, meta, P.data.kind === 'dataset' ? P.data.pick : null, (q, st) => onBusy({ text: `${meta.name}: ${st}`, p: q })); f = { range: [o.from, o.to], base: o.base }; }
+          finally { onBusy(null); }
+        } else if (meta.from != null && meta.to != null) f = { range: [meta.from, meta.to] };
         if (!f || gone) return;
         const nf = f;
         setP(p => {
