@@ -306,6 +306,30 @@ const toFunded = (cfg: Partial<PropConfig> = {}) => { const h = simRig({ ePt: 10
   check(l.p.stats().live === 1, 'went live');
 }
 
+/* ---- automatic live payouts: they leave a cushion, so a payout never puts the account on the edge ---- */
+{
+  const h = toFunded({ auto: true, fDays: 1, fPayouts: 1, lMll: 2000, lBonus: 0, lPayMin: 500, lPayDays: 2 });
+  h.day(1); h.trade(1200); h.day(2);
+  check(h.p.s.stage === 'live', 'live after the last funded payout');
+  h.trade(3000); h.day(3);
+  check(h.p.stats().nPayLive === 0 && h.p.livePayout() === 0, 'not before two trading days');
+  h.trade(100); h.day(4);
+  // on the second day's end: the floor locks at 50,100 and the live max loss ($2,000) stays above it: 53,100 - 52,100
+  check(h.p.stats().nPayLive === 1 && near(h.p.s.paid, 1000) && near(h.A.balance, 52100) && near(h.p.floor(), 50100), 'takes only what is above the floor plus the max loss');
+  h.trade(-1900); h.day(5);
+  check(!h.p.s.over, 'a $1,900 loss right after the payout does not fail the account');
+  h.trade(300); h.day(6); h.trade(50); h.day(7); h.trade(50);
+  check(h.p.stats().nPayLive === 1, 'nothing taken while under the floor plus the cushion and the minimum');
+  // a smaller cushion, set by hand
+  const k = toFunded({ auto: true, fDays: 1, fPayouts: 1, lKeep: 1000, lPayMin: 100, lPayDays: 1, lBonus: 0 });
+  k.day(1); k.trade(1200); k.day(2); k.trade(2000); k.day(3);
+  check(near(k.p.s.paid, 900) && near(k.A.balance, 51100), 'the cushion can be set');
+  // without auto (a replay session left to you), nothing is taken
+  const n = toFunded({ fDays: 1, fPayouts: 1 });
+  n.day(1); n.trade(1200); n.day(2); n.p.payout(); n.trade(5000); n.day(3); n.trade(50); n.day(9); n.trade(50);
+  check(n.p.stats().nPayLive === 0, 'no automatic live payouts without auto');
+}
+
 /* ---- saving and step back: state() and load() ---- */
 {
   const h = simRig({ ePt: 5000, eCons: 50, dll: 1000 });

@@ -65,12 +65,17 @@ export interface PropConfig {
   fMll: number; fTiers: string; fDays: number; fDayMin: number; fPayMin: number; fPayMax: number; fPayPct: number; split: number; fPayouts: number;
   /** live: max loss, max minis, and the bonus: profit and trading days needed, and its amount (0 = none) */
   lMll: number; lMax: number; lBonusPt: number; lBonusDays: number; lBonus: number;
+  /** automatic live payouts (with auto, and always in strategy runs): what stays above the max loss floor after one
+   *  (0 = the live max loss, so a payout never leaves the account closer to failing than a fresh one), the smallest
+   *  worth taking, and the trading days between them */
+  lKeep: number; lPayMin: number; lPayDays: number;
 }
 export const SIM_DEF: PropConfig = {
   on: false, preset: '', size: 50000, fee: 0, unit: 'micro', resetNY: 18, dll: 0, lockPad: 100, auto: false,
   ePt: 3000, eMll: 2000, eCons: 50, eMax: 4, eMin: 0, eDpt: 0,
   fMll: 2000, fTiers: '0:2, 1000:3, 2000:4', fDays: 5, fDayMin: 150, fPayMin: 500, fPayMax: 2000, fPayPct: 50, split: 90, fPayouts: 5,
   lMll: 2000, lMax: 4, lBonusPt: 4000, lBonusDays: 20, lBonus: 2000,
+  lKeep: 0, lPayMin: 500, lPayDays: 5,
 };
 // "L Flex": a futures prop firm's Flex accounts as published in October 2026 (payout rules, live structure). No daily
 // loss limit; fees vary at checkout, so the fee is left to you. A preset leaves fee, eDpt, resetNY, unit and auto alone.
@@ -180,6 +185,8 @@ export interface PropState {
   cycle: number; cycleStart: number; tierProfit: number;
   /** taken out of this account, and how many times */
   paid: number; nPay: number; bonusPaid: boolean;
+  /** live: trading days ended since the account opened or its last payout */
+  sincePay?: number;
   /** the balance at the last pass or payout check */
   checked: number | null;
   /** the time of the last tick seen */
@@ -188,7 +195,7 @@ export interface PropState {
   accts?: PropAcct[];
 }
 const newStage = (start: number) => ({ start, day: null as number | null, dayStart: start, eodPeak: start, locked: false, lockedDay: '', dptDay: false,
-  days: {} as Record<string, number>, cycle: 0, cycleStart: start, tierProfit: 0, paid: 0, nPay: 0, bonusPaid: false, checked: null as number | null });
+  days: {} as Record<string, number>, cycle: 0, cycleStart: start, tierProfit: 0, paid: 0, nPay: 0, bonusPaid: false, sincePay: 0, checked: null as number | null });
 export const newSimState = (cfg: PropConfig, t = 0): PropState => ({ stage: 'eval', attempt: 1, fees: cfg.fee || 0, income: 0, payouts: [], log: [], over: '',
   nPassed: 0, nLive: 0, nFail: { eval: 0, funded: 0, live: 0 }, dptHits: 0, ...newStage(cfg.size), t });
 // a state saved by an older version: the counters it lacks are counted from its log
@@ -338,7 +345,7 @@ export class PropSim implements PropEngine {
     s.payouts.push({ t: s.t, stage: s.stage, n: s.nPay, amount, net });
     { const c = this.cur(); if (c) { c.paid += amount; c.nPay++; c.income += net; } }
     A.marks.push({ sym: '', t: s.t, side: 1, kind: 'payout', id: 0, net });
-    s.locked = true; s.cycle = 0; s.cycleStart = A.balance; s.tierProfit = Math.min(s.tierProfit, A.balance - s.start); s.checked = null;
+    s.locked = true; s.cycle = 0; s.sincePay = 0; s.cycleStart = A.balance; s.tierProfit = Math.min(s.tierProfit, A.balance - s.start); s.checked = null;
     this.log(`${STAGES[s.stage]} payout ${s.nPay}: ${money(amount)} taken from the account, ${money(net)} to you after the ${G.split}% split.`, 'payout', true);
     if (s.stage === 'funded' && s.nPay >= G.fPayouts) {
       s.nLive++;
@@ -396,6 +403,7 @@ export class PropSim implements PropEngine {
       const n = this.tier();
       if (n !== was) this.log(`Contract limit is now ${n} mini${n === 1 ? '' : 's'}${G.unit === 'micro' ? ` (${n * 10} micros)` : ''}.`, 'info');
     }
+    if (s.stage === 'live' && pnl) s.sincePay = (s.sincePay || 0) + 1;
     if (s.stage === 'live' && !s.bonusPaid && G.lBonus > 0 && A.balance - s.start + s.paid >= G.lBonusPt && Object.keys(s.days).length >= G.lBonusDays) {
       const net = Math.round(G.lBonus * G.split) / 100;
       s.bonusPaid = true; s.income += net; // the bonus is paid to you, not taken from the balance
@@ -438,6 +446,19 @@ export class PropSim implements PropEngine {
       this.newAccount('funded');
       this.log(`Evaluation passed with ${money(p)} profit. A funded ${money(G.size)} account is open.`, 'pass', true, true);
     } else if (s.stage === 'funded' && G.auto && this.payoutInfo().ok) this.payout();
+    else if (s.stage === 'live' && G.auto) { const x = this.livePayout(); if (x > 0) this.payout(x); }
+  }
+  /** the automatic live payout allowed now (0 = none): only what is above the locked floor plus the cushion (lKeep,
+   *  or the live max loss), at least lPayMin, once lPayDays trading days have passed since the account opened or its
+   *  last payout. A payout locks the floor at start + lockPad, so taking the most the firm allows would leave a few
+   *  dollars of room and the next losing trade would fail the account. */
+  livePayout(): number {
+    const G = this.cfg, s = this.s, A = this.account;
+    if (s.stage !== 'live' || s.over || A.trades.length || A.orders.length || (s.sincePay || 0) < Math.max(1, G.lPayDays || 0)) return 0;
+    const keep = G.lKeep > 0 ? G.lKeep : G.lMll, floor = s.start + G.lockPad;
+    const x = Math.floor((A.balance - floor - keep) * 100) / 100, info = this.payoutInfo();
+    if (!info.ok || x < Math.max(1, G.lPayMin || 0)) return 0;
+    return Math.min(x, info.max);
   }
   /** why an order for `qty` on `sym` can't be placed, or null: checked before the order's own checks */
   check(sym: string, side: Side, qty: number) { return this.canOpen(addsOf(this.account, sym, side, qty)); }
