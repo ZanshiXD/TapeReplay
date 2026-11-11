@@ -26,7 +26,7 @@ export function LibraryPage({ onOpen, onNewWith, onBusy, onToast, current, extra
     store.listSessions().then(l => setSessions(l.filter(s => s.summary?.app === 'next').sort((a, b) => b.updated - a.updated))).catch(e => { setSessions([]); onToast(e.message, 'err'); });
     store.listDatasets().then(l => setData(l.sort((a, b) => (b.added || 0) - (a.added || 0)))).catch(() => setData([]));
   };
-  useEffect(() => { load(); store.caps().then(c => setCanPick(c.pick)); }, []);
+  useEffect(() => { load(); store.caps().then(c => setCanPick(c.pick)); addEventListener('tape:datasets', load); return () => removeEventListener('tape:datasets', load); }, []);
   const add = async (from: { file: File } | 'pick') => {
     try {
       let src: { file: File } | { picked: NonNullable<Awaited<ReturnType<typeof store.pick>>> };

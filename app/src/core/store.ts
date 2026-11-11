@@ -5,7 +5,9 @@ import { blobSource, type Source } from './data';
 
 export interface DatasetMeta {
   id: string; name: string; size?: number; bars?: number; base?: number; from?: number; to?: number; contracts?: number;
-  added?: number; builtin?: boolean; chunked?: boolean; symbol?: string; [k: string]: unknown;
+  added?: number; builtin?: boolean; chunked?: boolean; symbol?: string;
+  /** the way a file of several contracts was rolled into one series when from, to and bars were taken (ROLL_V) */
+  rollV?: number; [k: string]: unknown;
 }
 export interface SessionMeta {
   id: string; name: string; datasetId?: string; datasetName?: string; created: number; updated: number; status?: string; tf?: string;
@@ -33,6 +35,8 @@ export interface Store {
   savePrefs(p: Doc): Promise<void>;
   listDatasets(): Promise<DatasetMeta[]>;
   deleteDataset(id: string): Promise<void>;
+  /** puts right what a Library entry says of its bars (first, last, how many) */
+  fixDataset(id: string, patch: Pick<DatasetMeta, 'from' | 'to' | 'bars' | 'rollV'>): Promise<void>;
   /** a file the person dropped or chose in the browser, added to the Library */
   addFile(file: Blob, meta: Partial<DatasetMeta>): Promise<DatasetMeta>;
   /** the app's own file dialog (null when canceled) */
@@ -90,6 +94,7 @@ function appStore(token: string): Store {
     savePrefs: p => call('PUT', 'prefs', JSON.stringify(p), json),
     listDatasets: () => call('GET', 'datasets'),
     deleteDataset: id => call('DELETE', 'datasets/' + id),
+    fixDataset: (id, patch) => call('PATCH', 'datasets/' + id, JSON.stringify(patch), json),
     addFile: (file, meta) => call('POST', 'datasets', file, { 'Content-Type': 'application/octet-stream', 'X-Meta': encodeURIComponent(JSON.stringify(meta)) }),
     pick: () => call('POST', 'pick'),
     adopt: (pick, meta) => call('POST', 'datasets/adopt', JSON.stringify({ pick, meta }), json),
@@ -176,6 +181,7 @@ function browserStore(): Store {
       await del('datasets', id); await del('files', id); await del('kv', 'census:' + id);
       for (const k of await keys('caches')) if (String(k).startsWith(id + '_')) await del('caches', String(k));
     },
+    async fixDataset(id, patch) { const m = await get<DatasetMeta>('datasets', id); if (m) await put('datasets', id, { ...m, ...patch }); },
     async addFile(file, meta) {
       const m: DatasetMeta = { name: 'Data', ...meta, id: newId(), size: file.size, added: Date.now() } as DatasetMeta;
       await put('files', m.id, file); await put('datasets', m.id, m);

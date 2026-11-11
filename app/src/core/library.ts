@@ -1,6 +1,6 @@
 // Opening the Library's data for a replay: a data file (from its cached copy when there is one, else read and then
 // cached), or a section of a long series kept in monthly blocks (the apps' built-in data and DBN imports).
-import { cacheKey, censusFromJSON, censusToJSON, defaultPick, fromBin, readSource, toBlob, type Census, type Parsed, type Source } from './data';
+import { ROLL_V, cacheKey, censusFromJSON, censusToJSON, defaultPick, fromBin, readSource, toBlob, type Census, type Parsed, type Source } from './data';
 import type { DatasetMeta, SeriesIndex, Store } from './store';
 
 export type Progress = (f: number, step: string) => void;
@@ -46,9 +46,21 @@ export async function openDataset(store: Store, meta: DatasetMeta, pick: string 
   if (hit) {
     progress?.(1, 'Opening the saved copy');
     const d = fromBin(hit);
+    await fixMeta(store, meta, C, pick, d);
     return { meta, d, index: null, C, pick, contracts: C ? C.list.map(x => x.sym) : [], prec: d.prec, base: d.base, from: d.t[0], to: d.t[d.n - 1] };
   }
   return readInto(store, store.datasetSource(meta), meta, C, pick, progress);
+}
+/** a Library entry's dates are those of the series it opens with (the default contract, or the continuous one):
+ *  put right when they differ, as for entries saved before the continuous series learned that symbols come round */
+async function fixMeta(store: Store, meta: DatasetMeta, C: Census | null, pick: string, d: Parsed) {
+  if (!meta.id || pick !== defaultPick(C)) return;
+  const from = d.t[0], to = d.t[d.n - 1];
+  if (meta.from === from && meta.to === to && meta.bars === d.n && meta.rollV === ROLL_V) return;
+  await store.fixDataset(meta.id, { from, to, bars: d.n, rollV: ROLL_V }).catch(() => {});
+  Object.assign(meta, { from, to, bars: d.n, rollV: ROLL_V });
+  // the lists showing the Library (its page, Add market) read it again
+  if (typeof window !== 'undefined') dispatchEvent(new Event('tape:datasets'));
 }
 /** reads a source and keeps the parsed copy (and the contract list) with the Library entry */
 export async function readInto(store: Store | null, src: Source, meta: DatasetMeta, C: Census | null, pick: string | null, progress?: Progress): Promise<Opened> {
@@ -56,6 +68,7 @@ export async function readInto(store: Store | null, src: Source, meta: DatasetMe
   if (store && meta.id) {
     if (r.C) await store.putCensus(meta.id, censusToJSON(r.C)).catch(() => {});
     await store.putCache(meta.id, cacheKey(r.pick), toBlob(r.d)).catch(() => {});
+    await fixMeta(store, meta, r.C, r.pick, r.d);
   }
   const contracts = r.C ? r.C.list.map(x => x.sym) : r.names;
   return { meta, d: r.d, index: null, C: r.C, pick: r.pick, contracts, prec: r.d.prec, base: r.d.base, from: r.d.t[0], to: r.d.t[r.d.n - 1] };
