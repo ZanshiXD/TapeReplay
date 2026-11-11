@@ -300,21 +300,19 @@ ${PY_TO_CT}
 ${PY_SIZE_FOR}
 
 def init(ctx):
-    ctx.day, ctx.trades_today = None, 0
-    ctx.open_t, ctx.flat_t = ctx.at(OPEN_TIME), ctx.at(FLAT_TIME)
+    ctx.in_session, ctx.trades_today = False, 0
 
 def on_bar(ctx, bar):
-    ct = to_ct(bar.time)
-    day, t = ct.date(), ct.time()
-    if day != ctx.day:                                  # a new day in Central Time
-        ctx.day, ctx.trades_today, ctx.count, ctx.hi, ctx.lo = day, 0, 0, None, None
-    if t >= ctx.flat_t:
-        ctx.cancel_all()
-        if ctx.position:
+    t = to_ct(bar.time).time()
+    # outside OPEN_TIME to FLAT_TIME: flat, nothing working (the window may run across midnight, like 18:00 to 14:30)
+    if not ctx.between(t, OPEN_TIME, FLAT_TIME):
+        ctx.in_session = False
+        if ctx.position or ctx.orders:
+            ctx.cancel_all()
             ctx.close()
         return
-    if t < ctx.open_t:
-        return
+    if not ctx.in_session:                              # the session opens: a new day
+        ctx.in_session, ctx.trades_today, ctx.count, ctx.hi, ctx.lo = True, 0, 0, None, None
     if ctx.count < RANGE_BARS:                          # building the range
         ctx.hi = bar.high if ctx.hi is None else max(ctx.hi, bar.high)
         ctx.lo = bar.low if ctx.lo is None else min(ctx.lo, bar.low)
@@ -398,14 +396,10 @@ function sizeFor(ctx, entry, stop) {
 
 const mean = a => a.reduce((s, x) => s + x, 0) / a.length;
 
-function init(ctx) {
-  ctx.flat = ctx.at(FLAT_TIME);
-}
-
 function on_bar(ctx, bar) {
-  if (toCT(bar.time).time() >= ctx.flat) {
-    ctx.cancel_all();
-    if (ctx.position) ctx.close();
+  // trades from the start of the trading day (5 PM Central, as futures) to FLAT_TIME; a window crossing midnight
+  if (!ctx.between(toCT(bar.time), "17:00", FLAT_TIME)) {
+    if (ctx.position || ctx.orders.length) { ctx.cancel_all(); ctx.close(); }
     return;
   }
   const c = ctx.closes(SLOW + 1);
@@ -447,21 +441,20 @@ function sizeFor(ctx, entry, stop) {
 }
 
 function init(ctx) {
-  ctx.day = null; ctx.tradesToday = 0;
-  ctx.openT = ctx.at(OPEN_TIME); ctx.flatT = ctx.at(FLAT_TIME);
+  ctx.inSession = false; ctx.tradesToday = 0;
 }
 
 function on_bar(ctx, bar) {
-  const ct = toCT(bar.time), day = ct.date(), t = ct.time();
-  if (day !== ctx.day) {                                // a new day in Central Time
-    ctx.day = day; ctx.tradesToday = 0; ctx.count = 0; ctx.hi = null; ctx.lo = null;
-  }
-  if (t >= ctx.flatT) {
-    ctx.cancel_all();
-    if (ctx.position) ctx.close();
+  const t = toCT(bar.time).time();
+  // outside OPEN_TIME to FLAT_TIME: flat, nothing working (the window may run across midnight, like 18:00 to 14:30)
+  if (!ctx.between(t, OPEN_TIME, FLAT_TIME)) {
+    ctx.inSession = false;
+    if (ctx.position || ctx.orders.length) { ctx.cancel_all(); ctx.close(); }
     return;
   }
-  if (t < ctx.openT) return;
+  if (!ctx.inSession) {                                 // the session opens: a new day
+    ctx.inSession = true; ctx.tradesToday = 0; ctx.count = 0; ctx.hi = null; ctx.lo = null;
+  }
   if (ctx.count < RANGE_BARS) {                         // building the range
     ctx.hi = ctx.hi === null ? bar.high : Math.max(ctx.hi, bar.high);
     ctx.lo = ctx.lo === null ? bar.low : Math.min(ctx.lo, bar.low);

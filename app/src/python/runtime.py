@@ -137,6 +137,19 @@ class _History:
         h, m = str(hhmm).strip().split(":")
         return _dtime(int(h), int(m))
 
+    @staticmethod
+    def between(t, start, end):
+        """Whether a time of day is in the window [start, end): t is a datetime or a time, start and end "HH:MM"
+        or times. When end is before start the window runs across midnight: between(t, "18:00", "14:30") is
+        true from 18:00 to 14:30 the next day. The same start and end mean all day."""
+        if isinstance(t, datetime):
+            t = t.time()
+        a = start if isinstance(start, _dtime) else _History.at(start)
+        b = end if isinstance(end, _dtime) else _History.at(end)
+        if a == b:
+            return True
+        return a <= t < b if a < b else (t >= a or t < b)
+
 
 class Context(_History):
     """What a strategy sees and does. Prices are in the data's units; qty in contracts (or units)."""

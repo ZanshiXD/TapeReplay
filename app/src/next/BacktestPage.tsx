@@ -25,7 +25,7 @@ import { usePhone } from './phone';
 import { TEMPLATES, TICK_TEMPLATES, freeName, instOf, loadStrats, marketFor, python, pyReady, saveStrats, seriesFor, simRules, stratTfs, ymd, ymdUtc,
          type DataChoice, type Lang, type RunCosts, type RunSetup, type SimRun, type Strat } from './backtest';
 import { OptimizePanel } from './OptimizePanel';
-import { StratSettings } from './StratSettings';
+import { StratSettings, timeSettings } from './StratSettings';
 import './backtest.css';
 
 type Tab = 'list' | 'code' | 'run' | 'results' | 'opt' | 'rob';
@@ -217,6 +217,7 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
       const v: RunView = { r, setup: su, overrides: o.overrides || null, sim, tf: su.tf };
       setStatus(r.stopped ? { text: 'Stopped', p: null } : r.ended ? { text: 'Ended: the account failed', p: null, kind: 'er' } : r.fail ? { text: 'Stopped by an error in the strategy', p: null, kind: 'er' } : { text: 'Done', p: null, kind: 'ok' });
       if (r.fail) showErr(r.fail);
+      if (!r.fail && !r.account.hist.length && !r.account.trades.length) { const h = overnightHint(su.code, su.lang); if (h) log([[h, 'er']]); }
       if (!r.fail || r.account.hist.length) setView(v);
       if (!r.fail && !r.ended) { if (o.chart) await showOnChart(v); else setTab('results'); }
     } catch (e) {
@@ -456,6 +457,18 @@ function EqCurve({ eq, start }: { eq: Array<{ time: number; value: number }>; st
     return () => ch.remove();
   }, [eq, start]);
   return eq.length < 2 ? <div className="empty">No equity curve yet.</div> : <div className="eqchart bt-eq" ref={el} />;
+}
+/** a run with no trades whose time settings go backwards (an entry at 18:00, flat at 14:30): the window runs across
+ *  midnight, and code that compares times directly (t >= FLAT, t < START) never trades in it */
+function overnightHint(code: string, lang: Lang): string | null {
+  const ts = timeSettings(code, lang); if (ts.length < 2) return null;
+  const sec = (v: string) => { const [h, m] = v.split(':'); return +h * 3600 + +m * 60; };
+  for (let i = 1; i < ts.length; i++) {
+    const a = ts[i - 1], b = ts[i];
+    if (sec(String(b.value)) < sec(String(a.value)) && sec(String(b.value)) !== 0)
+      return `No trades. ${a.name} (${a.value}) to ${b.name} (${b.value}) runs across midnight: a check like "time >= ${b.name}" or "time < ${a.name}" is then true all day. Use ctx.between(t, ${a.name}, ${b.name}), which handles windows that cross midnight.`;
+  }
+  return null;
 }
 /** the course over time for "All accounts": what you have made, fees out (each evaluation) and payouts in */
 function courseCurve(sim: PropSim, fee: number, from: number, to: number): Array<{ time: number; value: number }> {

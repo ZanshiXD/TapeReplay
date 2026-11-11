@@ -174,6 +174,13 @@ export class Ctx {
   ticks(n: number) { return n * this.tick_size; }
   /** "09:30" as seconds since midnight, to compare with bar.time.time() */
   at(hhmm: string) { const [h, m] = String(hhmm).trim().split(':'); return +h * 3600 + +m * 60; }
+  /** whether a time of day is in the window [start, end): t a time (bar.time or its .time() seconds), start and end
+   *  "HH:MM" or seconds. When end is before start the window runs across midnight: between(t, "18:00", "14:30") is
+   *  true from 18:00 to 14:30 the next day. The same start and end mean all day. */
+  between(t: number | { time(): number }, start: string | number, end: string | number) {
+    const x = typeof t === 'number' ? t : t.time(), a = typeof start === 'number' ? start : this.at(start), b = typeof end === 'number' ? end : this.at(end);
+    return a === b ? true : a < b ? x >= a && x < b : x >= a || x < b;
+  }
   // ---- the account, as of the start of this call
   private pull() { if (this._have !== this._want || !this._st) { this._st = this._api.state(); this._have = this._want = this._st.v; } return this._st; }
   get position() { return this.pull().pos; }

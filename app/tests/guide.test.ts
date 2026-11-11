@@ -64,4 +64,15 @@ for (const ex of STRATEGIES) {
     check(r.account.hist.every(h => h.qty >= 1 && h.qty <= 5), `${ex.title}: sizes within MAX_QTY`);
   }
 }
+/* ---- a trading window that runs across midnight (18:00 to 14:30 Central) still trades, never outside it ---- */
+for (const ex of STRATEGIES.filter(x => x.id === 'st-orb' || x.id === 'st-js-orb')) {
+  const js = ex.id.startsWith('st-js');
+  const code = ex.code.replace(/OPEN_TIME(\s*)= "08:30"/, 'OPEN_TIME$1= "18:00"').replace(/FLAT_TIME(\s*)= "14:55"/, 'FLAT_TIME$1= "14:30"');
+  check(code.includes('"18:00"') && code.includes('"14:30"'), `${ex.title}: overnight settings written`);
+  const r = await runBacktest({ series: S, tf: parseTF('5m')!, mode: 'bar', balance: 50000, qty: 1 } as RunConfig, js ? jsStrategy(code) : pyStrategy(host, code), { slice: null });
+  check(!r.fail && r.account.hist.length > 0, `${ex.title}: an 18:00 to 14:30 window trades (${r.fail || r.account.hist.length})`);
+  const tod = (t: number) => { const d = new Date((t + OFF) * 1000); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
+  check(r.account.hist.every(h => { const m = tod(h.time); return m >= 18 * 60 || m < 14 * 60 + 30; }), `${ex.title}: entries only inside the overnight window`);
+  check(r.account.hist.every(h => { const m = tod(h.exitTime); return m >= 18 * 60 || m <= 14 * 60 + 35; }), `${ex.title}: flat by the end of the window`);
+}
 console.log(`guide: ${passed} checks passed`);

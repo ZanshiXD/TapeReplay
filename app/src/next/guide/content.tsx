@@ -260,6 +260,7 @@ export const CHAPTERS: Chapter[] = [
         ['ctx.ticks(n)', 'n ticks as a price distance.'],
         ['ctx.round(price)', 'A price rounded to the market\'s precision.'],
         ['ctx.at("09:30")', 'A time of day (datetime.time), to compare with bar.time.time().'],
+        ['ctx.between(t, "18:00", "14:30")', 'Whether time of day t (a time or datetime) is in a window, start included, end not. A window whose end is before its start runs across midnight, as an overnight session does; comparing times directly (t >= FLAT, t < START) would never trade in it.'],
       ]} />
       <h4>Plots and levels</h4>
       <Api items={[
@@ -378,6 +379,7 @@ export const CHAPTERS: Chapter[] = [
         ['ctx.time, ctx.bar_index', 'The current time and candle number.'],
         ['ctx.symbol, ctx.timeframe, ctx.tick_size, ctx.point_value', 'The market, the candle size, the smallest price step, and dollars per 1.0 of price per contract.'],
         ['ctx.ticks(n), ctx.round(price), ctx.at("HH:MM")', 'n ticks as a price distance; a price rounded to the market\'s precision; a time of day.'],
+        ['ctx.between(t, "18:00", "14:30")', 'Whether a time of day (bar.time, or its .time() seconds) is in a window, start included, end not; a window whose end is before its start runs across midnight.'],
         ['ctx.mode, ctx.default_qty', '"bar" or "tick"; the Run panel\'s order size.'],
       ]} />
       <h4>Orders</h4>
@@ -412,7 +414,7 @@ export const CHAPTERS: Chapter[] = [
       <Code code={`import math\n\nRISK_USD = 200   # $ risked per trade (the loss at the stop)\nQTY_STEP = 1     # 1 for futures contracts, 0.01 for forex lots\nMAX_QTY  = 5     # most contracts per trade, 0 = off\n\n${PY_SIZE_FOR}`} />
       <ul>
         <li>Pass <C>qty=size_for(ctx, entry, stop)</C> with every entry, and skip the trade when it returns <C>None</C> (the stop is too wide for your risk).</li>
-        <li>For times of day, use the <C>to_ct</C> helper from <i>Times of day</i> and compare <C>to_ct(bar.time).time()</C> with <C>ctx.at("08:30")</C>. Reset daily counters when <C>to_ct(bar.time).date()</C> changes.</li>
+        <li>For times of day, use the <C>to_ct</C> helper from <i>Times of day</i> and compare <C>to_ct(bar.time).time()</C> with <C>ctx.at("08:30")</C>. Reset daily counters when <C>to_ct(bar.time).date()</C> changes. For a trading window use <C>ctx.between(t, START, FLAT)</C>: it also works when the window runs across midnight (18:00 to 14:30), where <C>t &gt;= FLAT</C> and <C>t &lt; START</C> would be true all day and the strategy would never trade; then reset daily counters when the window opens rather than at midnight.</li>
         <li>Count entries in on_fill (<C>fill.kind == "entry"</C>) to limit trades per day, and flatten with <C>ctx.cancel_all()</C> and <C>ctx.close()</C> at a set time.</li>
       </ul>
       <p>The example below puts all of it together.</p>
