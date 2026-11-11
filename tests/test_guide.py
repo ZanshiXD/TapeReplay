@@ -20,7 +20,7 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else tempfile.mkdtemp(prefix="tape-shots-
 os.makedirs(OUT, exist_ok=True)
 SHIM = open(os.path.join(ROOT, "ios", "Sources", "TapeReplay", "ios-shim.js")).read()
 passed = 0
-CHAPTERS = ["Getting started", "Trading", "Drawing, indicators and the journal", "Your sessions and data", "Python indicators", "Strategies and backtesting", "More"]
+CHAPTERS = ["Getting started", "Trading", "Drawing, indicators and the journal", "Your sessions and data", "Your own indicators", "Strategies and backtesting", "More"]
 
 
 def check(cond, msg):
