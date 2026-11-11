@@ -98,6 +98,9 @@ html.m .bt-head > b, html.m .bt-head .bt-runbtn { display: none; }
 /* the dates a run covers (all the data) */
 .bt-range { display: flex; align-items: center; min-height: 32px; font-size: 12.5px; color: var(--fg2); }
 /* the strategy's own settings (above Run) */
+.bt-setcopy { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; border-bottom: 1px solid var(--line-soft); }
+.bt-setcopy select { height: 28px; font-size: 12.5px; width: auto; max-width: 240px; }
+.bt-copied { font-size: 12px; flex: 1 1 260px; }
 .bt-set[data-open="true"] > .bt-foldhead { border-bottom: 1px solid var(--line-soft); }
 .bt-setbody { max-height: 520px; overflow: auto; }
 .bt-setbody > .empty { padding: 14px 16px; font-size: 12.5px; }

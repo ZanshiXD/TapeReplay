@@ -62,6 +62,13 @@ FPS = """() => new Promise(r => { let n = 0, t0 = performance.now(), worst = 0, 
     requestAnimationFrame(f); })"""
 CLOCK = "() => document.querySelector('.rbar .lbl .num').textContent"
 POP = ".pop[aria-label='Indicators']"
+SHARED = """const LENGTH = 21;   // candles
+const HIGH = 75;
+const START = "18:00"; // Central Time
+const RISK_USD = 100;
+
+function on_bar(ctx, bar) {}
+"""
 ED = ".modal.pyed"
 CUSTOM = """// a test indicator
 const N = 5;
@@ -144,6 +151,40 @@ async def main():
         check(await pg.locator(f"{POP} [data-pyind='RSI'] .pylang").inner_text() == "JS", "listed as JavaScript on the charts")
         check(await pg.locator(f"{POP} [data-pyscript='RSI'] .pylang").inner_text() == "JS", "and in your scripts")
 
+        # a strategy's settings into the indicator: from the strategy's Settings card, then from the editor
+        await pg.click(f"{POP} button[aria-label='Close']")
+        await pg.click("nav.nav button.item:has-text('Backtest')")
+        await pg.wait_for_selector(".bt-ta")
+        await pg.click(".bt-listhead button:has-text('New')")
+        await pg.click(".bt-newmenu button:has-text('MA cross'):has-text('JavaScript')")
+        strat = await pg.locator(".bt-item.on .nm").inner_text()
+        await pg.fill(".bt-ta", SHARED)
+        await pg.wait_for_function("() => [...document.querySelectorAll('.bt-set .bt-settable td.ui b')].map(b => b.textContent).join() === 'LENGTH,HIGH,START,RISK_USD'", timeout=10000)
+        await pg.select_option("select[aria-label='Copy these settings to an indicator']", "RSI")
+        await pg.wait_for_selector(".bt-copied:has-text('Copied 2 settings to')", timeout=10000)
+        msg = await pg.inner_text(".bt-copied")
+        check("“RSI”" in msg and "LENGTH, HIGH" in msg and "Only in the strategy: RISK_USD, START" in msg and "“RSI” and its chart copy" in msg, f"the card says what was copied ({msg})")
+        await pg.click("nav.nav button.item:has-text('Replay')")
+        await wait_for(pg, lambda ls: all(sorted(x["levels"]) == [30, 50, 75] for x in ls), "the chart's RSI takes HIGH = 75 from the strategy", 15000)
+        await pg.click("nav.nav button.item:has-text('Backtest')")
+        await pg.fill(".bt-ta", SHARED.replace("HIGH = 75", "HIGH = 72"))
+        await pg.wait_for_timeout(1200)
+        await pg.click("nav.nav button.item:has-text('Replay')")
+        await pg.click("button:has-text('Indicators')")
+        await pg.click(f"{POP} [data-pyind='RSI'] button:has-text('Edit')")
+        await pg.wait_for_selector(ED)
+        check(await pg.input_value(f"{ED} input[aria-label='LENGTH']") == "21", "the saved script got LENGTH = 21")
+        await pg.select_option(f"{ED} select[aria-label='Copy settings from a strategy']", strat)
+        await wait_for(pg, lambda ls: all(sorted(x["levels"]) == [30, 50, 72] for x in ls), "Copy from a strategy: HIGH = 72 on the chart", 15000)
+        icode = await pg.input_value(f"{ED} textarea[aria-label='JavaScript code']")
+        check("const HIGH = 72;" in icode and "const LENGTH = 21;" in icode, "the indicator's code has the strategy's values")
+        await pg.wait_for_selector(f"{ED} .pycons .ok:has-text('Copied 1 setting from')", timeout=5000)
+        check("1 already matched" in await pg.locator(f"{ED} .pycons").inner_text(), "the console says what was copied and what already matched")
+        await pg.wait_for_function("() => document.querySelector(\".modal.pyed input[aria-label='HIGH']\")?.value === '72'", timeout=5000)
+        check(True, "the Settings boxes show the copied values")
+        await pg.screenshot(path=f"{OUT}/jsind-1b-copy.png")
+        await pg.click(f"{ED} button[aria-label='Close']")
+
         # one of your own: print(), then an error with its line once the STOP switch is on
         await pg.click(f"{POP} button:has-text('+ New indicator')")
         await pg.click(f"{POP} [aria-label='JavaScript templates'] button:has-text('Blank')")
@@ -190,7 +231,7 @@ async def main():
         await pg.wait_for_selector(".toast.err:has-text('took more than 20 seconds')", timeout=40000)
         await pg.keyboard.press("Space")
         check(True, "the stuck script was stopped")
-        await wait_for(pg, lambda ls: all(x["bands"] == 1 and 80 in x["levels"] for x in ls), "RSI started again in a fresh worker", 20000)
+        await wait_for(pg, lambda ls: all(x["bands"] == 1 and 72 in x["levels"] for x in ls), "RSI started again in a fresh worker", 20000)
         await pg.screenshot(path=f"{OUT}/jsind-2-after-stuck.png")
         await pg.click("button:has-text('Indicators')")
         check(await pg.locator(f"{POP} [data-pyind='Stuck'] .err").count() == 1, "the stuck one is marked")

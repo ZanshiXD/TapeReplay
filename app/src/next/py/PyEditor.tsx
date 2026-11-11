@@ -10,6 +10,8 @@ import { pyBusy, pyClear, pyCons, pyErrs, pyLog } from './console';
 import { LANG_NAME, pyInds, pyScripts, setPyInds, setPyScripts, setScriptLang, type Lang } from './prefs';
 import { jsApply, jsParams } from '../../core/jsstrategy';
 import { jsIndCheck } from '../../core/jsindicator';
+import { loadStrats } from '../backtest';
+import { copyLine, copySettings } from '../copysettings';
 import './py.css';
 
 interface Param { name: string; kind: 'int' | 'float' | 'bool' | 'choice'; value: number | boolean | string; comment?: string; choices?: string[] }
@@ -87,6 +89,20 @@ export function PyEditor({ open, onClose }: { open: PyOpen; onClose: () => void 
     setCode(r.code); save(r.code);
     if (onChart) toChart(r.code, nm);
   }
+  /** the settings this indicator shares (by name) with a strategy take the strategy's values */
+  async function fromStrategy(sname: string) {
+    const st = loadStrats()[sname]; if (!st) return;
+    setStat(st.lang === 'py' || !js ? 'Reading the settings…' : '');
+    try {
+      const r = await copySettings(st, { code, lang });
+      if ('error' in r) { setStat('Could not copy the settings'); pyLog(nm, r.error, 'er'); return; }
+      const line = copyLine(r, sname);
+      pyLog(nm, line, r.copied.length ? 'ok' : 'pr');
+      setStat(r.copied.length ? `Copied ${r.copied.length} setting${r.copied.length === 1 ? '' : 's'} from “${sname}”` : 'Nothing to copy: see the console');
+      if (r.code !== code) { setCode(r.code); save(r.code); if (onChart) toChart(r.code, nm); }
+    } catch (e) { setStat('Could not copy the settings'); pyLog(nm, (e as Error).message, 'er'); }
+  }
+  const strats = Object.keys(loadStrats());
   // Tab puts in spaces; Enter keeps the indent (one step more after a line ending in ":" in Python, "{" in JavaScript);
   // Ctrl or Cmd+Enter applies
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -112,7 +128,11 @@ export function PyEditor({ open, onClose }: { open: PyOpen; onClose: () => void 
             onChange={e => edit(e.target.value.replace(/[‘’]/g, "'").replace(/[“”]/g, '"'))} />
           <div className="pyside">
             <section>
-              <div className="cap">Settings</div>
+              <div className="cap pysetcap">Settings<span className="spacer" />
+                <select className="in ui pycopy" aria-label="Copy settings from a strategy" title="Set this indicator's settings to a strategy's, for every setting with the same name" value=""
+                  onChange={e => { const v = e.target.value; e.target.value = ''; if (v) fromStrategy(v); }}>
+                  <option value="">Copy from a strategy…</option>{strats.map(n => <option key={n} value={n}>{n}</option>)}
+                </select></div>
               {typeof params === 'string' ? <p className="muted note">{params || (js ? '' : pyStatus.state === 'failed' ? 'Settings show here once Python has loaded.' : 'Loading Python…')}</p> : (
                 <div className="pysets">{params.map(p => (
                   <label key={p.name} title={p.comment || undefined}>
