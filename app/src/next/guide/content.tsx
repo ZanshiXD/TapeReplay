@@ -2,6 +2,7 @@
 // strategies (Python and JavaScript). Kept with the app so it always describes the version it ships with. The
 // example scripts are in examples.ts, where a test runs each of them.
 import type { ReactNode } from 'react';
+import { JS_IND_SECTION } from './jsind';
 import { IND_BANDS, IND_FIRST, IND_LEVELS, IND_ORB, IND_RSI, JS_TO_CT, PY_SIZE_FOR, PY_TO_CT, STRAT_FIRST, STRAT_JS, STRAT_ORB, STRAT_TRAIL, type Example } from './examples';
 
 export interface Section { id: string; title: string; body: ReactNode }
@@ -164,7 +165,7 @@ export const CHAPTERS: Chapter[] = [
         <li><b>VWAP</b>: the day's average price, weighted by volume. It resets at the start of the trading day (6 PM New York unless you change it in Settings).</li>
         <li><b>Price zones</b>: fair value gaps, inverse FVGs, balanced price ranges, order blocks and breakers, from finished candles. <kbd>Z</kbd> shows or hides them.</li>
         <li><b>Session lines</b>: a line at each Sydney, Tokyo, London and New York open, in each city's own hours, with optional shading to its close.</li>
-        <li><b>Python</b>: write your own, or start from a template (EMA cross, RSI, Bollinger Bands, opening range box, swing levels). See the <i>Python indicators</i> chapter.</li>
+        <li><b>Your own</b>: write one in JavaScript or Python, or start from a template (EMA cross, RSI, Bollinger Bands, opening range box, swing levels). See the <i>Your own indicators</i> chapter.</li>
       </ul>
     </> },
     { id: 'journal', title: 'The journal', body: <>
@@ -207,11 +208,11 @@ export const CHAPTERS: Chapter[] = [
     </> },
   ] },
 
-  { id: 'pyind', title: 'Python indicators', sections: [
+  { id: 'pyind', title: 'Your own indicators', sections: [
     { id: 'pyind-start', title: 'Writing an indicator', body: <>
-      <p>An indicator is a short Python script that runs once on every closed candle of the chart and draws on it: lines, levels, shaded areas, markers, boxes, lines and labels, or a pane of its own under the chart.</p>
+      <p>An indicator is a short script, in JavaScript or Python, that runs once on every closed candle of the chart and draws on it: lines, levels, shaded areas, markers, boxes, lines and labels, or a pane of its own under the chart.</p>
       <Steps items={[
-        <>Open <b>Indicators</b>, press <b>+ New Python indicator</b> and pick a template (EMA cross, RSI, Bollinger Bands, Opening range box, Swing levels) or Blank.</>,
+        <>Open <b>Indicators</b>, press <b>+ New indicator</b> and pick a template (EMA cross, RSI, Bollinger Bands, Opening range box, Swing levels) or Blank: the JavaScript ones come first, the Python ones under them.</>,
         <>Write the code (or paste one of the examples below), give it a name and press <b>Add to chart</b> (<kbd>Ctrl</kbd> + <kbd>Enter</kbd>). Python loads the first time, in a few seconds.</>,
         <>Change it and press <b>Apply to chart</b>. The code is kept in <i>Your scripts</i> as you type (<b>Save</b> does it at once), so you can add it again any time from the Indicators list.</>,
       ]} />
@@ -223,8 +224,9 @@ export const CHAPTERS: Chapter[] = [
         <li><C>on_bar(ctx, bar)</C> (required): runs on each closed candle, oldest first.</li>
       </ul>
       <p>The <b>Console</b> shows what the script prints and, if it fails, the error and the line it failed on.</p>
-      <p>Python indicators on the chart stay there in every session, on every chart, until you hide them or take them off (×) in the Indicators list. <b>Edit</b> opens one again.</p>
+      <p>Your indicators on the chart stay there in every session, on every chart, until you hide them or take them off (×) in the Indicators list. <b>Edit</b> opens one again.</p>
     </> },
+    JS_IND_SECTION,
     { id: 'pyind-run', title: 'How an indicator runs', body: <>
       <ul>
         <li><C>on_bar</C> sees closed candles of the chart's timeframe only, never the one forming and never the future. Its values change when a candle closes.</li>
@@ -465,7 +467,7 @@ export const CHAPTERS: Chapter[] = [
         <li>The replay bar sits under the chart: back, play, forward, the clock, the speed and Jump. Drag the thin timeline along its top to move in time.</li>
         <li>Buy and sell from the row under the chart. Hold a finger on the chart for an order at that price. Pinch to zoom, drag to scroll.</li>
         <li>Menus open from the bottom of the screen; tap outside one to close it.</li>
-        <li>Phones and tablets keep fewer candles on the chart and in Python indicators (8,000) so everything stays smooth.</li>
+        <li>Phones and tablets keep fewer candles on the chart and in your indicators (8,000) so everything stays smooth.</li>
       </ul>
     </> },
     { id: 'keys', title: 'Keyboard shortcuts', body: <>

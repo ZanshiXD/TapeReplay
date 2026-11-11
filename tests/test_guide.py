@@ -98,8 +98,8 @@ async def desktop(p, url):
     if await tip.count():
         await tip.click()
     await pg.click("button:has-text('Indicators')")
-    await pg.click(".pytpl:has-text('New Python indicator')")
-    await pg.locator(".pytpl[role=listitem]").first.click()
+    await pg.click(".pytpl:has-text('New indicator')")
+    await pg.click("[aria-label='Python templates'] button:has-text('RSI')")
     await pg.wait_for_selector(".pyed")
     await pg.click(".pyed button:has-text('Guide')")
     await pg.wait_for_selector(".guide.over")
