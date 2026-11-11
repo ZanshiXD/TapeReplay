@@ -127,7 +127,7 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
           <button className={layout === 'four' ? 'on' : ''} title="Four charts" aria-label="Four charts" onClick={() => pick('four')}><ILayout4 width={16} height={16} /></button>
         </div>
         <div style={{ position: 'relative' }}>
-          <button className="btn sm" disabled={!available.length} title={available.length ? 'Add another market on the same clock, to compare or trade both' : 'Every market that covers these dates is open'} onClick={() => setAddOpen(!addOpen)}><IPlus width={13} height={13} /> Add market</button>
+          <button className="btn sm" disabled={!available.length} title={available.length ? 'Add another market on the same clock, to compare or trade both' : 'Every market that covers these dates is open'} aria-haspopup="menu" aria-expanded={addOpen} onClick={() => setAddOpen(!addOpen)}><IPlus width={13} height={13} /> Add market</button>
           {addOpen && (
             <div className="pop menu" role="menu" style={{ top: 40, left: 0 }} onMouseLeave={() => setAddOpen(false)}>
               {available.map(m => <button key={m.key} role="menuitem" onClick={() => { setAddOpen(false); onAddMarket(m.key); if (layout === 'one') pick('two'); }}>{m.name}<span>{m.sym}</span></button>)}
