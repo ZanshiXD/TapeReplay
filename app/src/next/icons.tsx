@@ -10,6 +10,7 @@ export const IReplay = S(['M4 20V4M4 20h16', 'M8 15v-4M12 13V7M16 16v-5']);
 export const IBacktest = S(['M8 7l-5 5 5 5M16 7l5 5-5 5', 'M13.5 4.5l-3 15']);
 export const IJournal = S(['M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z', 'M5 17a3 3 0 0 1 3-3h11M9 8h6']);
 export const ILibrary = S(['M3 7.5V19h18V9.5h-9L10 7H3z', 'M3 7.5V5h6l2 2']);
+export const IGuide = S(['M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z', 'M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5', 'M9 8h7M9 11.5h5']);
 export const ISettings = S(['M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z', 'M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8']);
 export const IPlus = S('M12 5v14M5 12h14', { strokeWidth: 2.2 });
 export const IClose = S('M6 6l12 12M18 6L6 18', { strokeWidth: 2 });

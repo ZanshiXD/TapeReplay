@@ -1,6 +1,7 @@
 // Optimize: the strategy run many times with different settings, side by side in background workers, ranked by a
 // goal; the best can be written into the code or opened on the chart. Robustness: the best few checked on dates they
 // were not chosen on (a holdout), in walk-forward windows, and by reshuffling their trades (Monte Carlo).
+import { openGuide } from './guide/Guide';
 import { useEffect, useRef, useState } from 'react';
 import { optimize, optValues, optText, optParse, optSorted, optCsv, optScoreTxt, comboTotal, smartBudget, workerCount, seriesSlice, OptPool,
          OPT_CAP, OPT_CAP_SMALL, OPT_GOALS, type Combo, type Goal, type OptJob, type OptRow, type ParamInfo, type RunTasks } from '../core/optimizer';
@@ -171,7 +172,7 @@ export function OptimizePanel({ active, which, code, lang, name, setup, busy, on
   return (
     <div className="page-in bt-opt">
       <div><h1 style={{ fontSize: 20 }}>Optimize “{name}”</h1>
-        <p className="lead" style={{ fontSize: 13 }}>Runs the strategy many times with different settings, {nWorkers} at a time, on the market and dates of the Run panel, and ranks the results. Tick the settings to try and say which values.</p></div>
+        <p className="lead" style={{ fontSize: 13 }}>Runs the strategy many times with different settings, {nWorkers} at a time, on the market and dates of the Run panel, and ranks the results. Tick the settings to try and say which values. <button className="linkbtn" onClick={() => openGuide('optimize')}>How the optimizer works</button></p></div>
       <div className="card bt-ptable">
         {detectErr ? <div className="empty down">{detectErr}</div> : !rows.length ? <div className="empty">No settings found. Put them at the top of the code as {lang === 'py' ? 'NAME = value, like FAST = 9' : 'const NAME = value, like const FAST = 9;'}.</div> :
           <table className="t"><thead><tr><th /><th>Setting</th><th>Now</th><th>Values to try</th><th className="r">Count</th></tr></thead>
@@ -362,7 +363,7 @@ function RobustPanel({ doc, busy, onSave, onUse, onShow, onToast }: { doc: OptDo
   return (
     <div className="page-in bt-opt">
       <div><h1 style={{ fontSize: 20 }}>Robustness of “{d.name}”</h1>
-        <p className="lead" style={{ fontSize: 13 }}>Good results on the dates settings were picked on can be luck. These tests take the best combinations and check them on other dates and other orders of their trades.</p></div>
+        <p className="lead" style={{ fontSize: 13 }}>Good results on the dates settings were picked on can be luck. These tests take the best combinations and check them on other dates and other orders of their trades. <button className="linkbtn" onClick={() => openGuide('robust')}>About the tests</button></p></div>
       <div className="bt-robgrid">
         <div className="card bt-robcard">
           <label className="field">Test the best (% of ranked combinations)<span className="suffix"><input className="in" inputMode="numeric" aria-label="Test the best percent" value={F.pct} onChange={e => set({ pct: parseInt(e.target.value) || 0 })} /><span>%</span></span></label>

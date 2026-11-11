@@ -34,7 +34,7 @@ export function UpdateButton({ beforeInstall }: { beforeInstall: () => Promise<v
   };
   return (
     <div style={{ position: 'relative' }}>
-      <button className="updbtn" title={`Version ${u.version} is ready`} onClick={() => setOpen(!open)}>Update</button>
+      <button className="updbtn" title={`Version ${u.version} is ready`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>Update</button>
       {open && <div className="pop" role="dialog" aria-label="Update" style={{ left: 64, bottom: 0, width: 320, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <button hidden data-dismiss onClick={() => setOpen(false)} />
         <b>What's new in {u.version}</b>

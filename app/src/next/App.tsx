@@ -22,18 +22,35 @@ import { UpdateButton } from './Update';
 import { BacktestPage } from './BacktestPage';
 import { OptimList } from './OptimizePanel';
 import type { SessionState } from '../core/session';
-import { IBacktest, IClassic, IJournal, ILibrary, IPlus, IReplay, ISettings, Logo } from './icons';
+import { IBacktest, IClassic, IGuide, IJournal, ILibrary, IPlus, IReplay, ISettings, Logo } from './icons';
+import { Guide } from './guide/Guide';
 
-type Page = 'replay' | 'journal' | 'backtest' | 'library' | 'settings' | 'new';
+type Page = 'replay' | 'journal' | 'backtest' | 'library' | 'settings' | 'new' | 'guide';
 interface Toast { id: number; text: string; kind: string }
 
 const DEFAULT_INDS: IndSpec[] = [{ id: 'ema20', type: 'ema', len: 20, color: '#f0b54a', on: true }, { id: 'vwap', type: 'vwap', len: 0, color: '#b9bec9', on: true }];
 /** saved every so often while something changes, when the replay pauses, and as the window closes */
-const SAVE_EVERY = 10000;
+const SAVE_EVERY = 10000, PLAY_SAVE_EVERY = 30000;
+
+/** runs one part of a frame; a failure is logged (once per part and message) and does not stop the frame */
+const failed = new Set<string>();
+function guard(part: string, f: () => unknown) {
+  try { f(); } catch (e) { const k = part + ': ' + (e instanceof Error ? e.message : String(e)); if (!failed.has(k)) { failed.add(k); console.warn('Tape Replay kept playing after an error in the ' + k, e); } }
+}
 
 export function App() {
   const [ready, setReady] = useState(false);
   const [page, setPage] = useState<Page>('new');
+  // the guide over whatever is open (from the code editors), so nothing being written is lost
+  const [guideAt, setGuideAtS] = useState<string | null>(null);
+  const guideOpen = useRef(false);
+  const setGuideAt = (g: string | null) => { guideOpen.current = g != null; setGuideAtS(g); };
+  useEffect(() => {
+    const f = (e: Event) => setGuideAt((e as CustomEvent<string>).detail || '');
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && guideOpen.current) { e.stopImmediatePropagation(); setGuideAt(null); } };
+    addEventListener('tape:guide', f); addEventListener('keydown', k, true);
+    return () => { removeEventListener('tape:guide', f); removeEventListener('keydown', k, true); };
+  }, []);
   const [live, setLive] = useState<Live | null>(null);
   const [busy, setBusyS] = useState<{ text: string; p: number } | null>(null);
   const busyT0 = useRef(0), busyOn = useRef(false);
@@ -73,14 +90,16 @@ export function App() {
     const s = live.session;
     if (import.meta.env.MODE === 'test') (window as unknown as { __next: unknown }).__next = { session: s, live, ds, layers, setDs, store, tools: TOOLS.filter(t => t.group !== 'cursor').map(t => ({ id: t.id, n: t.n })) };
     let last = performance.now(), lastBump = 0, raf = 0, wasPlaying = false, lastCont = 0;
+    // the next frame is asked for first, and each part runs on its own: a part that fails (a chart that can't draw,
+    // a panel) is reported once and the replay, the clock and the other charts carry on
     const loop = (now: number) => {
-      const dt = (now - last) / 1000; last = now;
-      s.frame(dt);
-      for (const f of frameHooks) f(now);
-      if ((s.playing || wasPlaying) && now - lastBump > 100) { lastBump = now; bump(); }
-      if (s.playing && now - lastCont > 1000) { lastCont = now; contAhead(store, live, m => toast(m, 'err')); }
-      wasPlaying = s.playing;
       raf = requestAnimationFrame(loop);
+      const dt = (now - last) / 1000; last = now;
+      guard('replay', () => s.frame(dt));
+      for (const f of frameHooks) guard('chart', () => f(now));
+      if ((s.playing || wasPlaying) && now - lastBump > 100) { lastBump = now; guard('panels', bump); }
+      if (s.playing && now - lastCont > 1000) { lastCont = now; guard('data', () => contAhead(store, live, m => toast(m, 'err'))); }
+      wasPlaying = s.playing;
     };
     raf = requestAnimationFrame(loop);
     const off = s.subscribe(e => {
@@ -108,7 +127,15 @@ export function App() {
       catch { setSaveState('Not saved'); }
       finally { saving = false; }
     };
-    const timer = setInterval(() => { save(); if (wasPlaying && !s.playing) save(true); wasPlaying = s.playing; }, SAVE_EVERY);
+    // while the tape plays, a save every PLAY_SAVE_EVERY (writing a long session out takes a moment); paused, as
+    // soon as anything changed, and at once when it pauses or the app goes to the background
+    let lastSave = 0;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      if (!s.playing || now - lastSave >= PLAY_SAVE_EVERY) { lastSave = now; save(); }
+      if (wasPlaying && !s.playing) save(true);
+      wasPlaying = s.playing;
+    }, SAVE_EVERY);
     const flush = () => { store.saveSessionNow(live.id, sessionDoc(live)); return true; };
     (window as unknown as { __tapeFlush?: () => boolean }).__tapeFlush = flush;
     const hide = () => { if (document.visibilityState === 'hidden') save(true); };
@@ -225,7 +252,7 @@ export function App() {
 
   useEffect(() => { if (page === 'backtest') setBtSeen(true); }, [page]);
   if (!ready) return null;
-  const nav: Array<[Page, string, React.ReactNode]> = [['replay', 'Replay', <IReplay />], ['backtest', 'Backtest', <IBacktest />], ['journal', 'Journal', <IJournal />], ['library', 'Library', <ILibrary />], ['settings', 'Settings', <ISettings />]];
+  const nav: Array<[Page, string, React.ReactNode]> = [['replay', 'Replay', <IReplay />], ['backtest', 'Backtest', <IBacktest />], ['journal', 'Journal', <IJournal />], ['library', 'Library', <ILibrary />], ['guide', 'Guide', <IGuide />], ['settings', 'Settings', <ISettings />]];
   return (
     <div className="app">
       <nav className="nav" aria-label="Main">
@@ -243,10 +270,12 @@ export function App() {
         {page === 'journal' && session && <JournalPage session={session} onReplay={() => setPage('replay')} />}
         {page === 'library' && <LibraryPage current={live?.id || null} onOpen={open} onNewWith={d => { setWithData(d); setPage('new'); }} onBusy={setBusy} onToast={toast}
           extra={{ tab: 'optims', label: 'Optimizations', node: <OptimList onOpen={id => { setOptimId(id); setPage('backtest'); }} onToast={toast} /> }} />}
+        {page === 'guide' && <div className="page gpage" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><Guide /></div>}
         {page === 'settings' && <SettingsPage session={session} onKeys={() => setKeys(true)} onToast={toast} />}
         {(page === 'backtest' || btSeen) && <BacktestPage hidden={page !== 'backtest'} live={live} onToast={toast} onBusy={setBusy} openOptim={optimId} onOptimOpened={() => setOptimId(null)}
           onShow={(x, st) => { const inds = pref('inds', DEFAULT_INDS); return start({ ...x, inds }, { ...st, inds }); }} />}
       </div>
+      {guideAt != null && <Guide at={guideAt || undefined} onClose={() => setGuideAt(null)} />}
       <PhoneNav page={page} mview={mview} hasSession={!!session} badge={session ? session.account.trades.length + session.account.orders.length : 0}
         go={(p, v) => { setMore(false); setPage(p); if (v) setMview(v); }} more={more} setMore={setMore} />
       {busy && <div className="busy" role="status"><div className="box"><b>{busy.text}</b><div className="bar"><i style={{ width: `${Math.round(busy.p * 100)}%` }} /></div><span className="muted" style={{ fontSize: 12 }}>{timeLeft(busy.p, (performance.now() - busyT0.current) / 1000)}</span></div></div>}
@@ -267,6 +296,7 @@ function PhoneNav({ page, mview, hasSession, badge, go, more, setMore }: { page:
       <button onClick={() => go('library')}>Library: sessions and data</button>
       {hasSession && <button onClick={() => go('journal')}>Journal</button>}
       <button onClick={() => go('backtest')}>Backtest</button>
+      <button onClick={() => go('guide')}>Guide: how everything works</button>
       <button onClick={() => go('settings')}>Settings</button>
       <a className="btn" style={{ margin: '6px 10px' }} href={classicHref}>Open the classic view</a>
     </div></div>}

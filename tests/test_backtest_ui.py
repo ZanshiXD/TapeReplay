@@ -65,17 +65,17 @@ def serve():
     return f"http://127.0.0.1:{srv.server_address[1]}/index.html"
 
 
-CONSOLE = "() => [...document.querySelectorAll('.bt-code .bt-lines > div')].map(d => d.textContent)"
+CONSOLE = "() => [...document.querySelectorAll('.bt-cons .bt-lines > div')].map(d => d.textContent)"
 TILE = "(k) => [...document.querySelectorAll('.bt-tiles .stat')].find(s => s.querySelector('span').textContent === k)?.querySelector('b').textContent"
 
 
 async def run_and_wait(pg, timeout=180000):
     await pg.click(".bt-run button:has-text('Run backtest')")
     # a finished run shows its results; anything else stays on the code and its console
-    await pg.wait_for_function("() => { const s = document.querySelector('.bt-code .bt-status span'); return document.querySelector('.bt-results') || (s && /^(Done|Stopped|Fix|Could|Check|Ended)/.test(s.textContent)) }", timeout=timeout)
+    await pg.wait_for_function("() => { const s = document.querySelector('.bt-cons .bt-status span'); return document.querySelector('.bt-results') || (s && /^(Done|Stopped|Fix|Could|Check|Ended)/.test(s.textContent)) }", timeout=timeout)
     if await pg.locator(".bt-results").count():
         await pg.click(".bt-head .tabs button:has-text('Code')")
-    return await pg.evaluate("() => document.querySelector('.bt-code .bt-status span').textContent")
+    return await pg.evaluate("() => document.querySelector('.bt-cons .bt-status span').textContent")
 
 
 async def set_dates(pg, a, b):
@@ -98,6 +98,37 @@ async def main():
         await pg.wait_for_selector(".bt-ta")
         check(await pg.evaluate("() => crossOriginIsolated"), "the page is cross-origin isolated (shared memory for the workers)")
         check("MA cross" in await pg.locator(".bt-name").inner_text(), "the MA cross template is ready")
+
+        # ---- the layout: the code folds, the run settings fill the page, the New menu fits on screen ----
+        rw = (await pg.locator(".bt-runcard").bounding_box())["width"]
+        check(rw > 600, f"the run settings are in the main area, not a narrow column ({rw:.0f}px)")
+        check(await pg.locator(".bt-run .field:has-text('Commission') input").is_visible(), "the costs show without asking")
+        await pg.click(".bt-code .bt-foldhead")
+        check(await pg.locator(".bt-ta").count() == 0 and "Moving-average cross" in await pg.locator(".bt-code .bt-sum").inner_text(), "the code folds to a one-line summary")
+        await pg.reload()
+        await pg.click("nav.nav button.item:has-text('Backtest')")
+        await pg.wait_for_selector(".bt-code .bt-foldhead")
+        check(await pg.locator(".bt-ta").count() == 0, "and stays folded after a reload")
+        await pg.click(".bt-code .bt-foldhead")
+        await pg.wait_for_selector(".bt-ta")
+        h0 = (await pg.locator(".bt-editor").bounding_box())["height"]
+        g = await pg.locator(".bt-grip").bounding_box()
+        await pg.mouse.move(g["x"] + g["width"] / 2, g["y"] + 4)
+        await pg.mouse.down()
+        await pg.mouse.move(g["x"] + g["width"] / 2, g["y"] + 124, steps=6)
+        await pg.mouse.up()
+        h1 = (await pg.locator(".bt-editor").bounding_box())["height"]
+        check(abs(h1 - h0 - 120) < 3, f"the code is taller after dragging its edge ({h0:.0f} -> {h1:.0f})")
+        await pg.click(".bt-listhead button:has-text('New')")
+        mb = await pg.locator(".bt-newmenu").bounding_box()
+        nav = await pg.locator("nav.nav").bounding_box()
+        check(mb["x"] >= nav["x"] + nav["width"] and mb["x"] + mb["width"] <= 1440 and mb["y"] + mb["height"] <= 900, f"the New menu opens fully on screen ({mb})")
+        await pg.keyboard.press("Escape")
+        check(await pg.locator(".bt-newmenu").count() == 0, "Escape closes the New menu")
+        await pg.click(".bt-listhead button:has-text('New')")
+        await pg.mouse.click(900, 500)
+        check(await pg.locator(".bt-newmenu").count() == 0, "a click outside closes it")
+        await pg.screenshot(path=f"{OUT}/backtest-0-layout.png")
 
         # ---- the Python template on three days of practice NQ ----
         await set_dates(pg, "2026-04-07", "2026-04-09")
@@ -138,9 +169,12 @@ async def main():
         await pg.click(".bt-head .tabs button:has-text('Code')")
         code = await pg.input_value(".bt-ta")
         await pg.fill(".bt-ta", code.replace("def on_bar(ctx, bar):", "def on_bar(ctx, bar)"))
+        await pg.click(".bt-code .bt-foldhead")  # folded: the error opens it
         st = await run_and_wait(pg)
         lines = await pg.evaluate(CONSOLE)
         check(st.startswith("Fix the error") and any(l.startswith("SyntaxError") for l in lines) and any("line" in l for l in lines), f"a syntax error in the console ({st}: {lines})")
+        sel = await pg.evaluate("() => { const t = document.querySelector('.bt-ta'); return t.value.slice(t.selectionStart, t.selectionEnd) }")
+        check(sel.strip() == "def on_bar(ctx, bar)", f"the code shows the failing line selected ({sel!r})")
         await pg.fill(".bt-ta", code)
 
         # ---- the JavaScript template ----
@@ -239,7 +273,6 @@ async def main():
         await pg.click(".bt-head .tabs button:has-text('Code')")
         await pg.click("button:has-text('New')")
         await pg.click(".bt-newmenu button:has-text('MA cross'):has-text('JavaScript')")
-        await pg.click("button:has-text('Show costs and prop challenge')")
         await pg.check(".bt-run label:has-text('Practise a prop firm challenge') input")
         await pg.check(".bt-run label:has-text('Buy a new evaluation') input")
         st = await run_and_wait(pg)

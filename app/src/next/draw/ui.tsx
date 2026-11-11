@@ -43,7 +43,7 @@ export function Swatch({ color, alpha, label, onPick, onAlpha, children }: { col
   const [open, setOpen] = useState(false);
   return (
     <span style={{ position: 'relative', display: 'inline-flex' }}>
-      <button className="ib swatchbtn" title={label} aria-label={label} onClick={() => setOpen(!open)}>{children || <i style={{ background: color, opacity: alpha != null ? Math.max(0.25, alpha * 2) : 1 }} />}<u style={{ background: color }} /></button>
+      <button className="ib swatchbtn" title={label} aria-label={label} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>{children || <i style={{ background: color, opacity: alpha != null ? Math.max(0.25, alpha * 2) : 1 }} />}<u style={{ background: color }} /></button>
       {open && <ColorPop value={color} alpha={alpha} onPick={c => onPick(c)} onAlpha={onAlpha} onClose={() => setOpen(false)} />}
     </span>
   );
@@ -64,7 +64,7 @@ export function DrawBar({ session, d, onToast }: { session: Session; d: Drawing;
     <div className="drawbar" role="toolbar" aria-label="Selected drawing" onMouseDown={e => e.stopPropagation()}>
       <span className="name"><ToolIcon id={d.tool} size={18} />{tool?.name}</span>
       <span style={{ position: 'relative' }}>
-        <button className="ib txt tplbtn" title="Template" onClick={() => toggle('tpl')}>Template</button>
+        <button className="ib txt tplbtn" title="Template" aria-haspopup="menu" aria-expanded={menu === 'tpl'} onClick={() => toggle('tpl')}>Template</button>
         {menu === 'tpl' && <div className="pop menu" style={{ top: 36, left: 0 }} onMouseLeave={() => setMenu('')}>
           <button onClick={() => { saveTemplate(d.tool, st); setMenu(''); onToast(`New ${tool?.name.toLowerCase()} drawings will look like this`); }}>Save as default</button>
           <button onClick={() => { resetTemplate(d.tool); restyle(s, d, { ...tool?.style, opt: { ...st.opt, ...(tool?.style?.opt || {}) } } as Partial<DrawStyle>); setMenu(''); }}>Reset to the original look</button>
@@ -75,11 +75,11 @@ export function DrawBar({ session, d, onToast }: { session: Session; d: Drawing;
       {has.fill && !has.levels && <Swatch color={st.fillColor} alpha={st.fillAlpha} label="Background" onPick={c => restyle(s, d, { fillColor: c, fill: true })} onAlpha={a => restyle(s, d, { fillAlpha: a, fill: true })}><i style={{ background: st.fill ? st.fillColor : 'transparent', border: '1px dashed var(--line2)', opacity: st.fill ? 0.7 : 1 }} /></Swatch>}
       {has.text && !textTool && <Swatch color={st.textColor} label="Text color" onPick={c => restyle(s, d, { textColor: c })}><b style={{ fontSize: 13 }}>T</b></Swatch>}
       {line && !textTool && <span style={{ position: 'relative' }}>
-        <button className="ib txt" title="Line width" onClick={() => toggle('width')}><svg width="18" height="12"><line x1="1" x2="17" y1="6" y2="6" stroke="currentColor" strokeWidth={st.width} /></svg>{st.width}px</button>
+        <button className="ib txt" title="Line width" aria-label="Line width" aria-haspopup="menu" aria-expanded={menu === 'width'} onClick={() => toggle('width')}><svg width="18" height="12"><line x1="1" x2="17" y1="6" y2="6" stroke="currentColor" strokeWidth={st.width} /></svg>{st.width}px</button>
         {menu === 'width' && <div className="pop menu" style={{ top: 36, left: 0, minWidth: 120 }} onMouseLeave={() => setMenu('')}>{[1, 2, 3, 4].map(w => <button key={w} onClick={() => { restyle(s, d, { width: w }); setMenu(''); }}><svg width="40" height="10"><line x1="0" x2="40" y1="5" y2="5" stroke="currentColor" strokeWidth={w} /></svg><span>{w}px</span></button>)}</div>}
       </span>}
       {line && !textTool && <span style={{ position: 'relative' }}>
-        <button className="ib" title="Line style" onClick={() => toggle('dash')}><svg width="20" height="12"><line x1="1" x2="19" y1="6" y2="6" stroke="currentColor" strokeWidth={2} strokeDasharray={st.dash === 1 ? '5 3' : st.dash === 2 ? '1.5 3' : undefined} /></svg></button>
+        <button className="ib" title="Line style" aria-label="Line style" aria-haspopup="menu" aria-expanded={menu === 'dash'} onClick={() => toggle('dash')}><svg width="20" height="12"><line x1="1" x2="19" y1="6" y2="6" stroke="currentColor" strokeWidth={2} strokeDasharray={st.dash === 1 ? '5 3' : st.dash === 2 ? '1.5 3' : undefined} /></svg></button>
         {menu === 'dash' && <div className="pop menu" style={{ top: 36, left: 0, minWidth: 140 }} onMouseLeave={() => setMenu('')}>{['Solid', 'Dashed', 'Dotted'].map((n, k) => <button key={n} onClick={() => { restyle(s, d, { dash: k }); setMenu(''); }}><svg width="40" height="10"><line x1="0" x2="40" y1="5" y2="5" stroke="currentColor" strokeWidth={2} strokeDasharray={k === 1 ? '5 3' : k === 2 ? '1.5 3' : undefined} /></svg><span>{n}</span></button>)}</div>}
       </span>}
       {isPos && <button className="btn sm primary" title="Send this as a real order: entry, stop and target from the drawing" onClick={() => { const e = placeFromPosition(s, d); if (e) onToast(e, 'err'); }}>Place order</button>}
@@ -88,7 +88,7 @@ export function DrawBar({ session, d, onToast }: { session: Session; d: Drawing;
       <button className={'ib' + (d.locked ? ' on' : '')} title={d.locked ? 'Unlock' : 'Lock (stops it moving by accident)'} aria-label={d.locked ? 'Unlock' : 'Lock'} onClick={() => toggleLock(s, d)}><Ic d={d.locked ? UI.lock : UI.unlock} size={18} sw={1.6} /></button>
       <button className="ib" title="Clone" aria-label="Clone" onClick={() => cloneDrawing(s, d.id)}><Ic d={UI.copy} size={18} sw={1.6} /></button>
       <span style={{ position: 'relative' }}>
-        <button className="ib" title="More" aria-label="More" onClick={() => toggle('more')}><Ic d={UI.more} size={18} sw={2.6} /></button>
+        <button className="ib" title="More" aria-label="More" aria-haspopup="menu" aria-expanded={menu === 'more'} onClick={() => toggle('more')}><Ic d={UI.more} size={18} sw={2.6} /></button>
         {menu === 'more' && <DrawMenu session={s} d={d} style={{ top: 36, right: 0 }} onClose={() => setMenu('')} />}
       </span>
       <button className="ib danger" title="Remove (Delete)" aria-label="Remove drawing" onClick={() => removeDrawing(s, d.id)}><Ic d={UI.trash} size={18} sw={1.6} /></button>

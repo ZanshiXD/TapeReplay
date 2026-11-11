@@ -1,13 +1,23 @@
-// The Python indicators people keep: their saved scripts (pref pyScripts: name -> code) and the ones on the charts
-// (pref pyInds: [{ id, name, code, on }], each with its own copy of the code). The templates are the classic app's.
+// The indicators people write (Python or JavaScript): their saved scripts (pref pyScripts: name -> code, with the
+// JavaScript ones named in pref scriptLangs) and the ones on the charts (pref pyInds: [{ id, name, code, on, lang }],
+// each with its own copy of the code). The Python templates are the classic app's; the JavaScript ones are their ports.
 import { bump, pref, setPref } from '../live';
 
-export interface PyInd { id: string; name: string; code: string; on: boolean }
+export type Lang = 'py' | 'js';
+export interface PyInd { id: string; name: string; code: string; on: boolean; lang?: Lang }
 export const pyState = { ver: 0 };
 export const pyInds = () => pref<PyInd[]>('pyInds', []);
 export const pyScripts = () => pref<Record<string, string>>('pyScripts', {});
 export function setPyInds(l: PyInd[]) { setPref('pyInds', l); pyState.ver++; bump(); }
 export function setPyScripts(s: Record<string, string>) { setPref('pyScripts', s); pyState.ver++; bump(); }
+/** a saved script's language (scripts saved before JavaScript indicators are Python) */
+export const scriptLang = (name: string): Lang => pref<Record<string, Lang>>('scriptLangs', {})[name] || 'py';
+export function setScriptLang(name: string, lang: Lang) {
+  const m = { ...pref<Record<string, Lang>>('scriptLangs', {}) };
+  if (lang === 'js') m[name] = 'js'; else delete m[name];
+  setPref('scriptLangs', m);
+}
+export const LANG_NAME: Record<Lang, string> = { py: 'Python', js: 'JavaScript' };
 /** a name not used yet by a saved script or one on the charts: "RSI", "RSI 2", ... */
 export function freeName(base: string) {
   const s = pyScripts(), l = pyInds(), used = (n: string) => n in s || l.some(x => x.name === n);
@@ -136,12 +146,154 @@ def on_bar(ctx, bar):
         ctx.live.append((ctx.line(i, lows[SIDE], bar.index, lows[SIDE], color="up"), "low"))
         ctx.marker("L", shape="arrow_up", position="below", color="up", at=i)
 `,
-  'Blank': `# Runs on every closed candle of the chart, oldest first. Help lists everything ctx can draw.
+  'Blank': `# Runs on every closed candle of the chart, oldest first. The Guide lists everything ctx can draw.
 def init(ctx):
     pass
 
 def on_bar(ctx, bar):
     # bar.time, bar.open, bar.high, bar.low, bar.close, bar.volume, bar.index
     ctx.plot(bar.close, "Close")
+`,
+};
+
+/** the same templates in JavaScript (offered first) */
+export const JS_TEMPLATES: Record<string, string> = {
+  'EMA cross': `// Two EMAs, the gap between them shaded green or red, and an arrow where they cross.
+const FAST = 9;    // candles
+const SLOW = 21;   // candles
+
+function init(ctx) {
+  ctx.fast = ta.EMA(FAST);
+  ctx.slow = ta.EMA(SLOW);
+  ctx.wasAbove = null;
+}
+
+function on_bar(ctx, bar) {
+  const f = ctx.fast.update(bar.close), s = ctx.slow.update(bar.close);
+  ctx.plot(f, "Fast", { color: "#e2a63c" });
+  ctx.plot(s, "Slow", { color: "#7f9cf5", width: 2 });
+  if (f === null || s === null) return;      // still warming up
+  const above = f > s;
+  ctx.fill("Fast", "Slow", rgba(above ? "up" : "down", 0.15));
+  if (ctx.wasAbove !== null && above !== ctx.wasAbove) {
+    if (above) ctx.marker("Up", { shape: "arrow_up", position: "below", color: "up" });
+    else ctx.marker("Down", { shape: "arrow_down", position: "above", color: "down" });
+  }
+  ctx.wasAbove = above;
+}
+`,
+  'RSI': `// RSI in a band under the chart, with 70 and 30 levels; the price chart is tinted at the extremes.
+const LENGTH = 14;
+const HIGH = 70;
+const LOW = 30;
+
+function init(ctx) {
+  ctx.rsi = ta.RSI(LENGTH);
+  ctx.hline(HIGH, "Overbought", { color: "down", pane: "lower" });
+  ctx.hline(LOW, "Oversold", { color: "up", pane: "lower" });
+  ctx.hline(50, { color: "muted", style: "dotted", pane: "lower" });
+}
+
+function on_bar(ctx, bar) {
+  const r = ctx.rsi.update(bar.close);
+  ctx.plot(r, "RSI", { color: "#c158dc", pane: "lower" });
+  if (r !== null && r > HIGH) ctx.bgcolor(rgba("down", 0.08));
+  else if (r !== null && r < LOW) ctx.bgcolor(rgba("up", 0.08));
+}
+`,
+  'Bollinger Bands': `// A moving average with bands MULT standard deviations above and below it.
+const LENGTH = 20;
+const MULT = 2.0;
+
+function on_bar(ctx, bar) {
+  const closes = ctx.closes(LENGTH);         // the last LENGTH closes, oldest first
+  if (closes.length < LENGTH) return;
+  let mid = 0;
+  for (const c of closes) mid += c;
+  mid /= LENGTH;
+  let v = 0;
+  for (const c of closes) v += (c - mid) ** 2;
+  const dev = Math.sqrt(v / LENGTH);
+  ctx.plot(mid, "Basis", { color: "muted", style: "dashed" });
+  ctx.plot(mid + MULT * dev, "Upper", { color: "#26c6da" });
+  ctx.plot(mid - MULT * dev, "Lower", { color: "#26c6da" });
+  ctx.fill("Upper", "Lower", rgba("#26c6da", 0.08));
+}
+`,
+  'Opening range box': `// The high and low of the first 30 minutes after the open (in the chart's time zone) as a box that
+// runs with the session, and a label where price first closes outside it.
+const OPEN = "09:30";
+const RANGE_END = "10:00";
+const SESSION_END = "16:00";
+
+function init(ctx) {
+  ctx.day = null;
+  ctx.range = null;
+  ctx.broke = false;
+}
+
+function on_bar(ctx, bar) {
+  const t = bar.time.time();                 // seconds since midnight
+  if (bar.time.date() !== ctx.day) {         // a new day
+    ctx.day = bar.time.date(); ctx.range = null; ctx.broke = false;
+  }
+  if (ctx.at(OPEN) <= t && t < ctx.at(RANGE_END)) {
+    if (ctx.range === null) {
+      ctx.range = ctx.box(bar.index, bar.high, bar.index, bar.low, { color: "accent", text: "Opening range" });
+    } else {
+      const r = ctx.range;
+      r.set({ top: Math.max(r.top, bar.high), bottom: Math.min(r.bottom, bar.low), right: bar.index });
+    }
+  } else if (ctx.range !== null && ctx.at(RANGE_END) <= t && t < ctx.at(SESSION_END)) {
+    const r = ctx.range;
+    r.right = bar.index;                     // the box keeps running with the session
+    if (!ctx.broke && bar.close > r.top) {
+      ctx.broke = true;
+      ctx.label(bar.index, bar.high, "Breakout", { color: "up", style: "down" });
+    } else if (!ctx.broke && bar.close < r.bottom) {
+      ctx.broke = true;
+      ctx.label(bar.index, bar.low, "Breakdown", { color: "down", style: "up" });
+    }
+  }
+}
+`,
+  'Swing levels': `// Swing highs and lows: a candle higher (or lower) than the SIDE candles on each side of it.
+// Each one is a level that runs right until a candle closes through it, then turns dotted.
+const SIDE = 5;    // candles on each side
+
+function init(ctx) {
+  ctx.live = [];                             // [line, "high" or "low"]
+}
+
+function on_bar(ctx, bar) {
+  for (const item of [...ctx.live]) {
+    const [ln, kind] = item;
+    ln.x2 = bar.index;
+    if ((kind === "high" && bar.close > ln.y1) || (kind === "low" && bar.close < ln.y1)) {
+      ln.style = "dotted";
+      ctx.live.splice(ctx.live.indexOf(item), 1);
+    }
+  }
+  const n = 2 * SIDE + 1, highs = ctx.highs(n), lows = ctx.lows(n);
+  if (highs.length < n) return;
+  const i = bar.index - SIDE;                // the candle in the middle: confirmed SIDE candles later
+  if (highs[SIDE] === Math.max(...highs)) {
+    ctx.live.push([ctx.line(i, highs[SIDE], bar.index, highs[SIDE], { color: "down" }), "high"]);
+    ctx.marker("H", { shape: "arrow_down", position: "above", color: "down", at: i });
+  }
+  if (lows[SIDE] === Math.min(...lows)) {
+    ctx.live.push([ctx.line(i, lows[SIDE], bar.index, lows[SIDE], { color: "up" }), "low"]);
+    ctx.marker("L", { shape: "arrow_up", position: "below", color: "up", at: i });
+  }
+}
+`,
+  'Blank': `// Runs on every closed candle of the chart, oldest first. The Guide lists everything ctx can draw.
+function init(ctx) {
+}
+
+function on_bar(ctx, bar) {
+  // bar.time, bar.open, bar.high, bar.low, bar.close, bar.volume, bar.index
+  ctx.plot(bar.close, "Close");
+}
 `,
 };

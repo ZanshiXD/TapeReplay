@@ -1,4 +1,4 @@
-// The Python indicators on one chart, run in the Python worker. Each one sees the chart's closed candles once each,
+// The indicators people write (Python or JavaScript) on one chart, run in their workers (Python's, or the JS one). Each one sees the chart's closed candles once each,
 // oldest first, never the candle forming now: at most the newest 40,000 (8,000 on touch screens) when it starts, then
 // each new candle as it closes. While the tape plays fast the candles that closed meanwhile go together, one request
 // in flight per indicator, so the page never waits for Python. It starts again from scratch when the candles are
@@ -7,9 +7,10 @@ import type { Feed } from '../../core/feed';
 import type { Candle } from '../../core/series';
 import { tfLabel, tfSeconds, zone, zoneOff } from '../../core/time';
 import { pyCall, pyLibs, pyLoad } from './client';
+import { jsCall, jsStuck, jsWorker } from './jsclient';
 import { pyBusy, pyErrs, pyLog } from './console';
 import { pyInds, pyState, type PyInd } from './prefs';
-import { bump } from '../live';
+import { bump, pref, setPref } from '../live';
 
 export interface Meta { title: string; style: string; pane: string; width: number; color: string | null }
 export interface Plot { m: Meta; base: string; t: number[]; v: Array<number | null>; c: Array<string | null> }
@@ -36,11 +37,16 @@ export class Inst {
   marks: Mark[] = []; draws = new Map<number, PyDraw>();
   /** bumps whenever what it draws changed */
   ver = 0;
+  /** JavaScript indicators: the worker it was started in (a stuck worker is replaced, and its indicators start again) */
+  gen = -1;
+  get js() { return this.x.lang === 'js'; }
   constructor(readonly x: PyInd) {}
   get name() { return this.x.name; }
   get lower() { for (const p of this.plots.values()) if (p.m.pane === 'lower') return true; return false; }
 }
 
+/** scripts stopped for taking too long: name -> the code that got stuck (kept with the preferences) */
+const stuckKept = () => ({ ...pref<Record<string, string>>('jsStuck', {}) });
 const same = (a: Candle, b: Candle) => a.time === b.time && a.o === b.o && a.h === b.h && a.l === b.l && a.c === b.c && a.v === b.v;
 /** the first candle after time t */
 const after = (c: Candle[], t: number) => { let a = 0, b = c.length; while (a < b) { const m = (a + b) >> 1; if (c[m].time <= t) a = m + 1; else b = m; } return a; };
@@ -73,14 +79,17 @@ export class PyRun {
     const want = pyInds().filter(x => x.on), keep: Inst[] = [];
     for (const x of want) {
       const old = this.list.find(i => i.x.id === x.id && i.x.code === x.code && i.x.name === x.name);
-      if (!old) pyErrs.delete(x.name);
+      if (!old) { pyErrs.delete(x.name); jsStuck.delete(x.name); }
+      // a script stopped for taking too long stays stopped after a restart of the app, until its code changes
+      const st = stuckKept();
+      if (x.name in st && st[x.name] !== x.code) { delete st[x.name]; setPref('jsStuck', st); }
       keep.push(old || new Inst(x));
     }
     for (const ins of this.list) if (!keep.includes(ins)) this.stop(ins);
     this.list = keep; this.ver++; this.marksVer++;
   }
   private stop(ins: Inst) {
-    if (ins.started) pyCall('_ti_stop', [ins.iid]).catch(() => {});
+    if (ins.started) (ins.js ? jsCall('_ti_stop', [ins.iid]) : pyCall('_ti_stop', [ins.iid])).catch(() => {});
     ins.started = false; this.total.delete(ins); pyBusy.delete(ins.name);
   }
   /** the same indicator again from scratch (a new instance in Python) */
@@ -96,6 +105,8 @@ export class PyRun {
     if (ins.busy) return;
     const f = this.feed, zk = this.zk;
     if (!ins.started) { if (!ins.err) this.start(ins, zk); return; }
+    // its worker was replaced (another script got stuck): start again
+    if (ins.js && ins.gen !== jsWorker.gen) { const n = this.restart(ins); if (n) this.start(n, zk); return; }
     // the candles were rebuilt: carry on if the last one fed is still there unchanged, else start again (one that
     // stopped with an error gets another go too)
     if (f.candles !== ins.arr || zk !== ins.zk) {
@@ -117,9 +128,15 @@ export class PyRun {
     const from = Math.max(0, arr.length - this.cap);
     ins.lastT = from > 0 ? arr[from - 1].time : -Infinity;
     const info = { name: inst.name, tf: tfLabel(f.tf), tfs: tfSeconds(f.tf), tick: inst.tick, pv: inst.pv, prec: inst.prec };
-    pyLoad(pyLibs(ins.x.code)).then(() => pyCall<string>('_ti_start', [ins.iid, ins.x.code, JSON.stringify(info)], { tag: ins.name, libs: pyLibs(ins.x.code) }))
+    ins.gen = jsWorker.gen;
+    // stopped for taking too long (on this chart or another): not again until its code changes
+    if (ins.js && (jsStuck.has(ins.name) || stuckKept()[ins.name] === ins.x.code)) {
+      ins.busy = false; this.fail(ins, jsStuck.get(ins.name) || `${ins.name} took more than 20 seconds on its candles last time, so it was stopped. Change its code to try again.`, false); return;
+    }
+    (ins.js ? jsCall<string>('_ti_start', [ins.iid, ins.x.code, JSON.stringify(info)], { tag: ins.name })
+      : pyLoad(pyLibs(ins.x.code)).then(() => pyCall<string>('_ti_start', [ins.iid, ins.x.code, JSON.stringify(info)], { tag: ins.name, libs: pyLibs(ins.x.code) })))
       .then(r => { ins.busy = false; if (this.live(ins)) this.apply(ins, JSON.parse(r)); })
-      .catch((e: Error) => { ins.busy = false; if (!this.live(ins)) return; this.fail(ins, e.message, true); });
+      .catch((e: Error & { restart?: boolean }) => { ins.busy = false; if (!this.live(ins) || e.restart) return; this.fail(ins, e.message, !ins.js); });
   }
   private live(ins: Inst) { return !this.dead && this.list.includes(ins) && ins.started; }
   private send(ins: Inst, arr: Candle[], j: number, k: number) {
@@ -136,7 +153,7 @@ export class PyRun {
     if (!tot && left + k > 2000) this.total.set(ins, tot = { n: left + k, t0: performance.now() });
     if (tot) { if (left) pyBusy.set(ins.name, `Running on ${tot.n.toLocaleString('en-US')} candles… ${Math.round((1 - left / tot.n) * 100)}%`); else { this.total.delete(ins); pyBusy.delete(ins.name); } soon(); }
     const t0 = performance.now();
-    pyCall<string>('_ti_feed', [ins.iid, buf], { tag: ins.name, transfer: [buf.buffer] })
+    (ins.js ? jsCall<string>('_ti_feed', [ins.iid, buf], { tag: ins.name, transfer: [buf.buffer] }) : pyCall<string>('_ti_feed', [ins.iid, buf], { tag: ins.name, transfer: [buf.buffer] }))
       .then(r => {
         ins.busy = false;
         // a bigger batch next time while Python keeps up, a smaller one when it takes long
@@ -144,10 +161,11 @@ export class PyRun {
         if (k >= this.chunk) this.chunk = dt < 60 ? Math.min(8192, this.chunk * 2) : dt > 200 ? Math.max(128, this.chunk >> 1) : this.chunk;
         if (this.live(ins)) this.apply(ins, JSON.parse(r));
       })
-      .catch((e: Error) => { ins.busy = false; if (this.live(ins)) this.fail(ins, e.message, false); });
+      .catch((e: Error & { restart?: boolean }) => { ins.busy = false; if (this.live(ins) && !e.restart) this.fail(ins, e.message, false); });
   }
   private fail(ins: Inst, err: string, load: boolean) {
     if (ins.err) return;
+    if (ins.js && jsStuck.has(ins.name) && stuckKept()[ins.name] !== ins.x.code) setPref('jsStuck', { ...stuckKept(), [ins.name]: ins.x.code });
     ins.err = err; ins.ver++; this.ver++; pyErrs.set(ins.name, err); pyBusy.delete(ins.name); soon();
     // said once, not once per chart
     const said = `${ins.name}|${err}`;

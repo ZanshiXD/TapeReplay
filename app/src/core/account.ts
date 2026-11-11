@@ -266,8 +266,29 @@ export class Account {
   /** a fresh account of `balance` (the next prop account): orders go; closed trades, marks and the drawdown stay */
   reopen(balance: number) { this.orders = []; this.balance = this.start = this.peak = balance; this.version++; }
 
+  /** the account's state without copying it (to be written out at once) */
+  plain(): AccountState {
+    return { balance: this.balance, start: this.start, orders: this.orders, trades: this.trades, hist: this.hist, marks: this.marks, nextId: this.nextId, peak: this.peak, maxDD: this.maxDD, maxDDpct: this.maxDDpct };
+  }
   state(): AccountState {
     return JSON.parse(JSON.stringify({ balance: this.balance, start: this.start, orders: this.orders, trades: this.trades, hist: this.hist, marks: this.marks, nextId: this.nextId, peak: this.peak, maxDD: this.maxDD, maxDDpct: this.maxDDpct }));
   }
   load(s: AccountState) { this.maxDDpct = 0; Object.assign(this, JSON.parse(JSON.stringify(s))); this.version++; }
+
+  /** a light copy for stepping back: closed trades and marks are only ever added to, so a snapshot keeps their
+   *  counts instead of copies (a snapshot is taken at every candle; copying the whole history each time made long
+   *  sessions slow down and fill memory as trades piled up) */
+  snap(): AccountSnap {
+    const copy = <T>(x: T): T => JSON.parse(JSON.stringify(x));
+    return { balance: this.balance, start: this.start, orders: copy(this.orders), trades: copy(this.trades), nh: this.hist.length, nm: this.marks.length,
+      nextId: this.nextId, peak: this.peak, maxDD: this.maxDD, maxDDpct: this.maxDDpct };
+  }
+  restoreSnap(x: AccountSnap) {
+    const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v));
+    this.balance = x.balance; this.start = x.start; this.orders = copy(x.orders); this.trades = copy(x.trades);
+    this.hist.length = Math.min(this.hist.length, x.nh); this.marks.length = Math.min(this.marks.length, x.nm);
+    this.nextId = x.nextId; this.peak = x.peak; this.maxDD = x.maxDD; this.maxDDpct = x.maxDDpct ?? 0;
+    this.version++;
+  }
 }
+export interface AccountSnap { balance: number; start: number; orders: Order[]; trades: Trade[]; nh: number; nm: number; nextId: number; peak: number; maxDD: number; maxDDpct?: number }
