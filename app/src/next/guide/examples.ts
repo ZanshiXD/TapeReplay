@@ -422,4 +422,71 @@ function on_bar(ctx, bar) {
 }
 ` };
 
-export const STRATEGIES = [STRAT_FIRST, STRAT_ORB, STRAT_TRAIL, STRAT_JS];
+export const STRAT_JS_ORB: Example = { id: 'st-js-orb', title: 'Opening range breakout in JavaScript', what: 'The risk-sized opening range breakout above, written in JavaScript: the same settings, sizing, times and limits.', code: `// Opening range breakout: stop orders above and below the first candles after the open. Each trade
+// risks RISK_USD at its stop; one trade a day; flat (and orders cancelled) at FLAT_TIME.
+const RISK_USD   = 200;       // $ risked per trade (the loss at the stop)
+const QTY_STEP   = 1;         // 1 for futures contracts, 0.01 for forex lots
+const MAX_QTY    = 5;         // most contracts per trade, 0 = off
+const MAX_TRADES = 1;         // entries per day, 0 = off
+const RANGE_BARS = 3;         // candles that make the opening range
+const STOP_TICKS = 2;         // beyond the range, for the stop
+const RR         = 2.0;       // target = RR x the risk
+const DIRECTION  = "both";    // "both", "long" or "short"
+const OPEN_TIME  = "08:30";   // Central Time
+const FLAT_TIME  = "14:55";   // Central Time
+
+${JS_TO_CT}
+
+// Contracts that lose RISK_USD at the stop, rounded down and capped at MAX_QTY; null if under one step
+function sizeFor(ctx, entry, stop) {
+  const perUnit = Math.abs(entry - stop) * ctx.point_value;
+  if (perUnit <= 0) return null;
+  let q = Math.floor(RISK_USD / perUnit / QTY_STEP + 1e-9) * QTY_STEP;
+  if (MAX_QTY) q = Math.min(q, Math.floor(MAX_QTY / QTY_STEP + 1e-9) * QTY_STEP);
+  return q >= QTY_STEP ? +q.toFixed(8) : null;
+}
+
+function init(ctx) {
+  ctx.day = null; ctx.tradesToday = 0;
+  ctx.openT = ctx.at(OPEN_TIME); ctx.flatT = ctx.at(FLAT_TIME);
+}
+
+function on_bar(ctx, bar) {
+  const ct = toCT(bar.time), day = ct.date(), t = ct.time();
+  if (day !== ctx.day) {                                // a new day in Central Time
+    ctx.day = day; ctx.tradesToday = 0; ctx.count = 0; ctx.hi = null; ctx.lo = null;
+  }
+  if (t >= ctx.flatT) {
+    ctx.cancel_all();
+    if (ctx.position) ctx.close();
+    return;
+  }
+  if (t < ctx.openT) return;
+  if (ctx.count < RANGE_BARS) {                         // building the range
+    ctx.hi = ctx.hi === null ? bar.high : Math.max(ctx.hi, bar.high);
+    ctx.lo = ctx.lo === null ? bar.low : Math.min(ctx.lo, bar.low);
+    ctx.count++;
+    return;
+  }
+  if (MAX_TRADES && ctx.tradesToday >= MAX_TRADES) return;
+  if (ctx.position || ctx.orders.length) return;
+  const hi = ctx.hi, lo = ctx.lo, pad = ctx.ticks(STOP_TICKS);
+  if ((DIRECTION === "both" || DIRECTION === "long") && ctx.ask < hi) {
+    const entry = ctx.round(hi + ctx.tick_size), sl = ctx.round(lo - pad), qty = sizeFor(ctx, entry, sl);
+    if (qty) ctx.buy_stop(entry, { qty, sl, tp: ctx.round(entry + (entry - sl) * RR) });
+  }
+  if ((DIRECTION === "both" || DIRECTION === "short") && ctx.bid > lo) {
+    const entry = ctx.round(lo - ctx.tick_size), sl = ctx.round(hi + pad), qty = sizeFor(ctx, entry, sl);
+    if (qty) ctx.sell_stop(entry, { qty, sl, tp: ctx.round(entry - (sl - entry) * RR) });
+  }
+}
+
+function on_fill(ctx, fill) {
+  if (fill.kind === "entry") {
+    ctx.tradesToday++;
+    ctx.cancel_all();                                   // drop the other side
+  }
+}
+` };
+
+export const STRATEGIES = [STRAT_FIRST, STRAT_ORB, STRAT_TRAIL, STRAT_JS, STRAT_JS_ORB];

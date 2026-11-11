@@ -3,7 +3,7 @@
 // example scripts are in examples.ts, where a test runs each of them.
 import type { ReactNode } from 'react';
 import { JS_IND_SECTION } from './jsind';
-import { IND_BANDS, IND_FIRST, IND_LEVELS, IND_ORB, IND_RSI, JS_TO_CT, PY_SIZE_FOR, PY_TO_CT, STRAT_FIRST, STRAT_JS, STRAT_ORB, STRAT_TRAIL, type Example } from './examples';
+import { IND_BANDS, IND_FIRST, IND_LEVELS, IND_ORB, IND_RSI, JS_TO_CT, PY_SIZE_FOR, PY_TO_CT, STRAT_FIRST, STRAT_JS, STRAT_JS_ORB, STRAT_ORB, STRAT_TRAIL, type Example } from './examples';
 
 export interface Section { id: string; title: string; body: ReactNode }
 export interface Chapter { id: string; title: string; sections: Section[] }
@@ -432,6 +432,7 @@ export const CHAPTERS: Chapter[] = [
       <p>For Central Time in JavaScript:</p>
       <Code lang="javascript" code={JS_TO_CT} />
       <Ex ex={STRAT_JS} lang="javascript" />
+      <Ex ex={STRAT_JS_ORB} lang="javascript" />
     </> },
     { id: 'optimize', title: 'The optimizer', body: <>
       <p>The optimizer runs a strategy many times with different settings, on the market and dates of the Run panel, and ranks the results.</p>

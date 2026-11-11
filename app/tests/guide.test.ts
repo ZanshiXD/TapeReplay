@@ -48,7 +48,7 @@ for (const ex of INDICATORS) {
 
 /* ---- strategies: on the same five days, as the Backtest page runs them ---- */
 for (const ex of STRATEGIES) {
-  const js = ex === STRAT_JS;
+  const js = ex === STRAT_JS || ex.id.startsWith('st-js');
   if (js) check(jsCheck(ex.code) === null, `${ex.title}: compiles`);
   const b: Bridge = js ? jsStrategy(ex.code) : pyStrategy(host, ex.code);
   const cfg = { series: S, tf: parseTF(ex.id === 'st-first' ? '5m' : '5m')!, mode: ex === STRAT_TRAIL ? 'tick' : 'bar', balance: 50000, qty: 1 } as RunConfig;
@@ -56,7 +56,7 @@ for (const ex of STRATEGIES) {
   const errs = r.log.filter(x => x[1] === 'er' && !/^\d+ trades, net/.test(x[0])).map(x => x[0]);
   check(!r.fail && !errs.length, `${ex.title}: runs without errors (${r.fail || errs.join(' ')})`);
   check(r.account.hist.length > 0, `${ex.title}: trades (${r.account.hist.length})`);
-  if (ex.id === 'st-orb') {
+  if (ex.id === 'st-orb' || ex.id === 'st-js-orb') {
     // never more than one entry a day, never more than MAX_QTY, every trade with a stop
     const days = new Map<string, number>();
     for (const h of r.account.hist) { const d = new Date((h.time + OFF) * 1000).toISOString().slice(0, 10); days.set(d, (days.get(d) || 0) + 1); }
