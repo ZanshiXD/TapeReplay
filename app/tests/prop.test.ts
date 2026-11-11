@@ -143,6 +143,11 @@ const rulesRig = (cfg: Partial<RulesConfig>, zone = 0) => rig(A => new PropRules
   const st = h.p.stats();
   check(st.attempts === 3 && st.failEval === 3 && st.fees === 300 && st.passed === 0 && st.nPay === 0 && st.take === -300, 'stats');
   check(h.p.summaryLine() === 'Prop simulation: 3 evaluations (0 passed, 0 went live), $300.00 in fees, 0 payouts, $0.00 paid out to you: −$300.00. Account now: Evaluation failed.', 'end-of-run line');
+  // each account on its own: three evaluations, each failed, holding its own trades
+  const ac = h.p.accounts();
+  check(ac.length === 3 && ac.every((x, i) => x.stage === 'eval' && x.attempt === i + 1 && x.end === 'failed' && x.why.startsWith('Max loss')), 'three failed evaluations, in order');
+  check(ac[0].h0 === 0 && ac[0].h1 === ac[1].h0 && ac[1].h1 === ac[2].h0 && ac[2].h1 === h.A.hist.length, 'their trades follow on from each other');
+  check(ac[1].h1! - ac[1].h0 >= 1 && h.A.hist[ac[1].h1! - 1].reason === 'Rule breach', 'an account ends with the trade its breach closed');
 }
 
 /* ---- the max loss trails the end-of-day high and locks at start + lockPad ---- */
