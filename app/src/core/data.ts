@@ -166,19 +166,30 @@ export const censusToJSON = (C: Census) => ({ list: C.list, days: Object.fromEnt
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const censusFromJSON = (j: any): Census => ({ list: j.list || [], days: new Map(Object.entries(j.days || {}).map(([k, o]) => [k, new Map(Object.entries(o as Record<string, [number, number]>))])), names: j.names });
 /** each day follows the outright contract with the most volume, never rolling back to an older one */
+/** a census day key ('YYYY-MM-DD', or days since 1970 padded) as a day number */
+const dayNum = (k: string) => /^\d{4}-\d{2}-\d{2}$/.test(k) ? Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)) / 864e5 : +k;
+/** the continuous series: each day, the busiest contract, never going back to one it rolled off (the old contract's
+ *  thinning days don't pull it back) — unless that was over a year ago: symbols with a one-digit year come round again
+ *  every ten years (NQH0 is March 2010 and March 2020) */
 export function rollMap(C: Census) {
-  const map = new Map<string, string>(), left = new Set<string>(); let cur: string | null = null;
+  const map = new Map<string, string>(), left = new Map<string, number>(); let cur: string | null = null;
   for (const k of [...C.days.keys()].sort()) {
+    const d = dayNum(k);
     let best: string | null = null, bv = -1;
-    for (const [s, c] of C.days.get(k)!) if (!isSpread(s) && !left.has(s) && c[0] > bv) { best = s; bv = c[0]; }
-    if (best && best !== cur) { if (cur) left.add(cur); cur = best; }
+    for (const [s, c] of C.days.get(k)!) {
+      const gone = left.get(s);
+      if (!isSpread(s) && (gone === undefined || d - gone > 365) && c[0] > bv) { best = s; bv = c[0]; }
+    }
+    if (best && best !== cur) { if (cur) left.set(cur, d); cur = best; left.delete(best); }
     if (cur) map.set(k, cur);
   }
   return map;
 }
 export const defaultPick = (C: Census | null) => !C || C.list.length < 2 ? '' : C.list.filter(x => !isSpread(x.sym)).length > 1 ? '*auto' : C.list[0].sym;
 export const pickLabel = (p: string) => p === '*auto' ? 'continuous' : p;
-export const cacheKey = (p: string) => p === '*auto' ? 'auto' : p ? p.replace(/[^A-Za-z0-9-]/g, '_').slice(0, 40) : 'all';
+// the continuous copy's key changed when it learned that contract symbols come round again (copies kept before
+// stopped at the first reused symbol, NQH0 in March 2020), so those are read from the file again
+export const cacheKey = (p: string) => p === '*auto' ? 'auto2' : p ? p.replace(/[^A-Za-z0-9-]/g, '_').slice(0, 40) : 'all';
 function decimalsOf(x: number) { for (let d = 0; d <= 8; d++) { const m = x * 10 ** d; if (Math.abs(m - Math.round(m)) < 1e-6) return d; } return 8; }
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 

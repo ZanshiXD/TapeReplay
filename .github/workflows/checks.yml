@@ -58,6 +58,7 @@ jobs:
           (cd app && npx tsx tests/optimizer.test.ts)
           (cd app && npx tsx tests/guide.test.ts)
           (cd app && npx tsx tests/jsindicator.test.ts)
+          (cd app && npx tsx tests/data.test.ts)
           python tests/test_next.py "$RUNNER_TEMP/shots"
           python tests/test_drawings.py "$RUNNER_TEMP/shots"
           python tests/test_library.py "$RUNNER_TEMP/shots"
