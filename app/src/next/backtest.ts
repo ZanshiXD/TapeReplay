@@ -43,16 +43,23 @@ def on_fill(ctx, fill):
 OPEN, RANGE_END, FLAT_BY = "09:30", "10:00", "15:55"
 
 def init(ctx):
-    ctx.day = None
+    ctx.in_session = False
 
 def on_bar(ctx, bar):
     t = bar.time.time()
-    if bar.time.date() != ctx.day:               # a new day
-        ctx.day, ctx.hi, ctx.lo, ctx.armed = bar.time.date(), None, None, False
-    if ctx.at(OPEN) <= t < ctx.at(RANGE_END):
+    # ctx.between handles windows that run across midnight (OPEN "18:00", FLAT_BY "14:30")
+    if not ctx.between(t, OPEN, FLAT_BY):
+        ctx.in_session = False
+        if ctx.position or ctx.orders:
+            ctx.cancel_all()
+            ctx.close()
+        return
+    if not ctx.in_session:                       # the session opens: a new day
+        ctx.in_session, ctx.hi, ctx.lo, ctx.armed = True, None, None, False
+    if ctx.between(t, OPEN, RANGE_END):
         ctx.hi = bar.high if ctx.hi is None else max(ctx.hi, bar.high)
         ctx.lo = bar.low if ctx.lo is None else min(ctx.lo, bar.low)
-    elif ctx.at(RANGE_END) <= t < ctx.at(FLAT_BY) and ctx.hi is not None and not ctx.armed:
+    elif ctx.hi is not None and not ctx.armed:
         size = ctx.hi - ctx.lo
         up, down = ctx.round(ctx.hi + ctx.tick_size), ctx.round(ctx.lo - ctx.tick_size)
         if up > ctx.ask:                         # a buy stop must be above the ask
@@ -60,9 +67,6 @@ def on_bar(ctx, bar):
         if down < ctx.bid:                       # a sell stop below the bid
             ctx.sell_stop(down, sl=ctx.hi, tp=ctx.lo - size)
         ctx.armed = True
-    if t >= ctx.at(FLAT_BY) and (ctx.position or ctx.orders):
-        ctx.cancel_all()
-        ctx.close()
 
 def on_fill(ctx, fill):
     if fill.kind == "entry":
