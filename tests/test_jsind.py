@@ -180,6 +180,8 @@ async def main():
         check("const HIGH = 72;" in icode and "const LENGTH = 21;" in icode, "the indicator's code has the strategy's values")
         await pg.wait_for_selector(f"{ED} .pycons .ok:has-text('Copied 1 setting from')", timeout=5000)
         check("1 already matched" in await pg.locator(f"{ED} .pycons").inner_text(), "the console says what was copied and what already matched")
+        await pg.wait_for_function("() => document.querySelector(\".modal.pyed input[aria-label='HIGH']\")?.value === '72'", timeout=5000)
+        check(True, "the Settings boxes show the copied values")
         await pg.screenshot(path=f"{OUT}/jsind-1b-copy.png")
         await pg.click(f"{ED} button[aria-label='Close']")
 
@@ -229,7 +231,7 @@ async def main():
         await pg.wait_for_selector(".toast.err:has-text('took more than 20 seconds')", timeout=40000)
         await pg.keyboard.press("Space")
         check(True, "the stuck script was stopped")
-        await wait_for(pg, lambda ls: all(x["bands"] == 1 and 80 in x["levels"] for x in ls), "RSI started again in a fresh worker", 20000)
+        await wait_for(pg, lambda ls: all(x["bands"] == 1 and 72 in x["levels"] for x in ls), "RSI started again in a fresh worker", 20000)
         await pg.screenshot(path=f"{OUT}/jsind-2-after-stuck.png")
         await pg.click("button:has-text('Indicators')")
         check(await pg.locator(f"{POP} [data-pyind='Stuck'] .err").count() == 1, "the stuck one is marked")
