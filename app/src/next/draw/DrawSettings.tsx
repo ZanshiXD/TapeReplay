@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Session } from '../../core/session';
 import type { Drawing, DrawStyle, Level } from '../../core/drawings';
 import { fmtShortDay, fmtHM } from '../../core/time';
-import { useLive, bump } from '../live';
+import { useShape, bump } from '../live';
 import { TOOL } from './tools';
 import { ds, resetTemplate, saveTemplate, setDs } from './state';
 import { Swatch, ToolIcon } from './ui';
@@ -17,7 +17,7 @@ const OPT: Record<string, string> = {
 const TFS: Array<[Drawing['tfs'][number], string]> = [['sec', 'Seconds'], ['min', 'Minutes'], ['hour', 'Hours'], ['day', 'Days and up']];
 
 export function DrawSettings({ session, onToast }: { session: Session; onToast: (m: string) => void }) {
-  useLive();
+  useShape();
   const ed = ds.editing, s = session, st = s.drawings, d = st.get(ed?.id ?? null);
   const began = useRef<string | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);

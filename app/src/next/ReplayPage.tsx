@@ -8,7 +8,7 @@ import { ReplayBar } from './ReplayBar';
 import { TradePanel } from './TradePanel';
 import { BottomPanel } from './BottomPanel';
 import { IndicatorsPanel } from './IndicatorsPanel';
-import { pref, setPref, useLive } from './live';
+import { pref, setPref, useShape } from './live';
 import { IChev, IInd, ILayout1, ILayout2, ILayout4, IPlus } from './icons';
 import { usePhone } from './phone';
 import { layers } from './draw/overlay';
@@ -41,7 +41,7 @@ export function ReplayPage({ session, saveState, available, onAddMarket, onRemov
   session: Session; saveState: string; available: Array<{ key: string; sym: string; name: string }>; onAddMarket: (key: string) => void; onRemoveMarket: (sym: string) => void;
   onJump: (t: number) => void; onToast: (m: string, k?: string) => void; openJournal: () => void;
 }) {
-  useLive();
+  useShape();
   const [layout, setLayout] = useState<Layout>(() => pref<Layout>('layout', session.feeds.length > 1 ? 'two' : 'one'));
   const [indOpen, setIndOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);

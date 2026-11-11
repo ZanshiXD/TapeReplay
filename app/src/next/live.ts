@@ -1,15 +1,24 @@
 // The screens' heartbeat. The replay runs on animation frames; charts draw on every frame (frameHooks), while the
-// panels (prices, P&L, the clock) re-render about ten times a second through useLive().
+// panels (prices, P&L, the clock) re-render about ten times a second through useLive(). Screens that show nothing that
+// moves with the prices (the page around the charts, the drawing tools) use useShape(): they re-render when something
+// changes (a trade, a setting, a drawing), not ten times a second, which on a slow computer or phone is what leaves
+// the charts time to draw smoothly.
 import { useSyncExternalStore } from 'react';
 import type { Store } from '../core/store';
 
-let version = 0;
-const subs = new Set<() => void>();
-/** tells the panels to re-render */
-export function bump() { version++; for (const f of subs) f(); }
-/** re-renders the component when bump() is called */
+let version = 0, shape = 0;
+const subs = new Set<() => void>(), shapeSubs = new Set<() => void>();
+/** tells every screen to re-render: something changed */
+export function bump() { version++; shape++; for (const f of subs) f(); for (const f of shapeSubs) f(); }
+/** tells the live panels (useLive) to re-render: the prices and the clock moved */
+export function pulse() { version++; for (const f of subs) f(); }
+/** re-renders the component when bump() or pulse() is called */
 export function useLive() {
   return useSyncExternalStore(f => { subs.add(f); return () => { subs.delete(f); }; }, () => version);
+}
+/** re-renders the component when bump() is called (not on every pulse while the tape plays) */
+export function useShape() {
+  return useSyncExternalStore(f => { shapeSubs.add(f); return () => { shapeSubs.delete(f); }; }, () => shape);
 }
 /** called on every animation frame, after the replay moved */
 export const frameHooks = new Set<(now: number) => void>();

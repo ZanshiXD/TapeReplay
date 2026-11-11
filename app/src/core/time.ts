@@ -60,11 +60,19 @@ export function zoneToUtc(y: number, mo: number, d: number, h = 0, mi = 0): numb
 export const p2 = (n: number) => String(n).padStart(2, '0');
 export const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export const WDN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** the zone's short name (CDT, CET) at time t; the formatter is made once per zone and the answer kept for a quarter of an hour, as the
+ *  clock asks ten times a second while the tape plays */
+const abbrFmt: Record<string, Intl.DateTimeFormat> = {};
+let abbrAt = { tz: '', hour: NaN, v: '' };
 export function zoneAbbr(t: number): string {
   if (zone.fixed != null || zone.tz === 'UTC') return 'UTC';
+  const hour = Math.floor(t / 900); // zones change at a quarter hour at the finest
+  if (abbrAt.tz === zone.tz && abbrAt.hour === hour) return abbrAt.v;
   try {
-    const n = new Intl.DateTimeFormat('en-US', { timeZone: zone.tz, timeZoneName: 'short' }).formatToParts(new Date(t * 1000)).find(x => x.type === 'timeZoneName')!.value;
-    return n;
+    const f = abbrFmt[zone.tz] || (abbrFmt[zone.tz] = new Intl.DateTimeFormat('en-US', { timeZone: zone.tz, timeZoneName: 'short' }));
+    const v = f.formatToParts(new Date(t * 1000)).find(x => x.type === 'timeZoneName')!.value;
+    abbrAt = { tz: zone.tz, hour, v };
+    return v;
   } catch { return ''; }
 }
 export function fmtClock(t: number, secs = true): string {

@@ -3,6 +3,7 @@
 import { practiceSeries } from '../src/core/practice';
 import { Session } from '../src/core/session';
 import { parseTF } from '../src/core/time';
+import { barColumns } from '../src/core/series';
 import { DrawStore, anchoredVwap, fibExtPrice, fibPrice, makeStyle, positionOutcome, regression, volumeProfile } from '../src/core/drawings';
 
 let passed = 0;
@@ -75,6 +76,58 @@ console.log(`frame cost at 60x: ${ms.toFixed(3)} ms`);
 check(ms < 4, 'a frame of playback is cheap');
 S.speed = 1000; const tp2 = performance.now(); for (let k = 0; k < 120; k++) S.frame(1 / 60);
 console.log(`frame cost at 1000x: ${((performance.now() - tp2) / 120).toFixed(3)} ms`);
+
+/* ---- smooth playback: 1-minute bars with gaps, at 1x and at a speed the computer can't keep up with ---- */
+{
+  const B = barColumns(4000), m0 = Date.UTC(2026, 3, 1, 13, 30) / 1000;
+  let p = 6500;
+  for (let j = 0; j < 3000; j++) {
+    if (j % 37 === 5 || (j > 400 && j < 412)) continue; // missing minutes, and a quiet stretch
+    const o = p; p = Math.round((p + Math.sin(j / 7) * 1.5 + Math.cos(j / 3.1)) * 4) / 4;
+    B.push(m0 + j * 60, o, Math.max(o, p) + 0.75, Math.min(o, p) - 0.5, p, 100 + j % 40);
+  }
+  const ES = { sym: 'ES', name: 'E-mini S&P 500', tick: 0.25, pv: 50, prec: 2, comm: 2, spreadTicks: 1, slipTicks: 1 };
+  const one = { id: 'es1m', inst: ES, n: B.n, t: B.t.slice(0, B.n), o: B.o, h: B.h, l: B.l, c: B.c, v: B.v, base: 60, hasVol: true, synthetic: false };
+  const Q = new Session({ name: 'smooth', markets: [one], start: m0 + 60 * 30, tf: parseTF('1m')!, balance: 50000 });
+  const q = Q.feed('ES');
+  Q.speed = 1; Q.play();
+  // 3 minutes at 1x, 60 frames a second: the price moves several times a second, inside each bar's range
+  let moves = 0, last = q.price, wait = 0, longest = 0, back = 0, prevNow = Q.now, outside = 0;
+  for (let k = 0; k < 180 * 60; k++) {
+    Q.frame(1 / 60);
+    if (Q.now < prevNow - 1e-9) back++;
+    prevNow = Q.now;
+    if (q.price !== last) { moves++; longest = Math.max(longest, wait); wait = 0; last = q.price; } else wait++;
+    const P = q.P, j = q.i;
+    if (P && j < one.n && (P.h > one.h[j] + 1e-6 || P.l < one.l[j] - 1e-6)) outside++;
+    if (q.k === 0 && j < one.n && q.i > 0 && one.t[j] - one.t[j - 1] > 60) wait = 0; // a minute missing from the data: nothing to play
+  }
+  check(outside === 0, 'the extra ticks stay inside the bar');
+  console.log(`1x on 1-minute bars: ${(moves / 180).toFixed(1)} moves a second, longest still ${(longest / 60).toFixed(2)} s`);
+  check(moves / 180 >= 2, 'at 1x the price moves a few times a second');
+  check(longest / 60 < 1.2, 'and never stands still for long inside a bar');
+  check(back === 0, 'the clock never goes back');
+  // a minute at 10x (still more ticks than set, with the jitter)
+  Q.speed = 10; for (let k = 0; k < 60 * 60; k++) Q.frame(1 / 60);
+  // the candles are the data's: open, high, low, close and volume unchanged by the extra ticks
+  const done = q.candles.filter(c => c.time >= m0 + 60 * 30);
+  const at = (t: number) => { let a = 0, b = one.n - 1; while (a < b) { const m = (a + b) >> 1; if (one.t[m] < t) a = m + 1; else b = m; } return a; };
+  check(done.length >= 10 && done.every(c => { const j = at(c.time); return one.t[j] === c.time && c.o === one.o[j] && c.h === one.h[j] && c.l === one.l[j] && c.c === one.c[j] && Math.abs(c.v - one.v[j]) < 1e-3; }), 'candles keep the data\'s open, high, low, close and volume');
+  // the countdown's clock and the ticks agree: after each frame no tick before the clock is left unplayed
+  check(q.nextTickTime() > Q.now - 1e-9, 'the prices keep up with the clock at 1x');
+  // more than a frame's time budget can play (here no budget at all): the clock waits at the last tick played, never
+  // ahead of the prices and never back
+  let ahead = 0; back = 0; prevNow = Q.now;
+  for (let k = 0; k < 30; k++) {
+    const target = Q.now + 3600; Q.advanceTo(target, 0);
+    if (q.nextTickTime() < Q.now - 1e-6 || Q.now >= target) ahead++;
+    if (Q.now < prevNow - 1e-9) back++; prevNow = Q.now;
+  }
+  check(ahead === 0 && back === 0, `out of time, the clock stays with the prices (${ahead} ahead, ${back} back)`);
+  // speeding up takes effect at once: fewer ticks for the rest of the bar
+  Q.speed = 1; Q.frame(1 / 60); const n1 = q.nt; Q.speed = 300; Q.frame(1 / 60);
+  check(n1 >= 200 && q.nt < n1, `a new speed changes the ticks of the bar playing now (${n1} -> ${q.nt})`);
+}
 
 /* ---- drawings ---- */
 {
