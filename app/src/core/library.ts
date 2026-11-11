@@ -72,8 +72,9 @@ export async function loadSection(store: Store, dsId: string, ix: SeriesIndex, t
   const blocks = ix.blocks.map((b, i) => ({ ...b, i })).filter(b => b.t1 >= t0 && b.t0 <= t1);
   if (!blocks.length) throw new Error('There are no bars in that date range.');
   if (agg > ix.base) return loadGrouped(store, dsId, ix, blocks, t0, t1, agg, progress);
+  // the check counts the bars in the span (as the Backtest page and New session do); the arrays hold the whole months read
   const cap = blocks.reduce((s, b) => s + b.n, 0);
-  if (cap > maxBars() * 1.1) throw new Error('That span is too long to load at once. Pick a shorter span or less history.');
+  if (sectionBars(ix, t0, t1) > maxBars() * 1.1) throw new Error('That span is too long to load at once. Pick a shorter span or less history.');
   const t = new Float64Array(cap), o = new Float32Array(cap), h = new Float32Array(cap), l = new Float32Array(cap), c = new Float32Array(cap), v = new Float32Array(cap);
   let k = 0;
   for (const [j, b] of blocks.entries()) {

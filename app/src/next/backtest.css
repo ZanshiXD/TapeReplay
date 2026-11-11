@@ -96,7 +96,22 @@ html.m .bt-head > b, html.m .bt-head .bt-runbtn { display: none; }
 .bt-vals { height: 30px; font-size: 12.5px; min-width: 200px; }
 .bt-vals.bad { border-color: var(--down); }
 /* the dates a run covers (all the data) */
-.bt-range { display: flex; align-items: center; min-height: 32px; font-size: 12.5px; color: var(--fg2); }
+.bt-range { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 22px; font-size: 12px; color: var(--fg2); margin-top: 6px; }
+.bt-form .bt-dates { grid-column: 1 / -1; }
+.bt-daterow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bt-dt { display: flex; gap: 6px; flex: 0 1 auto; min-width: 0; }
+.bt-dt .in { min-width: 0; }
+.bt-dt input[type=date] { width: 150px; flex: 0 1 150px; }
+.bt-dt input[type=time] { width: 128px; flex: 0 0 128px; }
+.bt-dt select { width: 150px; flex: 0 1 150px; }
+html.m .bt-dt { flex: 1 1 100%; }
+html.m .bt-dt { flex-wrap: wrap; }
+
+html.m .bt-dt input[type=date], html.m .bt-dt select { flex: 1 1 0; width: auto; }
+html.m .bt-dt input[type=time] { flex: 0 0 112px; width: 112px; }
+.bt-to { color: var(--fg3); font-size: 12px; }
+.bt-range .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
+.bt-range .linkbtn:hover { text-decoration: underline; }
 /* the strategy's own settings (above Run) */
 .bt-setcopy { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; border-bottom: 1px solid var(--line-soft); }
 .bt-setcopy select { height: 28px; font-size: 12.5px; width: auto; max-width: 240px; }
@@ -175,3 +190,4 @@ html.m .bt-setin { width: 100%; min-width: 140px; max-width: none; height: 34px;
 .bt-acctable td:last-child { white-space: normal; min-width: 220px; }
 .bt-why { font-size: 12px; }
 .bt-curvecap { font-size: 12px; margin: 2px 0 -6px; }
+html.m .bt-dates .bt-dt > select { flex: 1 1 100%; }
