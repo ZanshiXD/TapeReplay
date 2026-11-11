@@ -146,7 +146,12 @@ export const CHAPTERS: Chapter[] = [
 
   { id: 'analysis', title: 'Drawing, indicators and the journal', sections: [
     { id: 'drawing', title: 'Drawing tools', body: <>
-      <p>The toolbar down the left of the chart has TradingView's tools, grouped the same way: cursors; lines (trend line, ray, extended, horizontal and vertical lines, channels, pitchforks); Fibonacci and Gann tools; patterns (XABCD, head and shoulders, Elliott waves, cycles); forecasting and measuring (long and short positions, price and date ranges, anchored VWAP, volume profile); shapes and brushes; and text and notes. Each group's button shows the tool you used last; the small arrow beside it opens the whole group.</p>
+      <p>The toolbar down the left of the chart has TradingView's tools, grouped the same way: cursors; lines (trend line, ray, extended, horizontal and vertical lines, channels, pitchforks); Fibonacci and Gann tools; patterns (XABCD, head and shoulders, Elliott waves, cycles); forecasting and measuring (long and short positions, price and date ranges, anchored VWAP, volume profile); shapes and brushes; and text and notes. Each group's button shows the tool you used last.</p>
+      <ul>
+        <li><b>A whole group</b>: click the arrow strip on the right of a group's button, right-click the button, or hold it down. The list opens beside the toolbar with each tool's name and shortcut (and a search box in the long groups).</li>
+        <li><b>All drawing tools</b>: the button under the cursors opens every tool in one panel: search by name (Enter picks the first match), your recent tools, then the groups as tabs. The magnet, keep drawing, lock, hide, the list of drawings, remove, undo and redo are there too.</li>
+        <li><b>Favourites</b>: star any tool (in a group's list or the panel) and the star button on the toolbar shows your starred tools as a small toolbar on the chart. Drag it by its grip; it stays where you put it.</li>
+      </ul>
       <ul>
         <li>Pick a tool, then click on the chart: once for a one-point tool, twice (or press and drag) for a line, more for patterns. A path ends with a double-click or <kbd>Enter</kbd>. The hint at the top says what to do; <kbd>Esc</kbd> cancels.</li>
         <li><b>Magnet</b> snaps points to a candle's open, high, low or close (weak: when close; strong: always). Hold <kbd>Ctrl</kbd> (<kbd>⌘</kbd> on a Mac) to flip it while you place a point.</li>
