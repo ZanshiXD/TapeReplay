@@ -1,5 +1,5 @@
 // The chart studies in the Indicators popover: price zones and session lines, each with show/hide, its settings, and
-// a way to take it off the charts. Settings are the classic app's.
+// a way to take it off the charts.
 import type { Session } from '../../core/session';
 import { parseTF, tfValid, fmtHM, zoneAbbr } from '../../core/time';
 import { ZONE_TFS, ZONE_TYPES, type ZonePrefs } from '../../core/zones';

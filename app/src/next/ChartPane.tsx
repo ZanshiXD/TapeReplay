@@ -1,5 +1,6 @@
 // One market's chart. Candles, volume and indicators come from its Feed and are drawn on every animation frame
-// (only the newest candle changes while the tape plays, so each frame is a small update). Trades and orders show as
+// (only the newest candle changes while the tape plays, so each frame is a small update, and a frame where it didn't
+// change sends the chart nothing, so it doesn't draw again). Trades and orders show as
 // lines: drag a stop, a target or an order to move it.
 import { useEffect, useRef, useState } from 'react';
 import { createChart, LineStyle, type IChartApi, type IPriceLine, type ISeriesApi, type UTCTimestamp, type SeriesMarker, type Time } from 'lightweight-charts';
@@ -23,6 +24,9 @@ import { ChartTrade, type ChartGeom } from './ChartTrade';
 import { C, candleColors, onLook } from './look';
 
 const T = (t: number) => t as UTCTimestamp;
+/** when the candle the clock is in closes: by the session's clock (the one shown), not the last tick's time, which
+ *  trails it between ticks and through gaps in the data */
+const candleEnd = (feed: Feed, now: number, fTime: number) => feed.tf.kind === 's' ? feed.bucket(now) + feed.tf.sec : Math.max(fTime, feed.bucket(now)) + tfSeconds(feed.tf);
 const hexA = (hex: string, a: number) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
 
 type Drag = { kind: 'sl' | 'tp' | 'order'; tr?: Trade; o?: Order; line: IPriceLine; price: number };
@@ -54,7 +58,9 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     let ind: ISeriesApi<'Line'>[] = [];
     const toC = (b: { time: number; o: number; h: number; l: number; c: number }) => ({ time: T(b.time), open: b.o, high: b.h, low: b.l, close: b.c });
     const toV = (b: { time: number; o: number; c: number; v: number }) => ({ time: T(b.time), value: b.v, color: hexA(b.c >= b.o ? C.up : C.down, 0.3) });
-    let ver = -1, count = 0, accVer = -1, labelsAt = 0;
+    let ver = -1, count = 0, accVer = -1;
+    // the newest candle as last sent to the chart: unchanged, nothing is sent (each update redraws the chart)
+    let sentT = NaN, sentO = NaN, sentH = NaN, sentL = NaN, sentC = NaN, sentV = NaN;
     let lines = new Map<string, IPriceLine>();
     let drag: Drag | null = null;
     // drawings: a canvas over the candles, and the mouse when a drawing tool is picked or a drawing is clicked
@@ -82,13 +88,14 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
         ind[k].setData(md);
       });
       count = arr.length; ver = feed.version;
+      if (F) { sentT = F.time; sentO = F.o; sentH = F.h; sentL = F.l; sentC = F.c; sentV = F.v; } else sentT = NaN;
     };
     const lineFor = (key: string, price: number, color: string, title: string, style: LineStyle, width: 1 | 2 = 1) => {
       let l = lines.get(key);
       // the tags on the chart (ChartTrade) carry the words; the line keeps its price on the axis
       void title;
       if (!l) { l = cs.createPriceLine({ price, color, lineWidth: width, lineStyle: style, axisLabelVisible: true, title: '' }); lines.set(key, l); }
-      else if (!drag || drag.line !== l) l.applyOptions({ price });
+      else if ((!drag || drag.line !== l) && l.options().price !== price) l.applyOptions({ price });
       return l;
     };
     const syncLines = () => {
@@ -114,8 +121,18 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
       ms.sort((a, b) => (a.time as number) - (b.time as number));
       cs.setMarkers(ms);
     };
-    const overlays: Array<(() => void) & { failed?: boolean }> = [() => layer.render(), () => studies.render(), () => py.render(), () => { if (py.marksChanged()) syncMarkers(); }];
-    const draw = (now: number) => {
+    // the layers over the candles draw after the chart has drawn this frame (it draws in its own animation frame, asked
+    // for when it got new data), so they line up with its scales, and draw once when the scales change, not twice
+    const overlays: Array<(() => void) & { failed?: boolean }> = [() => layer.render(), () => studies.render(), () => py.draw()];
+    const fail = (r: { failed?: boolean }, e: unknown) => { if (!r.failed) { r.failed = true; console.warn('Tape Replay: a chart layer failed to draw', e); } };
+    let ovRaf = 0;
+    const drawOverlays = () => {
+      ovRaf = 0;
+      // each on its own: one that fails leaves the candles and the others drawing
+      for (const r of overlays) { try { r(); } catch (e) { fail(r, e); } }
+    };
+    const pySync: (() => void) & { failed?: boolean } = () => { py.sync(); if (py.marksChanged()) syncMarkers(); };
+    const draw = () => {
       const arr = feed.candles, F = feed.F;
       if (feed.version !== ver || arr.length < count || arr.length - count > 400) { full(); syncMarkers(); }
       else {
@@ -124,18 +141,19 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
           feed.inds.forEach((x, k) => { const v = x.vals[j]; if (v != null && ind[k]) ind[k].update({ time: T(arr[j].time), value: v }); });
         }
         count = arr.length;
-        if (F) {
+        if (F && (F.time !== sentT || F.o !== sentO || F.h !== sentH || F.l !== sentL || F.c !== sentC || (feed.s.hasVol && F.v !== sentV))) {
+          sentT = F.time; sentO = F.o; sentH = F.h; sentL = F.l; sentC = F.c; sentV = F.v;
           cs.update(toC(F)); if (feed.s.hasVol) vs.update(toV(F));
           feed.inds.forEach((_, k) => { const pv = feed.peek(k); if (pv != null && ind[k]) ind[k].update({ time: T(F.time), value: pv }); });
         }
       }
-      if (session.account.version !== accVer) { accVer = session.account.version; syncLines(); syncMarkers(); labelsAt = now; }
-      else if (now - labelsAt > 250) { labelsAt = now; syncLines(); } // open P&L on the entry lines
-      // the layers over the candles, each on its own: one that fails leaves the candles and the others drawing
-      for (const r of overlays) { try { r(); } catch (e) { if (!r.failed) { r.failed = true; console.warn('Tape Replay: a chart layer failed to draw', e); } } }
+      // the lines of trades and orders (their P&L is on the tags, ChartTrade): only when the account changed
+      if (session.account.version !== accVer) { accVer = session.account.version; syncLines(); syncMarkers(); }
+      try { pySync(); } catch (e) { fail(pySync, e); }
+      if (!ovRaf) ovRaf = requestAnimationFrame(drawOverlays);
     };
     frameHooks.add(draw);
-    draw(performance.now());
+    draw();
     chart.timeScale().scrollToRealTime();
     chart.subscribeCrosshairMove(p => {
       const d = p.time != null ? p.seriesData.get(cs) as { open: number; high: number; low: number; close: number } | undefined : undefined;
@@ -225,7 +243,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
     window.addEventListener('pointercancel', onUp);
     return () => {
       offLook();
-      frameHooks.delete(draw);
+      frameHooks.delete(draw); cancelAnimationFrame(ovRaf);
       layer.dispose(); studies.dispose(); py.dispose(); pyL.current = null;
       cancelHold();
       el.removeEventListener('pointerdown', onDown, true);
@@ -253,7 +271,7 @@ export function ChartPane({ session, feed, active, onToast, onRemove }: { sessio
           {b && <><span><span className="k">O</span> {n(b.o)}</span><span><span className="k">H</span> {n(b.h)}</span><span><span className="k">L</span> {n(b.l)}</span><span><span className="k">C</span> {n(b.c)}</span>
             <span className={ch >= 0 ? 'up' : 'down'}>{ch >= 0 ? '+' : ''}{ch.toFixed(2)}%</span>
             {feed.s.hasVol && b.v > 0 && <span><span className="k">V</span> {b.v >= 1e6 ? (b.v / 1e6).toFixed(2) + 'M' : b.v >= 1e4 ? (b.v / 1e3).toFixed(1) + 'K' : Math.round(b.v)}</span>}
-            {!hover && F && <span className="k" title="Time left in this candle">{closesIn(F.time + tfSeconds(feed.tf) - feed.time)}</span>}</>}
+            {!hover && F && <span className="k" title="Time left in this candle">{closesIn(candleEnd(feed, session.now, F.time) - session.now)}</span>}</>}
           {active && session.feeds.length > 1 && <span className="trading">Trading this chart</span>}
         </div>
         {(feed.inds.length > 0 || pyLeg.length > 0) && <div className="inds">{feed.inds.map((x, k) => { const v = feed.peek(k); return <span key={x.spec.id} style={{ background: hexA(x.spec.color, 0.14), color: x.spec.color }}>{indLabel(x.spec)}{v != null ? ' · ' + v.toFixed(prec) : ''}</span>; })}

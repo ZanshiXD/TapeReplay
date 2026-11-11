@@ -1,4 +1,4 @@
-// What the Python indicators draw on one chart, as the classic app drew it: plots are chart series (lines, steps,
+// What the Python indicators draw on one chart: plots are chart series (lines, steps,
 // dashes, dots, points or histograms, with per-candle colors and gaps); plots with pane="lower" share a pane of their
 // own under the candles; levels, fills, background tints, boxes, lines and labels go on a canvas under the drawings;
 // markers join the trade markers (ChartPane asks for them). The canvas redraws only when something it shows changed.
@@ -84,13 +84,19 @@ export class PyLayer {
   private first() { const f = this.feed; return f.candles.length ? f.candles[0].time : f.F ? f.F.time : 0; }
 
   /** every frame: run the indicators, then update the series and the canvas if anything changed */
-  render() {
+  render() { this.sync(); this.draw(); }
+  /** the indicators run, and their series on the chart brought up to date (with the candles, before the chart draws) */
+  sync() {
     const run = this.run;
     run.pump();
     if (!run.list.length && !this.ser.size && this.blank && !this.bandKey) return;
     if (this.feed.version !== this.fVer) { this.fVer = this.feed.version; for (const x of this.ser.values()) x.sent = 0; }
     this.syncSeries();
     this.layout();
+  }
+  /** the canvas (levels, fills, boxes, labels), if anything changed: after the chart drew, so it lines up with it */
+  draw() {
+    if (!this.run.list.length && !this.ser.size && this.blank && !this.bandKey) return;
     this.paint();
   }
 

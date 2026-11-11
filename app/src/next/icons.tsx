@@ -22,7 +22,6 @@ export const IBack = S(['M6 5v14', 'M18 6l-9 6 9 6z']);
 export const IFwd = S(['M18 5v14', 'M6 6l9 6-9 6z']);
 export const ICheck = S('M5 12.5l4.5 4.5L19 7.5', { strokeWidth: 2.2 });
 export const ISearch = S(['M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z', 'M20 20l-4-4'], { strokeWidth: 2 });
-export const IClassic = S(['M4 5h16v14H4z', 'M4 9h16M9 9v10']);
 export const ILayout1 = S('M4 5h16v14H4z');
 export const ILayout2 = S(['M4 5h16v14H4z', 'M12 5v14']);
 export const ILayout4 = S(['M4 5h16v14H4z', 'M12 5v14M4 12h16']);

@@ -136,7 +136,7 @@ async def main():
         await pg.keyboard.press("Enter")
         await pg.click("text=Pause the replay when an order fills")
         await pg.select_option("select[aria-label='Trading day starts at']", "17")
-        check(await pg.locator(".settings a:has-text('Open the classic view')").count() == 1, "About links to the classic view")
+        check(await pg.locator(".settings button:has-text('Open the guide')").count() == 1, "About opens the guide")
         check(await pg.locator("#sAbout ~ .credit a[href='https://www.tradingview.com/'], .sgroup .credit a[href='https://www.tradingview.com/']").count() >= 1, "About has the credit")
         await pg.wait_for_timeout(900)  # saved after a moment
         await pg.reload()

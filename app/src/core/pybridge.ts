@@ -1,7 +1,7 @@
-// Python strategies for the backtest runner. Pyodide (CPython in WebAssembly) runs runtime.py, the strategy API as
-// the classic app has it (unchanged: ctx, Bar, Tick, Fill, ta, param, the settings parser), and runner.py, the
-// batched entry points the new runner calls (_tb_*). The classic per-call entry points (_tr_*) are kept as a second
-// bridge: the same engine with the classic app's crossings, for comparisons and benchmarks.
+// Python strategies for the backtest runner. Pyodide (CPython in WebAssembly) runs runtime.py, the strategy API
+// (ctx, Bar, Tick, Fill, ta, param, the settings parser), and runner.py, the
+// batched entry points the new runner calls (_tb_*). The per-call entry points (_tr_*) are kept as a second
+// bridge: the same engine with one crossing per call, for comparisons and benchmarks.
 import type { Bridge, LogLine, StratApi, StratInfo } from './backtest';
 
 export interface Pyodide {
@@ -39,7 +39,7 @@ export async function pythonHost(py: Pyodide, runtime: string, runner: string, l
       }
     },
   };
-  // print() in the classic calls, and anything else written to stdout or stderr, one line at a time
+  // print() in the per-call functions, and anything else written to stdout or stderr, one line at a time
   py.setStdout({ batched: s => { if (!quiet) host.out.push([s, 'pr']); } });
   py.setStderr({ batched: s => { if (!quiet) host.out.push([s, 'er']); } });
   await host.need(['numpy', ...libs]);
@@ -52,13 +52,13 @@ export async function pythonHost(py: Pyodide, runtime: string, runner: string, l
 
 /** the code's syntax error (with its line), or null */
 export const pyCheck = (host: PyHost, code: string): string | null => host.fn._tr_check(code) ?? null;
-/** the settings at the top of the code (the classic _tr_params): {params} or {error} */
+/** the settings at the top of the code (_tr_params): {params} or {error} */
 export const pyParams = (host: PyHost, code: string) => JSON.parse(host.fn._tr_params(code));
 /** the code with settings written in (Use in code): {code} or {error} */
 export const pySetValues = (host: PyHost, code: string, values: Record<string, unknown>) => JSON.parse(host.fn._tr_setvals(code, JSON.stringify(values)));
-/** the classic combinations (grid, or random with Python's random.Random(seed), the same as the classic app) */
+/** the combinations in Python (grid, or random with Python's random.Random(seed)) */
 export const pyCombos = (host: PyHost, spec: unknown) => JSON.parse(host.fn._tr_combos(JSON.stringify(spec)));
-/** pandas is loaded only when asked for: the classic refusal */
+/** pandas is loaded only when asked for: the refusal */
 export const pandasErr = (code: string, libs: string[]) => !libs.includes('pandas') && /^\s*(import\s+pandas|from\s+pandas\b)/m.test(code) ? 'This strategy uses pandas: choose "numpy + pandas" under Libraries.' : null;
 
 const drainHost = (host: PyHost): LogLine[] => host.out.length ? host.out.splice(0) : [];
@@ -95,8 +95,8 @@ export function pyStrategy(host: PyHost, code: string): Bridge {
   };
 }
 
-/** a Python strategy through the classic calls: one crossing per candle, tick and fill, the state with each */
-export function pyClassicStrategy(host: PyHost, code: string): Bridge {
+/** a Python strategy through the per-call functions: one crossing per candle, tick and fill, the state with each */
+export function pyPerCallStrategy(host: PyHost, code: string): Bridge {
   const fn = host.fn;
   let api: StratApi;
   return {

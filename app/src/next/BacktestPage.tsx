@@ -5,7 +5,7 @@
 import { openGuide } from './guide/Guide';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, LineStyle, type UTCTimestamp } from 'lightweight-charts';
-import { runBacktest, statsRows, tradesCsv, fmtDay, optLabel, yieldTask, type LogLine, type Mode, type RunResult, type Setting } from '../core/backtest';
+import { histStats, runBacktest, statsRows, type Stats, tradesCsv, fmtDay, optLabel, yieldTask, type LogLine, type Mode, type RunResult, type Setting } from '../core/backtest';
 import { jsApply, jsCheck, jsStrategy } from '../core/jsstrategy';
 import { pandasErr, pyCheck, pySetValues, pyStrategy } from '../core/pybridge';
 import { money, smoney, fmtQty } from '../core/account';
@@ -14,7 +14,7 @@ import { openDataset } from '../core/library';
 import { parseTF } from '../core/time';
 import type { DatasetMeta } from '../core/store';
 import type { SessionState } from '../core/session';
-import type { PropConfig } from '../core/prop';
+import { STAGES, type PropAcct, type PropConfig, type PropSim } from '../core/prop';
 import { store } from './appstore';
 import { pref, setPref } from './live';
 import { C } from './look';
@@ -25,32 +25,40 @@ import { usePhone } from './phone';
 import { TEMPLATES, TICK_TEMPLATES, freeName, instOf, loadStrats, marketFor, python, pyReady, saveStrats, seriesFor, simRules, stratTfs, ymd, ymdUtc,
          type DataChoice, type Lang, type RunCosts, type RunSetup, type SimRun, type Strat } from './backtest';
 import { OptimizePanel } from './OptimizePanel';
+import { StratSettings } from './StratSettings';
 import './backtest.css';
 
 type Tab = 'list' | 'code' | 'run' | 'results' | 'opt' | 'rob';
 interface Prefs { name: string; mode: Mode; libs: 'numpy' | 'pandas'; tf: string; rebuy: boolean; maxEvals: number; data: DataChoice; range: [number, number]; base: number;
-  from: string; to: string; balance: number; qty: number; costs: RunCosts | null; propOn: boolean; prop: PropConfig | null }
+  balance: number; qty: number; costs: RunCosts | null; propOn: boolean; prop: PropConfig | null }
 /** a finished run, as the Results tab shows it */
 export interface RunView { r: RunResult; setup: RunSetup; overrides: Record<string, Setting> | null; sim: SimRun | null; tf: string }
 
 const PRACTICE_RANGE: [number, number] = [PRACTICE_FROM, PRACTICE_TO];
-const MAX_PRACTICE_DAYS = 62;
+/** practice data has no end of its own (it is made as it is asked for), so a backtest on it runs its latest month */
+const PRACTICE_DAYS = 30;
+/** a backtest runs on all the data of its market: the whole file (its latest ten years at most) or practice's latest month */
+function runRange(p: Prefs): [number, number] {
+  if (p.data.kind === 'practice') { const t1 = ymdUtc(ymd(PRACTICE_TO), 1); return [t1 - PRACTICE_DAYS * 86400, t1]; }
+  const t1 = ymdUtc(ymd(p.range[1]), 1);
+  return [Math.max(ymdUtc(ymd(p.range[0])), t1 - 3653 * 86400), t1];
+}
 const MAX_LINES = 1500;
+/** the console keeps a run's first lines (Python ready, Running …) when a long run fills it */
+const KEEP_HEAD = 4;
 const phone = () => document.documentElement.classList.contains('m');
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
 
 function defaults(live: Live | null): Prefs {
   const saved = pref<Partial<Prefs>>('strat', {});
   const p: Prefs = { name: 'MA cross', mode: 'bar', libs: 'numpy', tf: '5m', rebuy: false, maxEvals: 0, data: { kind: 'practice', sym: 'NQ' }, range: PRACTICE_RANGE, base: 1,
-    from: '2026-04-06', to: '2026-04-10', balance: 50000, qty: 1, costs: null, propOn: false, prop: null, ...saved };
-  // with a session open, its market and its first days
+    balance: 50000, qty: 1, costs: null, propOn: false, prop: null, ...saved };
+  // with a session open, its market
   const m = live?.markets[0];
   if (m) {
-    const t = live!.start, days = 4;
     if (m.kind === 'practice') { p.data = { kind: 'practice', sym: m.sym }; p.range = PRACTICE_RANGE; p.base = 1; p.costs = { ...m.costs }; }
     else { const s = live!.session.feeds[0]?.s; p.data = { kind: 'dataset', id: m.id, name: m.name, pick: m.pick, inst: m.inst, long: !!m.window }; p.costs = { comm: m.inst.comm, spreadTicks: m.inst.spreadTicks, slipTicks: m.inst.slipTicks };
       if (s) { p.range = [s.t[0], s.t[s.n - 1]]; p.base = s.base; } }
-    p.from = ymd(t); p.to = ymd(Math.min(t + days * 86400, p.range[1]));
   }
   return p;
 }
@@ -87,6 +95,14 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
   const [, setCv] = useState(0);
   const stopRef = useRef(false);
   const saveT = useRef(0);
+  /** the save waiting for typing to pause: done at once if the page closes or reloads first */
+  const pending = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const now = () => { if (pending.current) { clearTimeout(saveT.current); pending.current(); } };
+    const vis = () => { if (document.visibilityState === 'hidden') now(); };
+    addEventListener('pagehide', now); addEventListener('beforeunload', now); document.addEventListener('visibilitychange', vis);
+    return () => { removeEventListener('pagehide', now); removeEventListener('beforeunload', now); document.removeEventListener('visibilitychange', vis); };
+  }, []);
 
   const set = (x: Partial<Prefs>) => setP(p => { const n = { ...p, ...x }; setPref('strat', n); return n; });
   useDismiss(newRef, newMenu, () => setNewMenu(false));
@@ -99,9 +115,11 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
   const editCode = (c: string) => {
     setCode(c);
     clearTimeout(saveT.current);
-    saveT.current = window.setTimeout(() => storeStrats({ ...strats, [cur]: { code: c, lang } }), 500);
+    const save = () => { pending.current = null; storeStrats({ ...strats, [cur]: { code: c, lang } }); };
+    pending.current = save;
+    saveT.current = window.setTimeout(save, 500);
   };
-  const flushCode = () => { clearTimeout(saveT.current); if (strats[cur].code !== code) { const s = { ...strats, [cur]: { code, lang } }; storeStrats(s); return s; } return strats; };
+  const flushCode = () => { clearTimeout(saveT.current); pending.current = null; if (strats[cur].code !== code) { const s = { ...strats, [cur]: { code, lang } }; storeStrats(s); return s; } return strats; };
   const pick = (name: string, s = strats) => { flushCode(); set({ name }); setCode(s[name].code); setConfirmDel(false); setRenaming(false); if (phone()) setTab('code'); };
   const addNew = (tpl: string) => {
     const s = { ...flushCode() }, name = freeName(tpl, s);
@@ -111,12 +129,13 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
   const rename = (to: string) => {
     setRenaming(false); to = to.trim(); if (!to || to === cur) return;
     if (to in strats) return onToast(`There is a strategy called “${to}” already.`, 'err');
+    clearTimeout(saveT.current); pending.current = null; // a save still waiting would bring the old name back
     const s: Record<string, Strat> = {};
     for (const [k, v] of Object.entries(strats)) s[k === cur ? to : k] = k === cur ? { code, lang } : v;
     storeStrats(s); set({ name: to });
   };
   const remove = () => {
-    setConfirmDel(false);
+    setConfirmDel(false); clearTimeout(saveT.current); pending.current = null;
     const s = { ...strats }; delete s[cur];
     if (!Object.keys(s).length) s[freeName('MA cross', s)] = { ...TEMPLATES['MA cross'] };
     storeStrats(s); const next = Object.keys(s)[0]; set({ name: next }); setCode(s[next].code);
@@ -125,7 +144,7 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
 
   /* ---- the console ---- */
   const log = (ls: LogLine[]) => {
-    const L = lines.current; for (const l of ls) for (const t of l[0].split('\n')) L.push([t, l[1]]); if (L.length > MAX_LINES) L.splice(0, L.length - MAX_LINES);
+    const L = lines.current; for (const l of ls) for (const t of l[0].split('\n')) L.push([t, l[1]]); if (L.length > MAX_LINES) { const head = L.slice(0, KEEP_HEAD), tail = L.slice(L.length - (MAX_LINES - KEEP_HEAD - 1)); L.length = 0; L.push(...head, ['… earlier lines left out …', 'pr'], ...tail); }
     if (ls.length) setConsOpenS(true); // what the run says is shown, without changing the remembered choice
     setCv(v => v + 1);
   };
@@ -147,19 +166,15 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
       const i0 = datasetInstrument(meta, o.pick, o.contracts, o.prec), mem = pref<Record<string, { pv?: number; comm: number; spread: number; slip: number }>>('costs', {})[i0.sym];
       const i = datasetInstrument(meta, o.pick, o.contracts, o.prec, mem ? { pv: mem.pv } : undefined);
       const c = { comm: mem?.comm ?? (i.pv > 1 ? 2.1 : 0), spreadTicks: mem?.spread ?? i.spreadTicks, slipTicks: mem?.slip ?? 0 };
-      const to = Math.min(o.to, o.from + 365 * 86400 * 10), from = Math.max(o.from, o.to - 30 * 86400);
       set({ data: { kind: 'dataset', id: meta.id, name: meta.name, pick: o.pick, inst: { ...i, ...c }, long: !!o.index }, range: [o.from, o.to], base: o.base, costs: c,
-            from: ymd(from), to: ymd(to), tf: stratTfs(o.base).includes(P.tf) ? P.tf : stratTfs(o.base)[0] });
+            tf: stratTfs(o.base).includes(P.tf) ? P.tf : stratTfs(o.base)[0] });
     } catch (e) { onToast(`${meta.name}: ${(e as Error).message}`, 'err'); }
     finally { onBusy(null); }
   }
   /** the run's settings, or what is wrong with them */
   function setupNow(c = code, name = cur, lg = lang): RunSetup | string {
-    const t0 = ymdUtc(P.from), t1 = ymdUtc(P.to, 1);
-    if (!isFinite(t0) || !isFinite(t1)) return 'Pick the From and To dates.';
-    if (t0 >= t1) return 'Pick a From date on or before the To date.';
-    if (t1 <= P.range[0] || t0 > P.range[1]) return `The data runs from ${ymd(P.range[0])} to ${ymd(P.range[1])}. Pick dates in between.`;
-    if (P.data.kind === 'practice' && t1 - t0 > MAX_PRACTICE_DAYS * 86400) return `Practice data is made as you ask for it: pick at most ${MAX_PRACTICE_DAYS} days.`;
+    const [t0, t1] = runRange(P);
+    if (!isFinite(t0) || !isFinite(t1) || t0 >= t1) return 'This market has no data to run on. Pick another one.';
     const libs = lg === 'py' && P.libs === 'pandas' ? ['numpy', 'pandas'] : ['numpy'];
     const pe = lg === 'py' ? pandasErr(c, libs) : null; if (pe) return pe;
     const tf = tfs.includes(P.tf) ? P.tf : tfs[0];
@@ -291,6 +306,7 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
               </>}
             </section>
             <div className="bt-run" aria-label="Run settings">
+              <StratSettings code={code} lang={lang} onCode={editCode} />
               <section className="card bt-runcard">
                 <h3>Run</h3>
                 <div className="bt-form">
@@ -299,8 +315,8 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
                     {P.data.kind === 'dataset' && !datasets.some(d => d.id === (P.data as { id: string }).id) && <option value={'ds:' + P.data.id}>{P.data.name}</option>}
                     {datasets.map(d => <option key={d.id} value={'ds:' + d.id}>{d.name}</option>)}
                   </select></label>
-                  <label className="field">From<input className="in" type="date" aria-label="From" value={P.from} min={ymd(P.range[0])} max={ymd(P.range[1])} onChange={e => set({ from: e.target.value })} /></label>
-                  <label className="field">To<input className="in" type="date" aria-label="To" value={P.to} min={ymd(P.range[0])} max={ymd(P.range[1])} onChange={e => set({ to: e.target.value })} /></label>
+                  <div className="field bt-wide"><span className="lbl">Dates <span className="q" title={P.data.kind === 'practice' ? `Practice data is made as it is asked for, so a backtest on it runs its latest ${PRACTICE_DAYS} days.` : 'A backtest runs on all the data in the file (its latest ten years at most).'}>?</span></span>
+                    <span className="bt-range" aria-label="Dates">{(([a, b]) => `${ymd(a)} to ${ymd(b - 1)}`)(runRange(P))} · {P.data.kind === 'practice' ? `the latest ${PRACTICE_DAYS} days` : 'all the data'}</span></div>
                   <label className="field"><span className="lbl">Candles <span className="q" title="The strategy's on_bar runs when each candle of this size closes.">?</span></span>
                     <select className="in ui" aria-label="Candles" value={tfs.includes(P.tf) ? P.tf : tfs[0]} onChange={e => set({ tf: e.target.value })}>{tfs.map(t => <option key={t} value={t}>{t}</option>)}</select></label>
                   <div className="field bt-wide"><span className="lbl">The strategy runs <span className="q" title="At bar close: on_bar when each candle closes (fast). Every tick: on_tick on every simulated price move too, for trailing stops and the like (slower).">?</span></span>
@@ -315,7 +331,7 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
                 <span className="muted" style={{ fontSize: 12 }}>{inst.sym}: ${inst.pv} a point, ticks of {+inst.tick.toPrecision(6)}</span>
               </section>
               <section className="bt-propcard">
-                <PropSetupCard value={{ ...prop, on: P.propOn }} onChange={c => set({ propOn: c.on, prop: c })} />
+                <PropSetupCard run value={{ ...prop, on: P.propOn }} onChange={c => set({ propOn: c.on, prop: c })} />
                 {P.propOn && <div className="card bt-rebuy">
                   <label className="chk"><input type="checkbox" checked={P.rebuy} onChange={e => set({ rebuy: e.target.checked })} />Buy a new evaluation when one fails</label>
                   {P.rebuy && <label className="field">At most this many evaluations (blank: no limit)<input className="in" inputMode="numeric" value={P.maxEvals || ''} onChange={e => set({ maxEvals: Math.max(0, parseInt(e.target.value) || 0) })} /></label>}
@@ -333,7 +349,7 @@ export function BacktestPage({ hidden, live, onShow, onToast, onBusy, openOptim,
         </div>
       </div>}
       {tab === 'results' && <Results view={view} running={running} onShow={() => view && showOnChart(view)} onEdit={edit} onRun={() => run()} onToast={onToast} />}
-      <OptimizePanel active={tab === 'opt' || tab === 'rob'} which={tab === 'rob' ? 'rob' : 'opt'} code={code} lang={lang} name={cur} setup={setupNow} busy={running}
+      <OptimizePanel propOn={P.propOn} active={tab === 'opt' || tab === 'rob'} which={tab === 'rob' ? 'rob' : 'opt'} code={code} lang={lang} name={cur} setup={setupNow} busy={running}
         onUse={useInCode} onShow={(su, combo) => run({ setup: su, overrides: combo, chart: true })} onToast={onToast}
         openId={openOptim} onOpened={onOptimOpened} goRob={() => setTab('rob')} />
     </div>
@@ -433,7 +449,7 @@ function EqCurve({ eq, start }: { eq: Array<{ time: number; value: number }>; st
     const ch = createChart(el.current!, { autoSize: true, layout: { background: { color: 'transparent' }, textColor: C.text, fontSize: 10 }, grid: { vertLines: { visible: false }, horzLines: { color: C.grid } },
       rightPriceScale: { borderVisible: false }, timeScale: { visible: false, borderVisible: false }, handleScroll: false, handleScale: false, crosshair: { horzLine: { visible: false } } });
     const s = ch.addAreaSeries({ lineColor: col, topColor: col + '33', bottomColor: col + '00', lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
-    // evenly spaced, as the classic curve (the market is closed half the time)
+    // evenly spaced (the market is closed half the time)
     s.setData(eq.map((p, i) => ({ time: (i + 1) as UTCTimestamp, value: p.value })));
     s.createPriceLine({ price: start, color: C.text, lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: '' });
     ch.timeScale().fitContent();
@@ -441,8 +457,58 @@ function EqCurve({ eq, start }: { eq: Array<{ time: number; value: number }>; st
   }, [eq, start]);
   return eq.length < 2 ? <div className="empty">No equity curve yet.</div> : <div className="eqchart bt-eq" ref={el} />;
 }
+/** the course over time for "All accounts": what you have made, fees out (each evaluation) and payouts in */
+function courseCurve(sim: PropSim, fee: number, from: number, to: number): Array<{ time: number; value: number }> {
+  const ev: Array<[number, number]> = [];
+  for (const a of sim.accounts()) if (a.stage === 'eval') ev.push([a.from || from, -fee]);
+  for (const p of sim.s.payouts) ev.push([p.t, p.net]);
+  ev.sort((x, y) => x[0] - y[0]);
+  let v = 0; const out = [{ time: from, value: 0 }];
+  for (const [t, d] of ev) { v += d; out.push({ time: t, value: Math.round(v * 100) / 100 }); }
+  out.push({ time: to, value: Math.round(v * 100) / 100 });
+  return out;
+}
+const ACCT_END: Record<PropAcct['end'], string> = { failed: 'Failed', passed: 'Passed', live: 'Went live', open: 'Open at the end' };
+/** the prop course's accounts, one row each; picking one shows its trades, curve and numbers */
+function AccountsCard({ accts, sel, onSel, all }: { accts: Array<PropAcct & { stats: Stats }>; sel: number | null; onSel: (i: number | null) => void; all: { trades: number; net: number; income: number } }) {
+  const nm = (a: PropAcct) => a.stage === 'eval' ? `Evaluation ${a.attempt}` : `${STAGES[a.stage]} (from evaluation ${a.attempt})`;
+  return (
+    <section className="card bt-accts" aria-label="Accounts">
+      <div className="bt-acchead"><b>Accounts</b><span className="muted">{accts.length} account{accts.length === 1 ? '' : 's'}. Pick one to see its trades, curve and numbers.</span></div>
+      <div className="bt-accscroll">
+        <table className="t bt-acctable"><thead><tr><th>Account</th><th>From</th><th>To</th><th className="r">Trades</th><th className="r">Trading P&amp;L</th><th className="r">Max DD</th><th className="r">Payouts to you</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr className={sel == null ? 'sel' : ''} aria-selected={sel == null} onClick={() => onSel(null)}><td className="ui"><b>All accounts</b></td><td /><td /><td className="r">{all.trades}</td>
+              <td className={'r ' + (all.net >= 0 ? 'up' : 'down')}>{smoney(all.net)}</td><td /><td className="r">{money(all.income)}</td><td /></tr>
+            {accts.map((a, i) => { const st = a.stats; return (
+              <tr key={i} className={sel === i ? 'sel' : ''} aria-selected={sel === i} onClick={() => onSel(i)}>
+                <td className="ui">{nm(a)}</td><td>{fmtDay(a.from)}</td><td>{a.to ? fmtDay(a.to) : '—'}</td><td className="r">{st.trades}</td>
+                <td className={'r ' + (st.net >= 0 ? 'up' : 'down')}>{smoney(st.net)}</td><td className="r">{st.maxDD ? money(st.maxDD) : '—'}</td>
+                <td className="r">{a.nPay ? `${money(a.income)} (${a.nPay})` : a.income ? money(a.income) : '—'}</td>
+                <td className={'ui ' + (a.end === 'failed' ? 'down' : a.end === 'open' ? 'muted' : 'up')} title={a.why || undefined}>{ACCT_END[a.end]}{a.why ? <span className="muted bt-why">: {a.why}</span> : null}</td>
+              </tr>); })}
+          </tbody></table>
+      </div>
+    </section>
+  );
+}
 function Results({ view, running, onShow, onEdit, onRun, onToast }: { view: RunView | null; running: boolean; onShow: () => void; onEdit: () => void; onRun: () => void; onToast: (m: string, k?: string) => void }) {
-  if (!view) return <div className="page-in"><div className="emptycard"><b>No results yet</b><p>Run a strategy and its trades, equity curve and numbers show here.</p>
+  const [sel, setSel] = useState<number | null>(null);
+  useEffect(() => { setSel(null); }, [view]);
+  const accts = useMemo(() => {
+    const sim = view?.sim?.sim; if (!sim) return null;
+    const h = view!.r.account.hist, size = view!.sim!.cfg.size;
+    return sim.accounts().map(a => { const tr = h.slice(a.h0, a.h1 ?? h.length); return { ...a, tr, stats: histStats(tr, size) }; });
+  }, [view]);
+  const curve = useMemo(() => {
+    if (!view) return null;
+    const r = view.r, sim = view.sim?.sim, one = accts && sel != null ? accts[sel] : null;
+    if (!sim || !view.sim) return { eq: r.eq, start: r.account.start };
+    if (!one) return { eq: courseCurve(sim, view.sim.cfg.fee || 0, r.from, r.to), start: 0 };
+    const to = one.to || r.to, pts = r.eq.filter(p => p.time > one.from && p.time <= to);
+    return { eq: [{ time: one.from, value: view.sim.cfg.size }, ...pts], start: view.sim.cfg.size };
+  }, [view, accts, sel]);
+  if (!view || !curve) return <div className="page-in"><div className="emptycard"><b>No results yet</b><p>Run a strategy and its trades, equity curve and numbers show here.</p>
     <button className="btn primary" disabled={running} onClick={onRun}>Run backtest</button></div></div>;
   const { r, setup: su } = view, a = r.account, st = r.stats, prec = su.data.kind === 'practice' ? PRACTICE[su.data.sym].prec : su.data.inst.prec;
   const sim = view.sim?.sim, ss = sim?.stats();
@@ -454,8 +520,10 @@ function Results({ view, running, onShow, onEdit, onRun, onToast }: { view: RunV
     ['Profit factor', st.pf === 'inf' ? '∞' : st.pf == null ? '—' : st.pf.toFixed(2)], ['Max drawdown', st.maxDD ? `${money(st.maxDD)} (${st.maxDDpct.toFixed(1)}%)` : '$0.00'],
     ['Avg trade', st.trades ? smoney(st.net / st.trades) : '—'],
   ];
-  const shown = a.hist.slice(-500).reverse();
-  const copy = async () => { try { await navigator.clipboard.writeText(tradesCsv(a.hist)); onToast(`Copied ${a.hist.length} trades as CSV: paste them into a spreadsheet.`, 'up'); } catch { onToast('Could not copy: the browser blocked the clipboard.', 'err'); } };
+  const one = accts && sel != null ? accts[sel] : null, hist = one ? one.tr : a.hist;
+  const shown = hist.slice(-500).reverse();
+  const rows = one ? statsRows(one.stats) : [...statsRows(st), ...(sim ? sim.statRows() : [])];
+  const copy = async () => { try { await navigator.clipboard.writeText(tradesCsv(hist)); onToast(`Copied ${hist.length} trades as CSV: paste them into a spreadsheet.`, 'up'); } catch { onToast('Could not copy: the browser blocked the clipboard.', 'err'); } };
   return (
     <div className="page-in bt-results">
       <div className="bt-reshead">
@@ -465,14 +533,16 @@ function Results({ view, running, onShow, onEdit, onRun, onToast }: { view: RunV
         <div className="bt-acts">
           <button className="btn primary" disabled={running} onClick={onShow} title="Open this run as a replay session: its trades on the chart, and keep replaying from where it ended">Show on chart</button>
           <button className="btn" onClick={onEdit}>Edit and run again</button>
-          <button className="btn" disabled={!a.hist.length} onClick={copy}>Copy trades (CSV)</button>
+          <button className="btn" disabled={!hist.length} onClick={copy}>Copy trades (CSV)</button>
         </div>
       </div>
       <div className="bt-tiles">{tiles.map(([k, v, c]) => <div key={k} className="stat"><span>{k}</span><b className={c}>{v}</b></div>)}</div>
       {r.ended && <div className="warnline">{r.ended}</div>}
+      {accts && ss && <AccountsCard accts={accts} sel={sel} onSel={setSel} all={{ trades: st.trades, net: st.net, income: ss.income }} />}
+      {accts && <div className="bt-curvecap muted">{one ? `${one.stage === 'eval' ? `Evaluation ${one.attempt}` : STAGES[one.stage]}: its balance, from ${money(view.sim!.cfg.size)}` : 'Your result over time: evaluation fees out, payouts to you in'}</div>}
       <div className="bt-perf">
-        <EqCurve eq={r.eq} start={a.start} />
-        <div className="perf" style={{ padding: 0, display: 'block' }}><div className="sgrid">{[...statsRows(st), ...(sim ? sim.statRows() : [])].map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}</div></div>
+        <EqCurve key={sel ?? 'all'} eq={curve.eq} start={curve.start} />
+        <div className="perf" style={{ padding: 0, display: 'block' }}><div className="sgrid">{rows.map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}</div></div>
       </div>
       <div className="card bt-trades">
         {shown.length ? <table className="t"><thead><tr><th>#</th><th>Side</th><th>Size</th><th>Opened</th><th>Entry</th><th>Closed</th><th>Exit</th><th>Exit by</th><th className="r">Net P&amp;L</th></tr></thead>
@@ -481,7 +551,7 @@ function Results({ view, running, onShow, onEdit, onRun, onToast }: { view: RunV
             <td>{fmtDay(h.exitTime)}</td><td>{h.exit.toFixed(prec)}</td><td className="ui muted">{h.reason}</td><td className={'r ' + (h.net >= 0 ? 'up' : 'down')}>{smoney(h.net)}</td></tr>)}</tbody></table>
           : <div className="empty">No closed trades.</div>}
       </div>
-      <p className="muted" style={{ fontSize: 12, margin: 0 }}>{a.hist.length > 500 ? `The latest 500 of ${a.hist.length} trades; Copy trades has them all. ` : ''}Show on chart opens the run as a replay session (saved to your Library), with its trades on the chart.</p>
+      <p className="muted" style={{ fontSize: 12, margin: 0 }}>{hist.length > 500 ? `The latest 500 of ${hist.length} trades; Copy trades has them all. ` : ''}Show on chart opens the run as a replay session (saved to your Library), with its trades on the chart.</p>
     </div>
   );
 }

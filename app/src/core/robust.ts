@@ -1,4 +1,4 @@
-// Robustness tests of an optimization's best combinations, ported from the classic app (app.ts:6678-6985). The
+// Robustness tests of an optimization's best combinations. The
 // candidates run once each (opt workers, with trades: every closed trade's exit time and net, flat), from the
 // optimization's start through the holdout; the tests are worked out from those trades, so changing the
 // walk-forward windows or the Monte Carlo settings needs no new runs:
@@ -88,7 +88,7 @@ export function robRanked(doc: { from: number; to: number; splitT: number | null
   const i = t && t.length ? Math.min(t.length - 1, lowerBound(t, doc.to) + 1) : -1;
   return { from: doc.from, to: i >= 0 && t![i] > doc.to ? t![i] : doc.to + base };
 }
-/** checks before running, with the classic messages: {runTo} (how far the candidates must run) or {error}. oFrom may
+/** checks before running: {runTo} (how far the candidates must run) or {error}. oFrom may
  * move to the ranked end when the holdout starts on that same day (ymd: a time as YYYY-MM-DD in the chart zone). */
 export function robPlan(sp: RobSpec, rk: { from: number; to: number }, lastBar: number, base: number, ymd: (t: number) => string): { runTo: number; oFrom: number } | { error: string } {
   if (!sp.oos && !sp.wf && !sp.mc) return { error: 'Tick at least one test.' };
@@ -190,7 +190,7 @@ export function robSorted(v: RobView, combos: Array<Record<string, unknown>>, ke
 }
 /** the first click on a column sorts ascending for settings, drawdowns and ruin, else descending */
 export const robSortDir = (key: string) => key.startsWith('p:') || key.endsWith('.dd') || key.endsWith('dd95') || key.endsWith('ruin') ? 1 : -1;
-/** all candidates as CSV (the classic columns) */
+/** all candidates as CSV */
 export function robCsv(v: RobView, combos: Array<Record<string, any>>, names: string[], fmt: (x: any) => string): string {
   const f = (x: number | null | undefined) => x == null || !isFinite(x) ? '' : x >= 1e8 ? 'inf' : +x.toFixed(4);
   const head = [...names, 'ranked_net', 'ranked_pf', 'ranked_dd', 'holdout_trades', 'holdout_net', 'holdout_pf', 'holdout_dd', 'holdout_vs_ranked_pct', 'wf_windows_in_profit', 'mc_in_profit', 'mc_net_p5', 'mc_net_p50', 'mc_dd_p50', 'mc_dd_p95', 'mc_ruin', 'passed', 'tests'];

@@ -24,6 +24,8 @@ export interface OptDoc {
   /** the run's dates (t0 inclusive, t1 exclusive) and its first and last bars */
   t0: number; t1: number; from: number; to: number;
   balance: number; qty: number; costs: RunCosts;
+  /** the prop challenge every run took (payouts as soon as allowed), or none */
+  prop?: RunSetup['prop'];
   created: number; updated: number; goal: Goal; minTrades: number; split: number; splitT: number | null;
   spec: { params: Array<{ name: string; values: Combo[string][] }>; rules: string[]; search: 'smart' | 'grid' | 'random'; n?: number; seed: number };
   kinds: Record<string, ParamInfo['kind']>;
@@ -40,10 +42,10 @@ const dur = (s: number) => s < 60 ? `${Math.max(1, Math.round(s))} s` : s < 3600
 const f2 = (x: number | null | undefined) => x == null || !isFinite(x) ? '—' : x >= 1e8 ? '∞' : x.toFixed(2);
 const copyText = async (text: string, ok: string, onToast: (m: string, k?: string) => void) => { try { await navigator.clipboard.writeText(text); onToast(ok, 'up'); } catch { onToast('Could not copy: the browser blocked the clipboard.', 'err'); } };
 export const docSetup = (d: OptDoc): RunSetup => ({ name: d.strategy, lang: d.lang, code: d.code, mode: d.mode, libs: d.libs, tf: d.tf, data: d.data, market: d.market, t0: d.t0, t1: d.t1,
-  balance: d.balance, qty: d.qty, costs: d.costs, dataName: d.datasetName, prop: null });
+  balance: d.balance, qty: d.qty, costs: d.costs, dataName: d.datasetName, prop: d.prop ?? null });
 
-export function OptimizePanel({ active, which, code, lang, name, setup, busy, onUse, onShow, onToast, openId, onOpened, goRob }: {
-  active: boolean; which: 'opt' | 'rob'; code: string; lang: Lang; name: string; setup: () => RunSetup | string; busy: boolean;
+export function OptimizePanel({ active, which, code, lang, name, setup, busy, onUse, onShow, onToast, openId, onOpened, goRob, propOn }: {
+  active: boolean; propOn: boolean; which: 'opt' | 'rob'; code: string; lang: Lang; name: string; setup: () => RunSetup | string; busy: boolean;
   onUse: (name: string, lang: Lang, docCode: string, combo: Combo) => void; onShow: (su: RunSetup, combo: Combo) => void; onToast: (m: string, k?: string) => void;
   openId: string | null; onOpened: () => void; goRob: () => void;
 }) {
@@ -115,6 +117,7 @@ export function OptimizePanel({ active, which, code, lang, name, setup, busy, on
     const bad = ticked.find(x => !x.v || 'error' in x.v);
     if (bad) return setStatus({ text: `Values to try for ${bad.r.p.name}: ${(bad.v as { error: string } | null)?.error || 'no values'}.`, kind: 'er' });
     if (!params.length) return setStatus({ text: 'Tick at least one setting to try.', kind: 'er' });
+    if (goal === 'take' && !su.prop) return setStatus({ text: 'Payouts − fees ranks by a prop challenge: tick “Practice a prop firm challenge” in the Run settings, or pick another goal.', kind: 'er' });
     if (overCap) return setStatus({ text: `${total.toLocaleString('en-US')} combinations is more than ${cap.toLocaleString('en-US')}. Narrow the ranges, or use Smart or a random sample.`, kind: 'er' });
     stopRef.current = false; setRunning(true); setSel(null); setProg(null);
     if (touch()) store.awake(true);
@@ -125,12 +128,12 @@ export function OptimizePanel({ active, which, code, lang, name, setup, busy, on
       const sl = seriesSlice(s, startI, endI);
       const splitT = split ? s.t[startI + Math.floor((endI - startI) * (1 - split / 100))] : null;
       const job: OptJob = { lang: su.lang, code: su.code, mode: su.mode, tf: su.tf, libs: su.libs, pyBase: su.lang === 'py' ? await pyBase() : undefined, data: sl.data, start: 1, end: sl.data.n, splitT,
-        balance: su.balance, qty: su.qty, costs: su.costs, zone: zone.id };
+        balance: su.balance, qty: su.qty, costs: su.costs, zone: zone.id, prop: su.prop };
       const n = workerCount({ bytes: sl.bytes, shared: sl.shared, phone: small(), python: su.lang === 'py' });
       const seed = Math.floor(Math.random() * 1e9);
       const kinds = Object.fromEntries(rows.map(r => [r.p.name, r.p.kind]));
       const d: OptDoc = { v: 1, id: newId(), name: `${su.name} optimization`, strategy: su.name, lang: su.lang, code: su.code, mode: su.mode, libs: su.libs, tf: su.tf, data: su.data, market: su.market,
-        datasetName: su.dataName, t0: su.t0, t1: su.t1, from: s.t[startI], to: s.t[endI - 1], balance: su.balance, qty: su.qty, costs: su.costs, created: Date.now(), updated: Date.now(),
+        datasetName: su.dataName, t0: su.t0, t1: su.t1, from: s.t[startI], to: s.t[endI - 1], balance: su.balance, qty: su.qty, costs: su.costs, prop: su.prop, created: Date.now(), updated: Date.now(),
         goal, minTrades: minT, split, splitT, spec: { params, rules: rules.split('\n'), search, n: search === 'random' ? nRandom : undefined, seed }, kinds,
         combos: [], rows: [], total, skipped: 0, done: 0, best: '' };
       const seen = new Map<number, Combo>(), base = pool.runner(job, n);
@@ -160,7 +163,7 @@ export function OptimizePanel({ active, which, code, lang, name, setup, busy, on
   async function open(id: string) {
     try {
       const d = await store.getOptim(id) as OptDoc;
-      if (!d || d.v !== 1 || !d.market) throw new Error('This optimization was made in the classic view. Open it there.');
+      if (!d || d.v !== 1 || !d.market) throw new Error('This optimization was saved by an older version of Tape Replay and cannot be opened.');
       setDoc(d); setGoal(d.goal || 'ndd'); setMinT(d.minTrades ?? 10); setSplit(d.split ?? 30); setRules((d.spec?.rules || []).join('\n')); setSel(null); setSort({ key: 'score', dir: -1 });
       setStatus({ text: `Opened “${d.name}” from your Library.` });
     } catch (e) { onToast((e as Error).message, 'err'); }
@@ -196,8 +199,8 @@ export function OptimizePanel({ active, which, code, lang, name, setup, busy, on
       <div className="bt-optrow">
         <label className="field" style={{ flex: '1 1 260px' }}><span className="lbl">Rules combinations must meet (optional, one per line) <span className="q" title="Python expressions over the ticked settings, like FAST < SLOW. Combinations that fail a rule are not run.">?</span></span>
           <textarea className="in bt-rules" spellCheck={false} placeholder="FAST < SLOW" value={rules} onChange={e => setRules(e.target.value)} /></label>
-        <label className="field" style={{ width: 210 }}><span className="lbl">Goal <span className="q" title="What the ranking favours. Net ÷ max drawdown prefers steady gains over lucky ones.">?</span></span>
-          <select className="in ui" value={goal} onChange={e => { const g = e.target.value as Goal; setGoal(g); remember({ goal: g }); }}>{(Object.keys(OPT_GOALS) as Goal[]).filter(g => g !== 'take').map(g => <option key={g} value={g}>{OPT_GOALS[g]}</option>)}</select></label>
+        <label className="field" style={{ width: 210 }}><span className="lbl">Goal <span className="q" title="What the ranking favors. Net ÷ max drawdown prefers steady gains over lucky ones. Payouts − fees ranks by what a prop challenge paid you, less its evaluation fees (tick the prop challenge in the Run settings).">?</span></span>
+          <select className="in ui" value={goal} onChange={e => { const g = e.target.value as Goal; setGoal(g); remember({ goal: g }); }}>{(Object.keys(OPT_GOALS) as Goal[]).map(g => <option key={g} value={g} disabled={g === 'take' && !propOn && goal !== 'take'}>{OPT_GOALS[g]}{g === 'take' ? (propOn ? ' (prop challenge)' : ' (needs the prop challenge)') : ''}</option>)}</select></label>
         <label className="field" style={{ width: 130 }}><span className="lbl">Minimum trades <span className="q" title="Combinations with fewer trades are not ranked: a handful of trades proves little.">?</span></span>
           <input className="in" inputMode="numeric" value={minT} onChange={e => { const v = Math.max(0, parseInt(e.target.value) || 0); setMinT(v); remember({ minT: v }); }} /></label>
         <div className="field"><span className="lbl">Check on the last <span className="q" title="Keeps the last part of the dates out of the ranking, and shows how each combination did there (the Check columns): a guard against settings that only fit the past.">?</span></span>
@@ -225,7 +228,7 @@ function OptResults({ doc, sort, setSort, sel, setSel, busy, onUse, onShow, onTo
   doc: OptDoc; sort: { key: string; dir: number }; setSort: (s: { key: string; dir: number }) => void; sel: number | null; setSel: (i: number | null) => void; busy: boolean;
   onUse: (c: Combo) => void; onShow: (c: Combo) => void; onToast: (m: string, k?: string) => void; goRob: () => void;
 }) {
-  const names = doc.spec.params.map(p => p.name), split = doc.splitT != null;
+  const names = doc.spec.params.map(p => p.name), split = doc.splitT != null, prop = !!doc.prop;
   const sorted = optSorted(doc.rows, doc.combos, doc.goal, doc.minTrades, sort.key, sort.dir);
   const limit = small() ? 50 : 300, shown = sorted.slice(0, limit);
   const click = (key: string) => setSort(sort.key === key ? { key, dir: -sort.dir } : { key, dir: key.startsWith('p:') || key === 'a.dd' ? 1 : -1 });
@@ -237,25 +240,30 @@ function OptResults({ doc, sort, setSort, sel, setSel, busy, onUse, onShow, onTo
     <section className="bt-optres">
       <div className="bt-reshead">
         <p className="muted" style={{ margin: 0, fontSize: 12.5, flex: '1 1 320px' }}>
-          {doc.spec.search === 'smart' ? `Smart search: ${doc.done} runs over ${doc.total.toLocaleString('en-US')} combinations` : `${doc.done} of ${doc.combos.length} combinations`}{doc.skipped ? ` (${doc.skipped} skipped by the rules)` : ''}, ranked by {OPT_GOALS[doc.goal]} on {ymd(doc.from)} to {ymd(end - 1)}{split ? `; Check columns: ${ymd(doc.splitT!)} to ${ymd(doc.to)}` : ''}. Click a column to sort, a row to select it.
+          {doc.spec.search === 'smart' ? `Smart search: ${doc.done} runs over ${doc.total.toLocaleString('en-US')} combinations` : `${doc.done} of ${doc.combos.length} combinations`}{doc.skipped ? ` (${doc.skipped} skipped by the rules)` : ''}, ranked by {OPT_GOALS[doc.goal]} on {ymd(doc.from)} to {ymd(end - 1)}{split ? `; Check columns: ${ymd(doc.splitT!)} to ${ymd(doc.to)}` : ''}{prop ? `. Each run took the prop challenge (${doc.prop!.cfg.preset || 'your own rules'}${doc.prop!.rebuy ? ', buying new evaluations' : ''}) over all its dates` : ''}. Click a column to sort, a row to select it.
         </p>
+        {(() => { const top = optSorted(doc.rows, doc.combos, doc.goal, doc.minTrades).find(x => !x.res.fail && isFinite(x.score ?? -Infinity)); return top ?
+          <button className="btn sm primary" title={`Write the best by ${OPT_GOALS[doc.goal]} into the strategy's code: ${optLabel(doc.combos[top.i])}`} onClick={() => onUse(doc.combos[top.i])}>Use the best in code</button> : null; })()}
         <button className="btn sm" onClick={csv}>Copy results (CSV)</button>
         <button className="btn sm" onClick={goRob}>Test robustness</button>
       </div>
       {selC && <div className="bt-selbar">
         <b className="num">{optLabel(selC)}</b><span className="spacer" />
-        <button className="btn sm primary" onClick={() => onUse(selC)}>Use in code</button>
+        <button className="btn sm primary" title="Write these settings into the strategy's code" onClick={() => onUse(selC)}>Use these in code</button>
         <button className="btn sm" disabled={busy} onClick={() => onShow(selC)}>Show on chart</button>
       </div>}
       <div className="card bt-tablewrap">
         <table className="t bt-rtable"><thead><tr><th>#</th>{names.map(n => th('p:' + n, n, false))}{th('score', OPT_GOALS[doc.goal])}{th('a.trades', 'Trades')}{th('a.net', 'Net')}{th('a.win', 'Win %')}{th('a.pf', 'PF')}{th('a.dd', 'Max DD')}
+          {prop && <>{doc.goal !== 'take' && th('sim.take', 'Payouts − fees')}{th('sim.income', 'Payouts to you')}{th('sim.nPay', 'Payouts')}{th('sim.maxPay', 'Largest payout')}{th('sim.passed', 'Evals passed')}{th('sim.attempts', 'Evals')}</>}
           {split && <>{th('b.net', 'Check: net')}{th('b.pf', 'Check: PF')}{th('b.trades', 'Check: trades')}</>}</tr></thead>
           <tbody>{shown.map((r, k) => { const c = doc.combos[r.i], a = r.res.a, b = r.res.b, low = !isFinite(r.score ?? -Infinity); return (
             <tr key={r.i} className={(sel === r.i ? 'sel ' : '') + (low ? 'low' : '')} onClick={() => setSel(sel === r.i ? null : r.i)}>
               <td>{k + 1}</td>{names.map(n => <td key={n}>{optFmt(c[n])}</td>)}
-              {r.res.fail ? <td className="ui down" colSpan={6 + (split ? 3 : 0)}>{String(r.res.fail).split('\n')[0]}</td> : <>
+              {r.res.fail ? <td className="ui down" colSpan={6 + (split ? 3 : 0) + (prop ? (doc.goal !== 'take' ? 6 : 5) : 0)}>{String(r.res.fail).split('\n')[0]}</td> : <>
                 <td className="r"><b>{optScoreTxt(r.score!, doc.goal, smoney)}</b></td><td className="r">{a?.trades}</td><td className={'r ' + ((a?.net ?? 0) >= 0 ? 'up' : 'down')}>{a ? smoney(a.net) : ''}</td>
                 <td className="r">{a?.win == null ? '—' : a.win.toFixed(0)}</td><td className="r">{f2(a?.pf)}</td><td className="r">{a ? money(a.dd) : ''}</td>
+                {prop && (() => { const m = r.res.sim; return <>{doc.goal !== 'take' && <td className={'r ' + ((m?.take ?? 0) >= 0 ? 'up' : 'down')}>{m ? smoney(m.take) : '—'}</td>}
+                  <td className="r">{m ? money(m.income) : '—'}</td><td className="r">{m?.nPay ?? '—'}</td><td className="r">{m?.nPay ? money(m.maxPay) : '—'}</td><td className="r">{m?.passed ?? '—'}</td><td className="r">{m?.attempts ?? '—'}</td></>; })()}
                 {split && <><td className={'r ' + ((b?.net ?? 0) >= 0 ? 'up' : 'down')}>{b ? smoney(b.net) : ''}</td><td className="r">{f2(b?.pf)}</td><td className="r">{b?.trades}</td></>}</>}
             </tr>); })}</tbody></table>
       </div>

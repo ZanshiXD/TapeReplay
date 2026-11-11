@@ -1,6 +1,6 @@
 // The indicators people write (Python or JavaScript): their saved scripts (pref pyScripts: name -> code, with the
 // JavaScript ones named in pref scriptLangs) and the ones on the charts (pref pyInds: [{ id, name, code, on, lang }],
-// each with its own copy of the code). The Python templates are the classic app's; the JavaScript ones are their ports.
+// each with its own copy of the code). The JavaScript templates are ports of the Python ones.
 import { bump, pref, setPref } from '../live';
 
 export type Lang = 'py' | 'js';

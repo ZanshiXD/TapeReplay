@@ -1,12 +1,12 @@
 // The drawing toolbar down the left of the charts, laid out like TradingView's: cursors, then the six groups of tools
 // (each shows the last one used; the arrow beside it, a right-click or a long press opens the whole group), measure
 // and zoom, then magnet, stay in drawing mode, lock all, hide all, remove, and the object tree. "All drawing tools"
-// opens every tool in one panel with a search; the star shows the favourites bar, a small toolbar of the starred
+// opens every tool in one panel with a search; the star shows the favorites bar, a small toolbar of the starred
 // tools that floats on the chart and can be dragged anywhere on it.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Session } from '../../core/session';
-import { bump, pref, setPref, useLive } from '../live';
+import { bump, pref, setPref, useShape } from '../live';
 import { GROUPS, ICONS, TOOL, TOOLS, isDrawTool, type Group } from './tools';
 import { cursorTool, ds, setDs, type Magnet } from './state';
 import { layers } from './overlay';
@@ -45,7 +45,7 @@ function Flyout({ name, children, search }: { name: string; children: React.Reac
 }
 
 export function DrawRail({ session }: { session: Session }) {
-  useLive();
+  useShape();
   const [open, setOpen] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -91,7 +91,7 @@ export function DrawRail({ session }: { session: Session }) {
       <div className="rgroup" key={g}>
         <button className={'rb' + (on ? ' on' : '')} title={`${tip(TOOL[shown].name, TOOL[shown].key)} · right-click or hold for all ${name.toLowerCase()}`} aria-label={TOOL[shown].name} aria-pressed={on}
           {...press(g)} onClick={() => { if (!fired()) pick(shown); }}><ToolIcon id={shown} /></button>
-        <button className={'rarrow' + (open === g ? ' open' : '')} title={`All ${name.toLowerCase()}`} aria-label={`More: ${name}`} aria-expanded={open === g} onClick={() => toggle(g)}><Ic d={UI.chev} size={10} sw={2.4} /></button>
+        <button className={'rarrow' + (open === g ? ' open' : '')} title={`All ${name.toLowerCase()}`} aria-label={`More: ${name}`} aria-expanded={open === g} onClick={() => toggle(g)}><Ic d={UI.chev} size={15} sw={2.2} /></button>
         {open === g && (
           <Flyout name={name} search={items.length > 8 ? { q, set: setQ } : undefined}>
             {secs.map(sec => <div key={sec || 'x'}>
@@ -118,8 +118,8 @@ export function DrawRail({ session }: { session: Session }) {
       {group('cursor')}
       <div className="rgroup">
         <button className={'rb' + (open === 'all' ? ' on' : '')} title="All drawing tools: every tool in one panel, with a search" aria-label="All drawing tools" aria-expanded={open === 'all'} onClick={() => toggle('all')}><Ic d={ALL_ICON} size={18} sw={1.5} /></button>
-        <button className={'rarrow fav' + (favBar ? ' open' : '')} title={favBar ? 'Hide the favourites bar' : 'Show the favourites bar: your starred tools on the chart'} aria-label="Favourites bar" aria-pressed={favBar} onClick={() => { setPref('drawFavBar', !favBar); bump(); }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill={favBar ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round"><path d={UI.star} /></svg></button>
+        <button className={'rarrow fav' + (favBar ? ' open' : '')} title={favBar ? 'Hide the favorites bar' : 'Show the favorites bar: your starred tools on the chart'} aria-label="Favorites bar" aria-pressed={favBar} onClick={() => { setPref('drawFavBar', !favBar); bump(); }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill={favBar ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round"><path d={UI.star} /></svg></button>
         {open === 'all' && <div className="allpanel" ref={allRef}><DrawSheet session={s} panel onClose={() => setOpen(null)} /></div>}
       </div>
       <span className="rsep" />
@@ -128,13 +128,13 @@ export function DrawRail({ session }: { session: Session }) {
       <button className={'rb' + (ds.tool === 'measure' ? ' on' : '')} title="Measure (or Shift+click the chart)" aria-label="Measure" onClick={() => pick('measure')}><Ic d={ICONS.measure} /></button>
       <div className="rgroup">
         <button className={'rb' + (ds.tool === 'zoom' ? ' on' : '')} title="Zoom in: drag over the bars to see" aria-label="Zoom in" onClick={() => pick('zoom')}><Ic d={ICONS.zoom} /></button>
-        <button className="rarrow" title="Zoom out" aria-label="Zoom out" onClick={() => activeLayer()?.zoomOut()}><Ic d={UI.chev} size={10} sw={2.4} /></button>
+        <button className="rarrow" title="Zoom out" aria-label="Zoom out" onClick={() => activeLayer()?.zoomOut()}><Ic d={UI.chev} size={15} sw={2.2} /></button>
       </div>
       <span className="rsep" />
       <div className="rgroup">
         <button className={'rb' + (ds.magnet !== 'off' ? ' on' : '')} title={`Magnet: ${ds.magnet === 'off' ? 'off' : ds.magnet === 'weak' ? 'weak (snaps when close)' : 'strong (always snaps)'} — points snap to the bar's open, high, low or close. Hold Ctrl to flip it.`} aria-label="Magnet" aria-pressed={ds.magnet !== 'off'}
           onContextMenu={e => { e.preventDefault(); toggle('magnet'); }} onClick={() => magnet(ds.magnet === 'off' ? 'weak' : 'off')}><Ic d={UI.magnet} /></button>
-        <button className={'rarrow' + (open === 'magnet' ? ' open' : '')} aria-label="Magnet mode" title="Magnet mode" onClick={() => toggle('magnet')}><Ic d={UI.chev} size={10} sw={2.4} /></button>
+        <button className={'rarrow' + (open === 'magnet' ? ' open' : '')} aria-label="Magnet mode" title="Magnet mode" onClick={() => toggle('magnet')}><Ic d={UI.chev} size={15} sw={2.2} /></button>
         {open === 'magnet' && <Flyout name="Magnet">
           <h5>Magnet</h5>
           {([['off', 'Off'], ['weak', 'Weak magnet: snaps when close'], ['strong', 'Strong magnet: always snaps']] as Array<[Magnet, string]>).map(([m, l]) => <div key={m} className="frow"><button className={ds.magnet === m ? 'on' : ''} onClick={() => magnet(m)}><Ic d={UI.magnet} size={20} /><span className="nm">{l}</span></button></div>)}
@@ -163,7 +163,7 @@ export function DrawRail({ session }: { session: Session }) {
   );
 }
 
-/** the favourites bar: the starred tools as a small toolbar on the chart, dragged by its grip, kept where it was left */
+/** the favorites bar: the starred tools as a small toolbar on the chart, dragged by its grip, kept where it was left */
 function FavBar({ session, rail }: { session: Session; rail: React.RefObject<HTMLDivElement | null> }) {
   const [pos, setPos] = useState<{ x: number; y: number }>(() => pref('drawFavPos', { x: 12, y: 54 }));
   const bar = useRef<HTMLDivElement>(null);
@@ -181,7 +181,7 @@ function FavBar({ session, rail }: { session: Session; rail: React.RefObject<HTM
   const move = (e: React.PointerEvent) => { if (drag.current) setPos(clamp({ x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy })); };
   const up = () => { if (drag.current) { drag.current = null; setPref('drawFavPos', pos); } };
   return (
-    <div className="favbar" ref={bar} role="toolbar" aria-label="Favourite drawing tools" style={{ left: (rail.current?.offsetWidth || 52) + pos.x, top: pos.y }}>
+    <div className="favbar" ref={bar} role="toolbar" aria-label="Favorite drawing tools" style={{ left: (rail.current?.offsetWidth || 52) + pos.x, top: pos.y }}>
       <span className="grip" title="Drag to move" onPointerDown={down} onPointerMove={move} onPointerUp={up}><Ic d={UI.grip} size={14} /></span>
       {favs.map(id => <button key={id} className={'rb' + (ds.tool === id ? ' on' : '')} title={tip(TOOL[id].name, TOOL[id].key)} aria-label={TOOL[id].name} aria-pressed={ds.tool === id}
         onClick={() => { if (ds.tool === id) { for (const l of layers) l.cancel(); setDs({ tool: cursorTool(), selected: null }); } else armTool(session, id); }}><ToolIcon id={id} size={20} /></button>)}

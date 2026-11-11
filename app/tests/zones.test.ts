@@ -1,4 +1,4 @@
-// Chart studies (src/core/zones.ts, src/core/sessions-studies.ts): price zones match the classic app's algorithm on the
+// Chart studies (src/core/zones.ts, src/core/sessions-studies.ts): price zones match a reference algorithm on the
 // same candles, grow candle by candle without looking ahead, and session opens land at each city's own hours.
 //   npx tsx tests/zones.test.ts
 import { practiceSeries } from '../src/core/practice';
@@ -13,8 +13,8 @@ let passed = 0;
 const check = (c: unknown, m: string) => { if (!c) throw new Error('FAILED: ' + m); passed++; };
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-/* ---- the classic app's price zones (app.ts zoneStep), verbatim but for the state object and the tick ---- */
-function classicZones(cs: Bar[], z: { swing: number; minTicks: number }, mintick: number) {
+/* ---- reference price zones (the original zoneStep), verbatim but for the state object and the tick ---- */
+function refZones(cs: Bar[], z: { swing: number; minTicks: number }, mintick: number) {
   const Z = { zones: [] as any[], swH: null as any, swL: null as any };
   const addZone = (type: string, dir: number, top: number, bot: number, t0: number) => { Z.zones.push({ type, dir, top, bot, t0, t1: null }); };
   function zoneStep(cs: Bar[], k: number) {
@@ -68,13 +68,13 @@ const [nq] = await practiceSeries(['NQ'], t0, t1);
 const tick = nq.inst.tick;
 const at = Date.UTC(2026, 2, 9, 13, 30) / 1000;
 
-/* ---- the same zones as the classic app, on 1m and 5m candles, with several settings ---- */
+/* ---- the same zones as the reference, on 1m and 5m candles, with several settings ---- */
 for (const tf of ['1m', '5m', '15m']) {
   const F = new Feed(nq, nq.n, parseTF(tf)!), cs = F.candles;
   check(cs.length > 1000, `${tf}: candles to test on (${cs.length})`);
   for (const [swing, minTicks] of [[3, 0], [1, 0], [5, 4], [20, 1000]]) {
-    const ours = run(cs, swing, minTicks * tick), theirs = classicZones(cs, { swing, minTicks }, tick);
-    check(ours.length === theirs.length && same(ours, theirs), `${tf} swing ${swing} min ${minTicks}: same zones as the classic app (${ours.length} vs ${theirs.length})`);
+    const ours = run(cs, swing, minTicks * tick), theirs = refZones(cs, { swing, minTicks }, tick);
+    check(ours.length === theirs.length && same(ours, theirs), `${tf} swing ${swing} min ${minTicks}: same zones as the reference (${ours.length} vs ${theirs.length})`);
   }
   const zs = run(cs, 3, 0), kinds = new Set(zs.map(q => q.type));
   console.log(`${tf}: ${cs.length} candles, ${zs.length} zones:`, ['fvg', 'ifvg', 'bpr', 'ob', 'bb'].map(k => `${k} ${zs.filter(q => q.type === k).length}`).join(', '));
@@ -103,13 +103,13 @@ for (const tf of ['1m', '5m', '15m']) {
     // nothing from the forming candle, nor from any bar after it
     check(zf.n === f.candles.length && f.F && f.F.time > last, 'only closed candles are used');
     check(zf.zones.every(q => q.t0 <= last && (q.t1 == null || q.t1 <= last) && (q.flipT == null || q.flipT <= last)), 'no zone uses a candle that has not closed');
-    if (k % 10 === 0) { check(same(zf.zones, classicZones(f.candles, { swing: 3, minTicks: 0 }, tick)), `step ${k}: same as computing from scratch (classic)`); checks++; }
+    if (k % 10 === 0) { check(same(zf.zones, refZones(f.candles, { swing: 3, minTicks: 0 }, tick)), `step ${k}: same as computing from scratch (reference)`); checks++; }
   }
   check(grew > 40 && checks === 6, `zones updated as candles closed (${grew} times)`);
   // a step back rebuilds the candles; computing again from them matches
   S.stepBack();
   const again = new ZoneFinder(3, 0); again.update(f.candles);
-  check(same(again.zones, classicZones(f.candles, { swing: 3, minTicks: 0 }, tick)), 'after a step back');
+  check(same(again.zones, refZones(f.candles, { swing: 3, minTicks: 0 }, tick)), 'after a step back');
 }
 
 /* ---- zones of another timeframe: candles built from the bars already played, the forming one held back ---- */
@@ -141,7 +141,7 @@ for (const tf of ['1m', '5m', '15m']) {
   check(!shownZones(zs, zonePrefs({ fvg: { on: false, up: '#000000', dn: '#000000' } })).some(q => q.type === 'fvg'), 'a kind turned off is not drawn');
   check(zoneLabel({ type: 'ifvg', dir: -1, top: 2, bot: 1, t0: 0, t1: null }, '15m ') === '15m ▼ iFVG', 'label');
   const d = zonePrefs();
-  check(!d.on && !d.added && d.tf === 'chart' && d.max === 8 && d.swing === 3 && d.minTicks === 0 && d.hideDone && d.labels && d.bpr.up === '#e2a63c', 'classic defaults');
+  check(!d.on && !d.added && d.tf === 'chart' && d.max === 8 && d.swing === 3 && d.minTicks === 0 && d.hideDone && d.labels && d.bpr.up === '#e2a63c', 'the defaults');
   check(zonePrefs({ max: 500, swing: 0, minTicks: -3 }).max === 50 && zonePrefs({ swing: 99 }).swing === 20 && zonePrefs({ minTicks: -3 }).minTicks === 0, 'settings kept in range');
 }
 
@@ -149,7 +149,7 @@ for (const tf of ['1m', '5m', '15m']) {
 {
   const H = (s: number) => new Date(s * 1000).toISOString().slice(0, 16);
   const sp = sessPrefs();
-  check(sp.sessions.length === 4 && sp.sessions.every(s => s.on) && !sp.shade && sp.labels, 'classic defaults: four cities, exchange hours');
+  check(sp.sessions.length === 4 && sp.sessions.every(s => s.on) && !sp.shade && sp.labels, 'the defaults: four cities, exchange hours');
   // Wednesday 1 April 2026: Sydney still on daylight time (UTC+11), London BST, New York EDT
   const day0 = Date.UTC(2026, 3, 1) / 1000, r = sessionRanges(sp.sessions, day0, day0 + 86400 - 1);
   const get = (name: string) => r.filter(x => x.s.name === name).map(x => `${H(x.o)}-${H(x.c)}`);
@@ -164,8 +164,8 @@ for (const tf of ['1m', '5m', '15m']) {
   const wk = sessionRanges(sp.sessions, Date.UTC(2026, 3, 4, 6) / 1000, Date.UTC(2026, 3, 5, 12) / 1000);
   check(!wk.length, `none on the weekend (${wk.map(x => x.s.name + ' ' + H(x.o))})`);
   check(!sessionRanges(sp.sessions.map(s => ({ ...s, on: false })), day0, day0 + 86400).length, 'sessions turned off are not drawn');
-  // the classic drawing loop (drawSessions), over a week: the same opens and closes
-  const classic = (list: SessDef[], t0: number, t1: number) => {
+  // a reference drawing loop (the original drawSessions), over a week: the same opens and closes
+  const reference = (list: SessDef[], t0: number, t1: number) => {
     const out: string[] = [];
     for (let day = Math.floor(t0 / 86400) - 1; day <= Math.floor(t1 / 86400) + 1; day++) {
       const dt = new Date(day * 86400000), wd = dt.getUTCDay(); if (wd === 0 || wd === 6) continue;
@@ -180,7 +180,7 @@ for (const tf of ['1m', '5m', '15m']) {
   const fx = SESS_DEF.map(s => ({ ...s, open: SESS_STD.forex.hours[s.name][0], close: SESS_STD.forex.hours[s.name][1] }));
   for (const list of [sp.sessions, fx, [{ ...SESS_DEF[3], open: '18:00', close: '17:00' }]]) {
     const a = Date.UTC(2026, 2, 5) / 1000, b = Date.UTC(2026, 3, 9) / 1000;
-    check(same(sessionRanges(list, a, b).map(x => `${x.s.name} ${x.o} ${x.c}`), classic(list, a, b)), 'same sessions as the classic app over five weeks (DST changes included)');
+    check(same(sessionRanges(list, a, b).map(x => `${x.s.name} ${x.o} ${x.c}`), reference(list, a, b)), 'same sessions as the reference over five weeks (DST changes included)');
   }
   const ov = sessionRanges([{ ...SESS_DEF[3], open: '18:00', close: '17:00' }], day0, day0 + 86400)[0];
   check(ov.c - ov.o === 23 * 3600, 'a session past midnight closes the next day');

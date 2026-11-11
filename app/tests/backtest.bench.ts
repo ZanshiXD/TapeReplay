@@ -1,11 +1,11 @@
-// Backtest speed: the classic app's way (one Python call per candle, tick and fill with the state each time, bars
+// Backtest speed: the per-call way (one Python call per candle, tick and fill with the state each time, bars
 // skipped only when flat, print one line at a time) against the new runner (batched Python) and JavaScript, on the
 // same engine and data: practice NQ, 1-second bars.
 //   npx tsx tests/backtest.bench.ts [days]
 import { runBacktest, type Bridge, type RunConfig } from '../src/core/backtest';
 import { jsStrategy } from '../src/core/jsstrategy';
 import { practiceSeries } from '../src/core/practice';
-import { pyClassicStrategy, pyStrategy } from '../src/core/pybridge';
+import { pyPerCallStrategy, pyStrategy } from '../src/core/pybridge';
 import { parseTF, setZone } from '../src/core/time';
 import { python } from './helpers';
 
@@ -86,12 +86,12 @@ const time = async (cfg: Partial<RunConfig>, b: Bridge) => {
 };
 for (const x of S) {
   const cfg = { mode: x.mode, tf: parseTF(x.tf)! };
-  const c = await time({ ...cfg, classicPath: true }, pyClassicStrategy(host, x.py));
+  const c = await time({ ...cfg, plainPath: true }, pyPerCallStrategy(host, x.py));
   const p = await time(cfg, pyStrategy(host, x.py));
   const j = await time(cfg, jsStrategy(x.js));
   const us = (r: { s: number }) => (r.s * 1e6 / nq.n).toFixed(2).padStart(6);
   console.log(`${x.name} (${p.trades} trades${p.printed > 10 ? `, ${p.printed.toLocaleString('en-US')} lines printed` : ''}${c.trades !== p.trades || Math.abs(c.net - p.net) > 1e-6 ? ', RESULTS DIFFER' : ''})`);
-  console.log(`  classic-equivalent Python ${c.s.toFixed(2).padStart(6)} s  ${us(c)} us/bar`);
+  console.log(`  per-call Python         ${c.s.toFixed(2).padStart(6)} s  ${us(c)} us/bar`);
   console.log(`  new Python                ${p.s.toFixed(2).padStart(6)} s  ${us(p)} us/bar  ${(c.s / p.s).toFixed(1)}x`);
   console.log(`  JavaScript                ${j.s.toFixed(2).padStart(6)} s  ${us(j)} us/bar  ${(c.s / j.s).toFixed(1)}x${j.trades !== p.trades ? ` (${j.trades} trades)` : ''}\n`);
 }

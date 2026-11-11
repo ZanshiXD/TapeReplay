@@ -9,6 +9,7 @@ export function UpdateButton({ beforeInstall }: { beforeInstall: () => Promise<v
   const [open, setOpen] = useState(false);
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (store.kind !== 'app') return;
     let tries = 0, timer = 0;
@@ -22,11 +23,11 @@ export function UpdateButton({ beforeInstall }: { beforeInstall: () => Promise<v
   }, []);
   if (!u) return null;
   const go = async () => {
-    setBusy(true); setMsg('Saving…');
-    try { await beforeInstall(); await store.installUpdate(); } catch (e) { setMsg((e as Error).message); setBusy(false); return; }
+    setBusy(true); setFailed(false); setMsg('Saving…');
+    try { await beforeInstall(); await store.installUpdate(); } catch (e) { setMsg((e as Error).message); setFailed(true); setBusy(false); return; }
     const tick = async () => {
       const x = await store.update();
-      if (x?.state === 'failed') { setMsg(x.error || 'The update failed.'); setBusy(false); return; }
+      if (x?.state === 'failed') { setMsg(x.error || 'The update failed.'); setFailed(true); setBusy(false); return; }
       if (x) setMsg(x.state === 'downloading' ? `Downloading ${Math.round((x.progress || 0) * 100)}%` : 'Restarting…');
       setTimeout(tick, 400);
     };
@@ -40,7 +41,7 @@ export function UpdateButton({ beforeInstall }: { beforeInstall: () => Promise<v
         <b>What's new in {u.version}</b>
         <div className="muted" style={{ fontSize: 12.5, whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{u.notes || 'Fixes and improvements.'}</div>
         <span className="muted" style={{ fontSize: 12 }}>You have {u.current}. The app saves your session, downloads the update and restarts. Your sessions and data are kept.</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span className="muted" style={{ flex: 1, fontSize: 12 }} aria-live="polite">{msg}{msg && u.page && /fail|could/i.test(msg) && <> <a href={u.page} target="_blank" rel="noopener">Download it instead</a></>}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span className="muted" style={{ flex: 1, fontSize: 12 }} aria-live="polite">{msg}{failed && u.page && <> <a href={u.page} target="_blank" rel="noopener">Download it instead</a></>}</span>
           <button className="btn primary sm" disabled={busy} onClick={go}>Restart and update</button></div>
       </div>}
     </div>

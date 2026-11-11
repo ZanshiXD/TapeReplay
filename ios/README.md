@@ -7,7 +7,7 @@ A native layer replaces the desktop's Python backend:
 | --- | --- | --- |
 | App shell | `Sources/TapeReplay/TapeReplayApp.swift` | Starts everything, saves the session when the app goes to the background |
 | Web view | `Sources/TapeReplay/WebContainer.swift` | Shows the page; the system file picker |
-| Touch layer | `Sources/TapeReplay/ios-shim.js` | Drawing and dragging lines by touch, long-press for the order menu, safe areas |
+| iOS flag | `Sources/TapeReplay/ios-shim.js` | Tells the page it runs in the iOS app (`TAPE_IOS`: touch sizes, smaller memory limits) and turns off page zoom; the page itself handles touch, safe areas and the phone layout |
 | Local server | `Sources/TapeReplay/Server/` | The same `/api` as the desktop app, on 127.0.0.1: sessions, preferences, the Library |
 | DBN import | `Sources/TapeReplay/Data/DBNImporter.swift` | Any size of `.dbn` / `.dbn.zst` file (or a batch), streamed into monthly blocks |
 | Series files | `Sources/TapeReplay/Data/SeriesFile.swift` | Monthly blocks, read one month at a time (same format as the desktop's `build_series.py`) |

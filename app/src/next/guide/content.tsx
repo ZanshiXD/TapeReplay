@@ -35,7 +35,7 @@ function Keys({ rows }: { rows: Array<[string, string]> }) {
 export const CHAPTERS: Chapter[] = [
   { id: 'start', title: 'Getting started', sections: [
     { id: 'welcome', title: 'What Tape Replay does', body: <>
-      <p>Tape Replay plays past market data back to you as if it were live, so you can practise trading without risking money and without knowing what comes next. You buy and sell while the candles form, the app tracks your account, and every closed trade goes to a journal with a picture of the chart.</p>
+      <p>Tape Replay plays past market data back to you as if it were live, so you can practice trading without risking money and without knowing what comes next. You buy and sell while the candles form, the app tracks your account, and every closed trade goes to a journal with a picture of the chart.</p>
       <p>It also tests ideas automatically: write a strategy in Python or JavaScript, backtest it over months of data, let the optimizer try its settings, then check the best ones on dates they were not chosen on.</p>
       <h4>Your first session in a minute</h4>
       <Steps items={[
@@ -62,7 +62,7 @@ export const CHAPTERS: Chapter[] = [
         <li><b>Starting balance</b>: play money.</li>
         <li><b>Risk per trade</b>: what you lose if a trade hits its stop. The order ticket sizes trades from it.</li>
         <li><b>Costs per contract</b>: commission per side, the spread (buys pay this many ticks above the price) and slippage (stop orders, stop losses and orders at the market fill this many ticks worse). They are filled in for the market; change anything that does not match your broker.</li>
-        <li><b>Practise a prop firm challenge</b>: see <i>Prop firm challenges</i>.</li>
+        <li><b>Practice a prop firm challenge</b>: see <i>Prop firm challenges</i>.</li>
       </ul>
     </> },
     { id: 'play', title: 'Playing the tape', body: <>
@@ -112,7 +112,7 @@ export const CHAPTERS: Chapter[] = [
       </ul>
     </> },
     { id: 'positions', title: 'Positions, orders and results', body: <>
-      <p>The panel under the chart (the Positions tab on a phone) has four tabs:</p>
+      <p>The panel under the chart (the Positions tab on a phone) has four tabs. On a computer, drag its top edge to make it taller or shorter, or the Trade panel's left edge to make that wider; double-click an edge for the usual size, and the app remembers the sizes.</p>
       <ul>
         <li><b>Positions</b>: open trades. Type a stop or target price straight in; <b>Breakeven</b> moves the stop to the entry so the trade can't lose (apart from costs); <b>Close</b> closes it.</li>
         <li><b>Orders</b>: limit and stop orders waiting to fill. Cancel any of them.</li>
@@ -130,14 +130,14 @@ export const CHAPTERS: Chapter[] = [
       </ul>
     </> },
     { id: 'prop', title: 'Prop firm challenges', body: <>
-      <p>Tick <b>Practise a prop firm challenge</b> in New session (Account) to trade under a funding firm's rules. They are checked on every tick, on your equity (balance plus open profit or loss), as the firm would.</p>
+      <p>Tick <b>Practice a prop firm challenge</b> in New session (Account) to trade under a funding firm's rules. They are checked on every tick, on your equity (balance plus open profit or loss), as the firm would.</p>
       <ul>
         <li><b>Rules</b>: a preset (L Flex 25K or 50K) or your own. Change any number and <b>Save as my rules</b>. Choose whether you trade <b>Micros</b> or <b>Minis</b>: size limits are in minis, and each mini allows 10 micros.</li>
         <li><b>Evaluation</b>: a <b>profit target</b> to pass; a <b>max loss</b> that trails the highest end-of-day balance and stops trailing once it reaches the starting balance plus a small amount (it "locks"); a <b>consistency</b> rule (your best day may be at most this share of the total profit; 0 turns it off); <b>minimum trading days</b>; a <b>max contracts</b> limit; and the <b>evaluation fee</b>.</li>
         <li><b>Daily loss limit</b> (optional): reaching it closes everything and stops trading for the day; it never fails the account.</li>
         <li><b>Your daily profit target</b>: once a day is up this much, positions close and trading stops until the next trading day (evaluation only). The app suggests a number that keeps every day inside the consistency rule.</li>
         <li><b>Show the funded and live rules</b> opens the rest: the funded max loss, more contracts as profit grows, how many winning days (of at least a set amount) earn a payout, the smallest and largest payout and the share of profit one may take, your split, how many payouts before live, and the live account's max loss, size and bonus.</li>
-        <li>The card beside the chart follows the account: <b>Evaluation</b>, then <b>Funded</b> (a fresh account of the same size), then <b>Live</b> after the last payout. It shows each rule and how close you are to it. When a payout is allowed, the card's button requests it (type an amount, or take the most allowed); tick <i>Take payouts as soon as allowed</i> to take them automatically. Payouts come out of the balance.</li>
+        <li>The card beside the chart follows the account: <b>Evaluation</b>, then <b>Funded</b> (a fresh account of the same size), then <b>Live</b> after the last payout. It shows each rule and how close you are to it. When a payout is allowed, the card's button requests it (type an amount, or take the most allowed); tick <i>Take payouts as soon as allowed</i> to take them automatically. Payouts come out of the balance. A payout locks the max loss floor at the start plus the lock amount, so taking all a live account allows leaves almost no room; automatic live payouts only take what is above the floor plus a cushion (<i>Live payouts leave above the floor</i>, the live max loss unless you set it), at least <i>Smallest live payout</i>, once every <i>Trading days between live payouts</i>.</li>
         <li>Breaking the max loss fails the account. The card's button starts a new evaluation (the fee is counted again); the card counts evaluations, passes, accounts that went live and fees paid.</li>
       </ul>
       <Note>Rules are checked on every tick; the end-of-day things (the trailing high, payouts, minimum days) on the first tick of the next trading day. Trading days start at 6 PM New York, as futures do; the rules have their own setting for it.</Note>
@@ -150,7 +150,7 @@ export const CHAPTERS: Chapter[] = [
       <ul>
         <li><b>A whole group</b>: click the arrow strip on the right of a group's button, right-click the button, or hold it down. The list opens beside the toolbar with each tool's name and shortcut (and a search box in the long groups).</li>
         <li><b>All drawing tools</b>: the button under the cursors opens every tool in one panel: search by name (Enter picks the first match), your recent tools, then the groups as tabs. The magnet, keep drawing, lock, hide, the list of drawings, remove, undo and redo are there too.</li>
-        <li><b>Favourites</b>: star any tool (in a group's list or the panel) and the star button on the toolbar shows your starred tools as a small toolbar on the chart. Drag it by its grip; it stays where you put it.</li>
+        <li><b>Favorites</b>: star any tool (in a group's list or the panel) and the star button on the toolbar shows your starred tools as a small toolbar on the chart. Drag it by its grip; it stays where you put it.</li>
       </ul>
       <ul>
         <li>Pick a tool, then click on the chart: once for a one-point tool, twice (or press and drag) for a line, more for patterns. A path ends with a double-click or <kbd>Enter</kbd>. The hint at the top says what to do; <kbd>Esc</kbd> cancels.</li>
@@ -186,7 +186,7 @@ export const CHAPTERS: Chapter[] = [
   { id: 'data', title: 'Your sessions and data', sections: [
     { id: 'library', title: 'The Library', body: <>
       <ul>
-        <li><b>Sessions</b> save themselves every 10 seconds, when you pause and when you leave; the chart's header (Chart options on a phone) says when it last saved. <b>Back to it</b> reopens one exactly where you left it: the clock, the trades, the orders, the drawings, the indicators and the journal. Rename or delete them here. The New session page also offers to pick up where you left off. Sessions saved in the classic view open there.</li>
+        <li><b>Sessions</b> save themselves every 10 seconds, when you pause and when you leave; the chart's header (Chart options on a phone) says when it last saved. <b>Back to it</b> reopens one exactly where you left it: the clock, the trades, the orders, the drawings, the indicators and the journal. Rename or delete them here. The New session page also offers to pick up where you left off.</li>
         <li><b>Data files</b> are your own market data, kept in the app and read only once. <b>New session with it</b> starts a replay on it.</li>
         <li><b>Optimizations</b> are saved automatically when they finish; open one to look at its results again or test its robustness.</li>
       </ul>
@@ -194,9 +194,9 @@ export const CHAPTERS: Chapter[] = [
     { id: 'files', title: 'Your own data', body: <>
       <p><b>Add a data file</b> (Library, or New session › Market), or drop files on the Library's Data files tab. It reads CSV files and Databento DBN files of candles (OHLCV, not zstd-compressed), of any size and any bar size, from 1-second to daily.</p>
       <ul>
-        <li><b>CSV</b>: one candle per row with a time, open, high, low and close; volume is optional. Headers are recognised by name (time, date, datetime, timestamp, open, high, low, close, volume and the usual variants); without a header the columns are read in that order. Commas, semicolons, tabs and pipes all work, as do separate date and time columns.</li>
+        <li><b>CSV</b>: one candle per row with a time, open, high, low and close; volume is optional. Headers are recognized by name (time, date, datetime, timestamp, open, high, low, close, volume and the usual variants); without a header the columns are read in that order. Commas, semicolons, tabs and pipes all work, as do separate date and time columns.</li>
         <li><b>Times</b>: ISO dates (<C>2026-04-01 13:30:00</C>), US or European dates (AM and PM included), compact ones (<C>20260401 133000</C>) and Unix timestamps in seconds, milliseconds, microseconds or nanoseconds. Day and month are told apart by the dates themselves (a first number over 12 means day first). Times without a zone are read as UTC; ISO times with <C>Z</C> or an offset like <C>-05:00</C> are converted. If your file is in another zone without saying so, convert it to UTC first.</li>
-        <li><b>Contracts</b>: the app recognises futures by their symbol (ES, NQ, MNQ, CL, GC, ZN, 6E and others, with months like ESM6 or NQZ25) and fills in the point value and tick size. A file with several contracts can follow the busiest one each day (a continuous series), or you pick one.</li>
+        <li><b>Contracts</b>: the app recognizes futures by their symbol (ES, NQ, MNQ, CL, GC, ZN, 6E and others, with months like ESM6 or NQZ25) and fills in the point value and tick size. A file with several contracts can follow the busiest one each day (a continuous series), or you pick one.</li>
         <li>Several files of one market (a batch download, a month each, say) can be chosen or dropped together: they are read one after the other in name order, as one data set, so name them so they sort by date (Databento's do).</li>
       </ul>
       <Note>A file is read once and kept in a fast form, so it reopens in a moment. Deleting it from the Library removes that copy, not your original file.</Note>
@@ -337,18 +337,19 @@ export const CHAPTERS: Chapter[] = [
 
   { id: 'backtest', title: 'Strategies and backtesting', sections: [
     { id: 'bt-start', title: 'The Backtest page', body: <>
-      <p>A strategy is a script that trades by itself. The Backtest page runs it over the dates you choose, as fast as it can, and shows how it did.</p>
+      <p>A strategy is a script that trades by itself. The Backtest page runs it over all the data of the market you pick, as fast as it can, and shows how it did.</p>
       <ul>
-        <li>On a computer your strategies are listed on the left; beside them, one page has the code, the Run settings and the console, each in a card you can fold, with Results, Optimize and Robustness as tabs. On a phone the strategies, the code and the Run settings are tabs of their own.</li>
+        <li>On a computer your strategies are listed on the left; beside them, one page has the code, the strategy's settings, the Run settings and the console, each in a card you can fold, with Results, Optimize and Robustness as tabs. On a phone the strategies, the code and the Run settings are tabs of their own (the strategy's settings are at the top of Run).</li>
         <li><b>Strategies</b>: your scripts, saved as you type. <b>New</b> starts one from a template (MA cross, Opening range breakout, Breakout with trailing stop, or Blank in Python; MA cross or Blank in JavaScript). Double-click a name (or <b>Rename</b>) to rename it; the bin deletes it.</li>
         <li><b>Code</b>: the editor. Fold it to a one-line summary to give the settings the room, or drag its bottom edge to make it taller; it remembers both. <kbd>Ctrl</kbd> + <kbd>Enter</kbd> runs. JavaScript strategies run several times faster than Python, which helps long optimizations; Python ones can use numpy (and pandas). <b>Guide</b> opens this reference beside it.</li>
-        <li><b>Run</b>: the market (a practice market or one of your data files), the dates (from and to), the candle size the strategy sees, and:
+        <li><b>Settings</b>: the strategy's own settings, the names at the top of its code with a plain value (<code>FAST = 9  # candles</code> in Python, <code>const FAST = 9; // candles</code> in JavaScript), with the comment under each name. Change one here and only that value changes in the code (its comments and layout stay); change it in the code and the card follows. Numbers are boxes, True/False a tick box, text with its choices in quotes in the comment (<code>SIDE = "both"  # "long", "short" or "both"</code>) a list, and times like <code>"09:30"</code> a box that takes HH:MM. While the code has an error the card keeps the last settings it read, and they can't be changed until it is fixed. These are the settings the optimizer tries.</li>
+        <li><b>Run</b>: the market (a practice market or one of your data files; there are no dates to pick: a run covers all of a file's data, its latest ten years at most, or the latest 30 days of practice data, which is made as it is asked for, and the dates show under Market), the candle size the strategy sees, and:
           <ul>
             <li><b>The strategy runs</b>: <i>At bar close</i> calls on_bar when each candle closes (fast). <i>Every tick</i> also calls on_tick on every simulated price move, for trailing stops and the like (slower).</li>
             <li><b>Libraries</b>: numpy, or numpy + pandas (pandas takes a few seconds to load).</li>
             <li><b>Starting balance</b>, and the <b>order size</b> used when the strategy gives none.</li>
             <li><b>Costs</b>: commission per side, spread and slippage.</li>
-            <li><b>Prop challenge</b>, in its own card: a prop challenge the run trades under, with the same rules as in a session. Tick <i>Buy a new evaluation when one fails</i> to keep going after a failure (at most a number of evaluations, if you set one); the results then show your payouts, the fees and the evaluations bought.</li>
+            <li><b>Prop challenge</b>, in its own card: a prop challenge the run trades under, with the same rules as in a session. Tick <i>Buy a new evaluation when one fails</i> to keep going after a failure (at most a number of evaluations, if you set one); Payouts are taken as soon as they are allowed (nobody is there to ask for them); live ones always leave a cushion above the max loss, as with <i>Take payouts as soon as allowed</i> in a session. The results then show your payouts, the fees and the evaluations bought, and an <b>Accounts</b> table: every evaluation, funded and live account with its dates, trades, trading P&amp;L, max drawdown, payouts and how it ended (failed and why, passed, went live, or still open). Pick one to see only its trades, its balance curve and its numbers; <i>All accounts</i> shows your result over time (fees out, payouts in).</li>
           </ul>
         </li>
         <li><b>Run backtest</b> runs it; <b>Stop</b> stops it part way. The <b>console</b> card opens when the run prints: print() output, errors and a summary. An error opens the code at the line that failed.</li>
@@ -435,14 +436,14 @@ export const CHAPTERS: Chapter[] = [
       <Ex ex={STRAT_JS_ORB} lang="javascript" />
     </> },
     { id: 'optimize', title: 'The optimizer', body: <>
-      <p>The optimizer runs a strategy many times with different settings, on the market and dates of the Run panel, and ranks the results.</p>
+      <p>The optimizer runs a strategy many times with different settings, on the market of the Run panel (all its data), and ranks the results.</p>
       <Steps items={[
         <>Tick the settings to try and say which values: a range (<C>5..30</C>), a range with a step (<C>15..60 step 5</C>, or <C>15..60/5</C>), or a list (<C>9, 14, 21</C>); True/False and text settings list their choices. <b>Narrow</b>, <b>Normal</b> and <b>Wide</b> fill in ranges around the current values. Settings that set money or size (names with RISK, USD, DOLLAR, CASH, BALANCE, ACCOUNT, QTY, SIZE, LOTS, CONTRACTS, or ending in STEP) are marked <i>size</i> and left unticked.</>,
         <>Choose <b>how to search</b>: <i>Smart</i> finds a near-best in about a tenth of the runs (a coarse look over the whole range, then closer looks around the best); <i>All combinations</i> tries every one (up to 20,000); <i>Random sample</i> tries as many as you say.</>,
         <>Optionally add <b>rules</b> combinations must meet, one per line, written like Python over the ticked settings (<C>FAST &lt; SLOW</C>, <C>abs(A - B) &gt;= 2</C>); combinations that fail one are not run. This works for JavaScript strategies too.</>,
-        <>Pick the <b>goal</b> (net ÷ max drawdown prefers steady gains over lucky ones; or net P&amp;L, profit factor, or payouts − fees when the run has a prop challenge) and the <b>minimum trades</b> a combination needs to be ranked.</>,
+        <>Pick the <b>goal</b> (net ÷ max drawdown prefers steady gains over lucky ones; or net P&amp;L, profit factor, or payouts − fees, which needs the prop challenge ticked in the Run settings: every run then takes the challenge over all its dates). With a prop challenge the table also has Payouts − fees, Payouts to you, Payouts, Largest payout, Evals passed and Evals columns; click one to sort by it and the <b>minimum trades</b> a combination needs to be ranked.</>,
         <><b>Check on the last</b> 20–40% keeps the end of the dates out of the ranking and shows how each combination did there (the Check columns): a guard against settings that only fit the past.</>,
-        <>Run it. On a computer with several cores it runs several combinations at once, and shows the best so far as it goes. Click a column to sort by it; click a row to select it: <b>Use in code</b> writes its values into the strategy, <b>Show on chart</b> opens it as a replay session. <b>Copy results (CSV)</b> exports the table; <b>Test robustness</b> checks the best ones.</>,
+        <>Run it. On a computer with several cores it runs several combinations at once, and shows the best so far as it goes. Click a column to sort by it; <b>Use the best in code</b> writes the top-ranked settings into the strategy's code (only their values; comments and layout stay). Click a row to select it: <b>Use these in code</b> writes its values instead, <b>Show on chart</b> opens it as a replay session. <b>Copy results (CSV)</b> exports the table; <b>Test robustness</b> checks the best ones.</>,
       ]} />
       <p>How the code tells the optimizer about settings:</p>
       <ul>
@@ -468,7 +469,7 @@ export const CHAPTERS: Chapter[] = [
   { id: 'more', title: 'More', sections: [
     { id: 'phone', title: 'Phones and tablets', body: <>
       <ul>
-        <li>The tab bar at the bottom has the <b>Chart</b>, the <b>Trade</b> ticket, your <b>Positions</b>, the <b>Journal</b>, and <b>More</b> (new session, Library, Backtest, this guide, Settings and the classic view).</li>
+        <li>The tab bar at the bottom has the <b>Chart</b>, the <b>Trade</b> ticket, your <b>Positions</b>, the <b>Journal</b>, and <b>More</b> (new session, Library, Backtest, this guide and Settings).</li>
         <li>The chart's header has the timeframe, indicators, drawing tools and chart options (one or two charts, adding a market, which market to trade).</li>
         <li>The replay bar sits under the chart: back, play, forward, the clock, the speed and Jump. Drag the thin timeline along its top to move in time.</li>
         <li>Buy and sell from the row under the chart. Hold a finger on the chart for an order at that price. Pinch to zoom, drag to scroll.</li>
@@ -493,7 +494,7 @@ export const CHAPTERS: Chapter[] = [
         ['An indicator stopped', 'Its name is marked in the Indicators list. Open it: the console shows the error and the line. Fix it and press Apply to chart.'],
         ['"Order rejected" in the console', 'The message says why: a stop on the wrong side of the price, a size of 0, or a prop rule. Each kind is printed once, then counted.'],
         ['Times look an hour off', 'Check Settings › Time zone, and that your file\'s times are UTC or carry their offset. Scripts comparing times should convert with to_ct.'],
-        ['My file was not recognised', 'It needs a time column and open, high, low and close. The error names the header it found; rename the columns if they are unusual.'],
+        ['My file was not recognized', 'It needs a time column and open, high, low and close. The error names the header it found; rename the columns if they are unusual.'],
         ['A strategy runs slowly', 'Use At bar close unless you need ticks, avoid whole-array ta functions on every candle, prefer numpy to loops, or write it in JavaScript.'],
         ['The optimizer says too many combinations', 'Narrow the ranges, add a rule, use Smart, or a random sample.'],
       ]} />

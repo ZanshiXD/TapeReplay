@@ -15,7 +15,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     override func loadView() {
         let config = WKWebViewConfiguration()
         let scripts = WKUserContentController()
-        // touch support, iOS layout tweaks and the TAPE_IOS flag, added before the page's own script runs
+        // the TAPE_IOS flag and no page zoom, added before the page's own script runs
         if let url = Bundle.module.url(forResource: "ios-shim", withExtension: "js"),
            let source = try? String(contentsOf: url, encoding: .utf8) {
             scripts.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true))

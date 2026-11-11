@@ -1,5 +1,5 @@
 // Prop firm challenge: the settings in New session, and the card beside the chart that follows the account through
-// the evaluation, funded and live stages (as the classic view's simulation, with its numbers and words).
+// the evaluation, funded and live stages.
 import { useState } from 'react';
 import type { Session } from '../core/session';
 import { PROP_PRESETS, SIM_DEF, applyPreset, dptNote, simConfig, type PropConfig, type PropSim, type PropRules } from '../core/prop';
@@ -10,28 +10,32 @@ import { useLive, pref, setPref } from './live';
 type Field = [keyof PropConfig, string, string?];
 const MAIN: Field[] = [['size', 'Account size'], ['fee', 'Evaluation fee'], ['ePt', 'Profit target'], ['eMll', 'Max loss (trails the day’s high)'], ['eCons', 'Consistency (best day, % of profit)', 'Your best day may be at most this share of the total profit. 0 turns it off.'], ['eMax', 'Max contracts (minis)'], ['eMin', 'Minimum trading days'], ['dll', 'Daily loss limit', 'Closes everything and stops trading for the day; never fails the account. 0 turns it off.'], ['eDpt', 'Your daily profit target']];
 const FUNDED: Field[] = [['fMll', 'Funded max loss'], ['fTiers', 'Contracts by profit (profit:minis)'], ['fDays', 'Payout days per cycle'], ['fDayMin', 'A payout day makes at least'], ['fPayMin', 'Smallest payout'], ['fPayMax', 'Largest payout'], ['fPayPct', 'Payout: % of profit'], ['split', 'Your share (%)'], ['fPayouts', 'Payouts before live']];
-const LIVE: Field[] = [['lMll', 'Live max loss'], ['lMax', 'Live max contracts (minis)'], ['lBonusPt', 'Bonus: profit needed'], ['lBonusDays', 'Bonus: trading days'], ['lBonus', 'Bonus amount']];
+const LIVE: Field[] = [['lMll', 'Live max loss'], ['lMax', 'Live max contracts (minis)'], ['lBonusPt', 'Bonus: profit needed'], ['lBonusDays', 'Bonus: trading days'], ['lBonus', 'Bonus amount'],
+  ['lKeep', 'Live payouts leave above the floor', 'Automatic live payouts only take what is above the max loss floor plus this cushion, so the account is never closer to failing than a new one. 0 uses the live max loss.'],
+  ['lPayMin', 'Smallest live payout'], ['lPayDays', 'Trading days between live payouts']];
 
-export function PropSetupCard({ value, onChange }: { value: PropConfig; onChange: (c: PropConfig) => void }) {
+/** run: in a backtest's settings, where nobody is there to ask for payouts, so they are taken as soon as allowed */
+export function PropSetupCard({ value, onChange, run }: { value: PropConfig; onChange: (c: PropConfig) => void; run?: boolean }) {
   const [more, setMore] = useState(false);
   const [naming, setNaming] = useState<string | null>(null);
   const saved = pref<Record<string, Partial<PropConfig>>>('propPresets', {});
   const c = value, set = (p: Partial<PropConfig>) => onChange({ ...c, ...p, preset: 'preset' in p ? p.preset! : c.preset && Object.keys(p).some(k => k !== 'unit' && k !== 'auto' && k !== 'fee') ? '' : c.preset });
   const field = ([k, l, tip]: Field) => (
     <label key={k} className="field"><span className="lbl">{l}{tip && <span className="q" title={tip}>?</span>}</span>
-      <input className="in" inputMode={k === 'fTiers' ? 'text' : 'decimal'} value={String(c[k])} onChange={e => set({ [k]: k === 'fTiers' ? e.target.value : Math.max(0, parseFloat(e.target.value) || 0) } as Partial<PropConfig>)} /></label>
+      <input className="in" aria-label={l} inputMode={k === 'fTiers' ? 'text' : 'decimal'} value={String(c[k])} onChange={e => set({ [k]: k === 'fTiers' ? e.target.value : Math.max(0, parseFloat(e.target.value) || 0) } as Partial<PropConfig>)} /></label>
   );
   const presets = { ...PROP_PRESETS, ...saved };
   return (
     <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 760 }}>
-      <label className="chk" style={{ fontSize: 14 }}><input type="checkbox" checked={c.on} onChange={e => onChange({ ...c, on: e.target.checked })} /><b>Practise a prop firm challenge</b></label>
+      <label className="chk" style={{ fontSize: 14 }}><input type="checkbox" checked={c.on} onChange={e => onChange({ ...c, on: e.target.checked })} /><b>Practice a prop firm challenge</b></label>
       <span className="muted" style={{ fontSize: 12.5, marginTop: -6 }}>Pass the evaluation, get funded, take payouts, go live. The rules are checked on every tick, as the firm would.</span>
       {c.on && <>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <label className="field" style={{ width: 240 }}>Rules<select className="in ui" value={c.preset in presets ? c.preset : ''} onChange={e => { const n = e.target.value; if (n) onChange(applyPreset(c, n, presets[n])); }}>
             <option value="">Your own</option>{Object.keys(presets).map(n => <option key={n} value={n}>{n}</option>)}</select></label>
           <div className="field">Contracts you trade<span className="seg"><button className={c.unit === 'micro' ? 'on' : ''} onClick={() => set({ unit: 'micro' })}>Micros</button><button className={c.unit === 'mini' ? 'on' : ''} onClick={() => set({ unit: 'mini' })}>Minis</button></span></div>
-          <label className="chk"><input type="checkbox" checked={c.auto} onChange={e => set({ auto: e.target.checked })} />Take payouts as soon as allowed</label>
+          {run ? <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>Payouts are taken as soon as they are allowed; live ones always leave a cushion above the max loss.</span>
+            : <label className="chk"><input type="checkbox" checked={c.auto} onChange={e => set({ auto: e.target.checked })} />Take payouts as soon as allowed</label>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>{MAIN.map(field)}</div>
         {c.eDpt > 0 || c.ePt > 0 ? <span className="muted" style={{ fontSize: 12 }}>{dptNote(c)}</span> : null}

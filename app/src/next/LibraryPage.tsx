@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DatasetMeta, SessionMeta } from '../core/store';
 import { smoney } from '../core/account';
-import { store, classicHref } from './appstore';
+import { store } from './appstore';
 import { addData, fmtBars, fmtBase, fmtDay, joinFiles } from './library';
 import { IPlus, ITrash } from './icons';
 
@@ -23,7 +23,7 @@ export function LibraryPage({ onOpen, onNewWith, onBusy, onToast, current, extra
   const [canPick, setCanPick] = useState(false);
   const fileIn = useRef<HTMLInputElement>(null);
   const load = () => {
-    store.listSessions().then(l => setSessions(l.sort((a, b) => b.updated - a.updated))).catch(e => { setSessions([]); onToast(e.message, 'err'); });
+    store.listSessions().then(l => setSessions(l.filter(s => s.summary?.app === 'next').sort((a, b) => b.updated - a.updated))).catch(e => { setSessions([]); onToast(e.message, 'err'); });
     store.listDatasets().then(l => setData(l.sort((a, b) => (b.added || 0) - (a.added || 0)))).catch(() => setData([]));
   };
   useEffect(() => { load(); store.caps().then(c => setCanPick(c.pick)); }, []);
@@ -70,21 +70,20 @@ export function LibraryPage({ onOpen, onNewWith, onBusy, onToast, current, extra
           {sessions && !sessions.length && <div className="emptycard"><b>No saved sessions yet</b><p>Sessions save themselves as you replay. Start one with the + button.</p></div>}
           {!!sessions?.length && <div className="libtable">
             {sessions.map(s => {
-              const next = s.summary?.app === 'next', sum = s.summary || {};
+              const sum = s.summary || {};
               const net = typeof sum.net === 'number' ? sum.net : null;
               return (
                 <div key={s.id} className={'librow' + (s.id === current ? ' cur' : '')}>
                   <div className="main">
                     {renaming === s.id ? <input className="in ui" autoFocus defaultValue={s.name} aria-label="Session name" onBlur={e => rename(s.id, e.target.value)} onKeyDown={e => { if (e.key === 'Enter') rename(s.id, (e.target as HTMLInputElement).value); if (e.key === 'Escape') setRenaming(null); }} />
                       : <b className="nm" title="Rename" onDoubleClick={() => setRenaming(s.id)}>{s.name}</b>}
-                    <span className="muted">{next ? sum.markets || s.datasetName : s.datasetName}{s.tf ? ` · ${s.tf}` : ''}{sum.from ? ` · from ${fmtDay(sum.from)}` : ''}{!next && <span className="tag" style={{ marginLeft: 8, background: 'var(--hover)' }}>Classic</span>}</span>
+                    <span className="muted">{sum.markets || s.datasetName}{s.tf ? ` · ${s.tf}` : ''}{sum.from ? ` · from ${fmtDay(sum.from)}` : ''}</span>
                   </div>
                   <span className="cell">{sum.trades != null ? `${sum.trades} trade${sum.trades === 1 ? '' : 's'}` : ''}</span>
                   <span className={'cell num ' + (net == null ? '' : net >= 0 ? 'up' : 'down')}>{net != null ? smoney(net) : ''}</span>
                   <span className="cell muted">{s.status === 'finished' ? 'Finished' : ago(s.updated)}</span>
                   <span className="acts">
-                    {next ? <button className="btn sm primary" onClick={() => onOpen(s.id)}>{s.id === current ? 'Back to it' : 'Open'}</button>
-                      : <a className="btn sm" href={classicHref}>Open in classic view</a>}
+                    <button className="btn sm primary" onClick={() => onOpen(s.id)}>{s.id === current ? 'Back to it' : 'Open'}</button>
                     <button className="btn sm" onClick={() => setRenaming(s.id)}>Rename</button>
                     {confirm === s.id ? <button className="btn sm danger" onClick={() => remove('sessions', s.id)}>Delete it</button>
                       : <button className="ib" aria-label={`Delete ${s.name}`} title="Delete" disabled={s.id === current} onClick={() => setConfirm(s.id)}><ITrash width={16} height={16} /></button>}
@@ -116,7 +115,6 @@ export function LibraryPage({ onOpen, onNewWith, onBusy, onToast, current, extra
         </>}
         {extra && tab === extra.tab && extra.node}
         {confirm && <p className="muted" style={{ fontSize: 12 }}>Click “Delete it” to confirm. <button className="linkbtn" onClick={() => setConfirm(null)}>Keep it</button></p>}
-        <p className="muted" style={{ fontSize: 12 }}>Sessions from the classic view open there: <a href={classicHref}>open the classic view</a>.</p>
       </div>
     </div>
   );

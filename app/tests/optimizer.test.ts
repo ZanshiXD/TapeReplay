@@ -30,11 +30,11 @@ const rr = parseRules(rules, ['FAST', 'SLOW', 'LONG']);
 check('ok' in rr && rr.ok({ FAST: 5, SLOW: 10, LONG: true }) && !rr.ok({ FAST: 10, SLOW: 10, LONG: true }) && !rr.ok({ FAST: 4, SLOW: 10, LONG: false }), 'rules: comparisons, chains, and/or/not, an error counts as failing');
 check((parseRules(['FAST <'], ['FAST']) as any).error === 'This rule is not valid Python: FAST <', 'invalid rule');
 check((parseRules(['FAST < SLOWW and max(FAST, Q) > 1'], ['FAST', 'SLOW']) as any).error === 'The rule "FAST < SLOWW and max(FAST, Q) > 1" uses SLOWW, Q, which is not a ticked setting.', 'unknown names');
-// the classic _tr_combos's grid, exactly; rules give the same answers as Python's eval
+// Python's _tr_combos grid, exactly; rules give the same answers as Python's eval
 const spec = { params: [{ name: 'FAST', values: [5, 10, 20] }, { name: 'SLOW', values: [10, 20, 30] }, { name: 'ALLOW_SHORT', values: [true, false] }], rules: ['FAST < SLOW'] };
 const g = combos({ ...spec, mode: 'grid' }) as any, pg = pyCombos(host, { ...spec, mode: 'grid' });
 check(g.total === 18 && g.skipped === 6 && g.combos.length === 12 && JSON.stringify(g.combos[0]) === '{"FAST":5,"SLOW":10,"ALLOW_SHORT":true}', 'grid: 18, 6 skipped by the rules, 12 left, first FAST=5 SLOW=10 ALLOW_SHORT=True');
-check(JSON.stringify(g.combos) === JSON.stringify(pg.combos) && g.skipped === pg.skipped, 'the same combinations, in the same order, as the classic _tr_combos');
+check(JSON.stringify(g.combos) === JSON.stringify(pg.combos) && g.skipped === pg.skipped, 'the same combinations, in the same order, as _tr_combos in Python');
 const many = { params: [{ name: 'A', values: Array.from({ length: 30 }, (_, k) => k) }, { name: 'B', values: Array.from({ length: 30 }, (_, k) => k * 0.5) }, { name: 'C', values: ['x', 'y', 'z'] }],
                rules: ['A % 3 != 1 and (B >= A / 4 or C == "y")', 'not (A > 20 and C != "x")', 'round(B) % 2 == 0 or A < 5', 'min(A, B) <= 10 and abs(A - 2 * B) != 3'] };
 const tsg = combos({ ...many, mode: 'grid' }) as any, pyg = pyCombos(host, { ...many, mode: 'grid' });
@@ -43,7 +43,7 @@ const r1 = combos({ ...spec, mode: 'random', n: 5, seed: 42 }) as any, r2 = comb
 check(r1.combos.length === 5 && new Set(r1.combos.map(optLabel)).size === 5 && JSON.stringify(r1) === JSON.stringify(r2) && JSON.stringify(r1) !== JSON.stringify(r3), 'random: unique, repeatable for a seed');
 const big = { params: [{ name: 'A', values: Array.from({ length: 300 }, (_, k) => k) }, { name: 'B', values: Array.from({ length: 300 }, (_, k) => k) }] };
 const over = combos({ ...big, mode: 'grid', cap: 20000 }) as any;
-check(over.error === '90,000 combinations is more than 20,000. Narrow the ranges, or use a random sample.' && over.error === pyCombos(host, { ...big, mode: 'grid', cap: 20000 }).error, 'over the cap, in the classic words');
+check(over.error === '90,000 combinations is more than 20,000. Narrow the ranges, or use a random sample.' && over.error === pyCombos(host, { ...big, mode: 'grid', cap: 20000 }).error, 'over the cap, in the same words');
 const huge = { params: [{ name: 'A', values: Array.from({ length: 1000 }, (_, k) => k) }, { name: 'B', values: Array.from({ length: 1000 }, (_, k) => k) }] };
 check((combos({ ...huge, mode: 'random', n: 50, seed: 1 }) as any).combos.length === 50, 'random from a huge grid');
 check(JSON.stringify(comboAt(spec, 17)) === '{"FAST":20,"SLOW":30,"ALLOW_SHORT":false}', 'combination by number: the last setting fastest');
@@ -54,10 +54,10 @@ check(optScore({ a: seg(20, 500, 250) }, 'ndd', 10) === 2 && optScore({ a: seg(2
 check(optScore({ a: seg(20, 5, 1, null) }, 'pf', 0) === -1 && optScore({ a: seg(20, -5, 1) }, 'take', 0) === -5, 'profit factor with no trades closed at a loss or win; payouts fall back to net');
 const rows = [{ i: 0, res: { a: seg(20, 100, 50) } }, { i: 1, res: { fail: 'boom' } }, { i: 2, res: { a: seg(20, 300, 50) } }, { i: 3, res: { a: seg(2, 900, 1) } }, { i: 4, res: { a: seg(20, 100, 50) } }];
 const cmb: Combo[] = [{ F: 3 }, { F: 1 }, { F: 2 }, { F: 9 }, { F: 0 }];
-check(optSorted(rows, cmb, 'ndd', 10).map(r => r.i).join() === '2,4,0,3,1', 'sorted by score (ties by number, in the same direction, as the classic), failures last');
+check(optSorted(rows, cmb, 'ndd', 10).map(r => r.i).join() === '2,4,0,3,1', 'sorted by score (ties by number, in the same direction), failures last');
 check(optSorted(rows, cmb, 'ndd', 10, 'p:F', 1).map(r => r.i).join() === '4,2,0,3,1', 'sorted by a setting');
 const csv = optCsv(optSorted(rows, cmb, 'ndd', 10), cmb, ['F'], true).split('\n');
-check(csv[0] === 'rank,F,goal,trades,net,win_pct,profit_factor,max_dd,check_trades,check_net,check_pf,check_dd,evaluations,passed,went_live,payouts,avg_payout,largest_payout,payouts_minus_fees,error' && csv[5].endsWith(',"boom"'), 'CSV, the classic columns');
+check(csv[0] === 'rank,F,goal,trades,net,win_pct,profit_factor,max_dd,check_trades,check_net,check_pf,check_dd,evaluations,passed,went_live,payouts,avg_payout,largest_payout,payouts_minus_fees,error' && csv[5].endsWith(',"boom"'), 'CSV, its columns');
 const z = optZoom({ FAST: 10, SLOW: 30, ON: true }, [{ name: 'FAST', values: [5, 10, 15, 20] }, { name: 'SLOW', values: [10, 30, 50] }, { name: 'ON', values: [true, false] }], { FAST: 'int', SLOW: 'int', ON: 'bool' });
 check(z[0].values.join() === '5,6,7,8,9,10,11,12,13,14,15' && z[1].values.join() === '10,15,20,25,30,35,40,45,50' && z[2].values.join() === 'true', 'zoom in around a combination');
 check(workerCount({ cores: 64, shared: true }) === 32 && workerCount({ cores: 4, shared: true }) === 3 && workerCount({ cores: 12, shared: true, phone: true }) === 2 && workerCount({ cores: 12, shared: false, phone: true }) === 1 &&

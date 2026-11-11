@@ -24,7 +24,7 @@ if (TOUCH) setCandleCap(8000, 1500);
 const layout = () => root.classList.toggle('m', innerWidth < 900 || innerHeight < 500);
 layout(); addEventListener('resize', layout);
 
-// phones: tables on the pages read as cards (labelled again whenever the pages change)
+// phones: tables on the pages read as cards (labeled again whenever the pages change)
 let labelling = 0;
 new MutationObserver(() => { if (!labelling && isPhone()) labelling = requestAnimationFrame(() => { labelling = 0; labelTables(document); }); })
   .observe(document.getElementById('root')!, { childList: true, subtree: true });

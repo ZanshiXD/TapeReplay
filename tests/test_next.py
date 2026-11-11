@@ -1,5 +1,5 @@
 """The new app (app/index.html) in Chromium: a two-market session, smooth playback, trading both markets, the journal,
-stepping back and jumping. Build the page first (see test_browser.py), then:
+stepping back and jumping. Build the page first (desktop/web: cd app && npm run build, then copy dist there), then:
     python tests/test_next.py [folder for screenshots]
 """
 import asyncio

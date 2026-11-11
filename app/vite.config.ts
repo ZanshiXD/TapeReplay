@@ -20,7 +20,6 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     chunkSizeWarningLimit: 2000,
-    // index.html: the app; classic.html: the classic app, kept one more release for anything missed
-    rollupOptions: { input: { index: 'index.html', classic: 'classic.html' } },
+    rollupOptions: { input: { index: 'index.html' } },
   },
 });

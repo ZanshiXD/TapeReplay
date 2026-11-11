@@ -1,4 +1,4 @@
-// Price zones (ICT), ported from the classic app (app.ts, "price zones") without changing what they find. They come
+// Price zones (ICT). They come
 // from finished candles of the chosen timeframe only, so nothing is taken from a candle that has not closed.
 //  FVG   three candles where the first and third do not overlap: the gap between them.
 //  iFVG  an FVG that a candle closed through: the same zone flips direction (support becomes resistance).
@@ -39,7 +39,7 @@ export interface ZonePrefs extends Record<ZoneType, ZoneStyle> {
   labels: boolean;
 }
 const clampI = (v: unknown, lo: number, hi: number, def: number) => { const n = Math.round(Number(v)); return isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
-/** settings with the classic defaults filled in */
+/** settings with the defaults filled in */
 export function zonePrefs(z: Partial<ZonePrefs> = {}): ZonePrefs {
   const out = {
     added: z.added ?? false, on: z.on ?? false, tf: z.tf || 'chart', hideDone: z.hideDone ?? true, labels: z.labels ?? true,
@@ -145,7 +145,7 @@ export class TfCandles {
   private bucket: (t: number) => number;
   constructor(readonly s: BarCols, tf: TF, upTo: number) {
     this.label = tfLabel(tf); this.bucket = makeBucket(tf);
-    // as the classic app: up to 1500 candles (at most 120 days) back from where the replay is
+    // up to 1500 candles (at most 120 days) back from where the replay is
     const span = tf.kind === 's' ? tf.sec : tf.kind === 'W' ? 604800 * tf.n : 2629800 * tf.n;
     const from = s.t[Math.max(0, upTo - 1)] - Math.min(span * 1500, 86400 * 120);
     let a = 0, b = s.t.length; while (a < b) { const m = (a + b) >> 1; if (s.t[m] < from) a = m + 1; else b = m; }

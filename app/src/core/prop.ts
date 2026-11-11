@@ -1,5 +1,4 @@
-// Prop firm rules on the account, ported from the classic app (app.ts, "prop firm rules" and "prop simulation") with
-// its numbers, rules and words. Two engines; a session runs one of them:
+// Prop firm rules on the account. Two engines; a session runs one of them:
 //  - PropSim, the prop simulation: one account's whole course in one session. Pass the evaluation and a fresh funded
 //    account opens at the same size; each funded payout comes out of the balance and locks the max loss; after the
 //    last one the account moves to live (opening at $0 profit, payouts any day). Breaking a max loss ends that account;
@@ -18,7 +17,7 @@
 //    funds the account at sim.size and counts the first fee; pass `opts.state` to reopen a saved one (the account is
 //    then left as it is).
 //  - prop.onEvent = e => { if (e.pause) { this.stop = true; this.playing = false; } this.emit(...e.text as a toast...) }
-//    (pause is set where the classic app paused the replay; strategy runs ignore it).
+//    (pause is set where the replay pauses; strategy runs ignore it).
 //  - tickOne: right after `this.account.onTick(sym, from, to, jump)`, call `this.prop?.onTick(f.time)`, f being the
 //    feed that just ticked (its time is the tick's).
 //  - order(): before account.submit, `const err = this.prop?.check(sym, side, qty)`; if err, report it as an
@@ -33,6 +32,7 @@
 //  - Payouts and the live bonus add account marks of kind 'payout' with sym '' (the whole account's), net and bonus.
 import { fmtQty, money, smoney, type Account, type Side } from './account';
 import { nyOff, tradingDay, zoneOff as chartZoneOff } from './time';
+import type { RunRules } from './backtest';
 
 export type Stage = 'eval' | 'funded' | 'live';
 export const STAGES: Record<Stage, string> = { eval: 'Evaluation', funded: 'Funded', live: 'Live' };
@@ -65,12 +65,17 @@ export interface PropConfig {
   fMll: number; fTiers: string; fDays: number; fDayMin: number; fPayMin: number; fPayMax: number; fPayPct: number; split: number; fPayouts: number;
   /** live: max loss, max minis, and the bonus: profit and trading days needed, and its amount (0 = none) */
   lMll: number; lMax: number; lBonusPt: number; lBonusDays: number; lBonus: number;
+  /** automatic live payouts (with auto, and always in strategy runs): what stays above the max loss floor after one
+   *  (0 = the live max loss, so a payout never leaves the account closer to failing than a fresh one), the smallest
+   *  worth taking, and the trading days between them */
+  lKeep: number; lPayMin: number; lPayDays: number;
 }
 export const SIM_DEF: PropConfig = {
   on: false, preset: '', size: 50000, fee: 0, unit: 'micro', resetNY: 18, dll: 0, lockPad: 100, auto: false,
   ePt: 3000, eMll: 2000, eCons: 50, eMax: 4, eMin: 0, eDpt: 0,
   fMll: 2000, fTiers: '0:2, 1000:3, 2000:4', fDays: 5, fDayMin: 150, fPayMin: 500, fPayMax: 2000, fPayPct: 50, split: 90, fPayouts: 5,
   lMll: 2000, lMax: 4, lBonusPt: 4000, lBonusDays: 20, lBonus: 2000,
+  lKeep: 0, lPayMin: 500, lPayDays: 5,
 };
 // "L Flex": a futures prop firm's Flex accounts as published in October 2026 (payout rules, live structure). No daily
 // loss limit; fees vary at checkout, so the fee is left to you. A preset leaves fee, eDpt, resetNY, unit and auto alone.
@@ -104,7 +109,7 @@ export function dptNote(c: Pick<PropConfig, 'ePt' | 'eCons' | 'eDpt'>): string {
 /** what reaches the screens: a breach ends an account (sim) and 'fail' ends the plain-rules evaluation; 'pass' an
  *  evaluation passed; 'payout' a payout or the live bonus; 'live' the move to live; 'lock' trading locked for the day
  *  (daily loss limit, daily profit target); 'info' the rest (max loss locked, contract limit, a new evaluation,
- *  flat-by). up: true good news, false bad, unset neutral. pause: stop the replay, as the classic app did. */
+ *  flat-by). up: true good news, false bad, unset neutral. pause: stop the replay. */
 export interface PropEvent { kind: 'breach' | 'pass' | 'payout' | 'live' | 'lock' | 'fail' | 'info'; text: string; up?: boolean; pause?: boolean }
 export interface PropOpts<S> {
   /** the trading day's start hour, New York time; by default the config's */
@@ -143,6 +148,15 @@ const flatten = (A: Account, reason: string) => { A.cancelAll(); A.closeAll(unde
 
 /* ---------------- the prop simulation ---------------- */
 export interface PropPayout { t: number; stage: Stage; n: number; amount: number; net: number; bonus?: boolean }
+/** one account of the course (an evaluation, a funded or a live account): when it ran, the closed trades it holds
+ *  (account.hist from h0 to h1), how it ended, and what it paid out */
+export interface PropAcct {
+  stage: Stage; attempt: number; from: number; to: number | null; h0: number; h1: number | null;
+  /** how it ended: failed, passed (evaluation), went live (funded), or still open */
+  end: 'failed' | 'passed' | 'live' | 'open'; why: string;
+  /** taken from it, how many times, and paid to you (payouts and the bonus, after the split) */
+  paid: number; nPay: number; income: number;
+}
 export interface PropLogLine { t: number; text: string }
 export interface PropState {
   // the course, kept across accounts
@@ -171,16 +185,20 @@ export interface PropState {
   cycle: number; cycleStart: number; tierProfit: number;
   /** taken out of this account, and how many times */
   paid: number; nPay: number; bonusPaid: boolean;
+  /** live: trading days ended since the account opened or its last payout */
+  sincePay?: number;
   /** the balance at the last pass or payout check */
   checked: number | null;
   /** the time of the last tick seen */
   t: number;
+  /** every account so far, the open one last (missing in states saved before it was kept) */
+  accts?: PropAcct[];
 }
 const newStage = (start: number) => ({ start, day: null as number | null, dayStart: start, eodPeak: start, locked: false, lockedDay: '', dptDay: false,
-  days: {} as Record<string, number>, cycle: 0, cycleStart: start, tierProfit: 0, paid: 0, nPay: 0, bonusPaid: false, checked: null as number | null });
+  days: {} as Record<string, number>, cycle: 0, cycleStart: start, tierProfit: 0, paid: 0, nPay: 0, bonusPaid: false, sincePay: 0, checked: null as number | null });
 export const newSimState = (cfg: PropConfig, t = 0): PropState => ({ stage: 'eval', attempt: 1, fees: cfg.fee || 0, income: 0, payouts: [], log: [], over: '',
   nPassed: 0, nLive: 0, nFail: { eval: 0, funded: 0, live: 0 }, dptHits: 0, ...newStage(cfg.size), t });
-// a state saved by an older version (or the classic app): the counters it lacks are counted from its log
+// a state saved by an older version: the counters it lacks are counted from its log
 function normSim(x: Partial<PropState>, cfg: PropConfig): PropState {
   const log = x.log || [], has = (re: RegExp) => log.filter(l => re.test(l.text)).length;
   const s = { ...newSimState(cfg), ...clone(x) } as PropState;
@@ -239,7 +257,7 @@ export interface SimView {
   /** the button the card offers: restart (failed), payout (funded, the full allowed amount), payoutAmount (live,
    *  amount box prefilled with `amount`) */
   action: { kind: 'restart' | 'payout' | 'payoutAmount'; label: string; enabled: boolean; hint: string; amount: number | null } | null;
-  /** the card's rows, as the classic card */
+  /** the card's rows */
   rows: PropRow[];
   /** the summary under the card: [label, value] */
   summary: Array<[string, string]>;
@@ -260,8 +278,16 @@ export class PropSim implements PropEngine {
     this.cfg = cfg; this.account = account;
     this.hour = opts.resetHour ?? (cfg.resetNY || 0);
     if (opts.state) this.s = normSim(opts.state, cfg);
-    else { this.s = newSimState(cfg); account.reopen(cfg.size); }
+    else { this.s = newSimState(cfg); account.reopen(cfg.size); this.s.accts = [this.acctRec('eval')]; }
   }
+  private acctRec(stage: Stage): PropAcct {
+    return { stage, attempt: this.s.attempt, from: this.s.t || 0, to: null, h0: this.account.hist.length, h1: null, end: 'open', why: '', paid: 0, nPay: 0, income: 0 };
+  }
+  /** the open account's record (null for states saved before records were kept) */
+  private cur(): PropAcct | null { const a = this.s.accts; return a && a.length ? a[a.length - 1] : null; }
+  private closeRec(end: PropAcct['end'], why = '') { const c = this.cur(); if (c && c.end === 'open') { c.end = end; c.why = why; c.to = this.s.t; c.h1 = this.account.hist.length; } }
+  /** every account with its trades counted to now: the open one's end is the last trade so far */
+  accounts(): PropAcct[] { return (this.s.accts || []).map(a => a.h1 == null ? { ...a, to: this.s.t, h1: this.account.hist.length } : { ...a }); }
   /** the trading day of time t */
   day(t: number) { return tradingDay(t, this.hour); }
   openQty() { return openQtyOf(this.account); }
@@ -317,11 +343,13 @@ export class PropSim implements PropEngine {
     A.withdraw(amount); s.dayStart -= amount; // money taken out is not a drawdown or a losing day
     s.income += net; s.paid += amount; s.nPay++;
     s.payouts.push({ t: s.t, stage: s.stage, n: s.nPay, amount, net });
+    { const c = this.cur(); if (c) { c.paid += amount; c.nPay++; c.income += net; } }
     A.marks.push({ sym: '', t: s.t, side: 1, kind: 'payout', id: 0, net });
-    s.locked = true; s.cycle = 0; s.cycleStart = A.balance; s.tierProfit = Math.min(s.tierProfit, A.balance - s.start); s.checked = null;
+    s.locked = true; s.cycle = 0; s.sincePay = 0; s.cycleStart = A.balance; s.tierProfit = Math.min(s.tierProfit, A.balance - s.start); s.checked = null;
     this.log(`${STAGES[s.stage]} payout ${s.nPay}: ${money(amount)} taken from the account, ${money(net)} to you after the ${G.split}% split.`, 'payout', true);
     if (s.stage === 'funded' && s.nPay >= G.fPayouts) {
       s.nLive++;
+      this.closeRec('live', `${s.nPay} payouts taken`);
       this.newAccount('live');
       this.log(`That was the last funded payout: the account moves to live, opening with a ${money(G.lMll)} max loss.`, 'live', true, true);
     }
@@ -351,6 +379,7 @@ export class PropSim implements PropEngine {
     const s = this.s, day = s.day;
     Object.assign(s, newStage(this.cfg.size), { stage, over: '', day, dayStart: this.cfg.size });
     this.account.reopen(this.cfg.size);
+    if (s.accts) { this.closeRec('failed'); s.accts.push(this.acctRec(stage)); }
   }
   private emit(kind: PropEvent['kind'], text: string, up?: boolean, pause?: boolean) {
     this.onEvent?.({ kind, text, ...(up != null ? { up } : {}), ...(pause ? { pause } : {}) });
@@ -359,6 +388,7 @@ export class PropSim implements PropEngine {
   private breach(reason: string) {
     const s = this.s; s.over = reason; s.nFail[s.stage] = (s.nFail[s.stage] || 0) + 1;
     flatten(this.account, 'Rule breach');
+    this.closeRec('failed', reason);
     this.log(`${STAGES[s.stage]} account failed. ${reason}`, 'breach', false, true);
   }
   // the trading day closes: record it, trail or lock the max loss, update scaling, payout days and the live bonus
@@ -373,9 +403,11 @@ export class PropSim implements PropEngine {
       const n = this.tier();
       if (n !== was) this.log(`Contract limit is now ${n} mini${n === 1 ? '' : 's'}${G.unit === 'micro' ? ` (${n * 10} micros)` : ''}.`, 'info');
     }
+    if (s.stage === 'live' && pnl) s.sincePay = (s.sincePay || 0) + 1;
     if (s.stage === 'live' && !s.bonusPaid && G.lBonus > 0 && A.balance - s.start + s.paid >= G.lBonusPt && Object.keys(s.days).length >= G.lBonusDays) {
       const net = Math.round(G.lBonus * G.split) / 100;
       s.bonusPaid = true; s.income += net; // the bonus is paid to you, not taken from the balance
+      { const c = this.cur(); if (c) c.income += net; }
       s.payouts.push({ t: s.t, stage: 'live', n: 0, amount: G.lBonus, net, bonus: true });
       A.marks.push({ sym: '', t: s.t, side: 1, kind: 'payout', id: 0, net, bonus: true }); A.version++;
       this.log(`Live bonus released: ${money(G.lBonus)}, ${money(net)} to you after the split.`, 'payout', true);
@@ -386,6 +418,7 @@ export class PropSim implements PropEngine {
   onTick(now: number) {
     const G = this.cfg, s = this.s, A = this.account, k = this.day(now);
     s.t = now;
+    { const c = this.cur(); if (c && !c.from) c.from = now; }
     if (s.day !== k) { if (s.day != null) this.endDay(); s.day = k; s.dayStart = A.balance; s.lockedDay = ''; s.dptDay = false; s.checked = null; }
     if (s.over) return;
     const eq = A.equity(), floor = this.floor();
@@ -409,9 +442,23 @@ export class PropSim implements PropEngine {
     if (s.stage === 'eval' && this.progress().passed) {
       const p = A.balance - s.start;
       s.nPassed++;
+      this.closeRec('passed', `${money(p)} profit`);
       this.newAccount('funded');
       this.log(`Evaluation passed with ${money(p)} profit. A funded ${money(G.size)} account is open.`, 'pass', true, true);
     } else if (s.stage === 'funded' && G.auto && this.payoutInfo().ok) this.payout();
+    else if (s.stage === 'live' && G.auto) { const x = this.livePayout(); if (x > 0) this.payout(x); }
+  }
+  /** the automatic live payout allowed now (0 = none): only what is above the locked floor plus the cushion (lKeep,
+   *  or the live max loss), at least lPayMin, once lPayDays trading days have passed since the account opened or its
+   *  last payout. A payout locks the floor at start + lockPad, so taking the most the firm allows would leave a few
+   *  dollars of room and the next losing trade would fail the account. */
+  livePayout(): number {
+    const G = this.cfg, s = this.s, A = this.account;
+    if (s.stage !== 'live' || s.over || A.trades.length || A.orders.length || (s.sincePay || 0) < Math.max(1, G.lPayDays || 0)) return 0;
+    const keep = G.lKeep > 0 ? G.lKeep : G.lMll, floor = s.start + G.lockPad;
+    const x = Math.floor((A.balance - floor - keep) * 100) / 100, info = this.payoutInfo();
+    if (!info.ok || x < Math.max(1, G.lPayMin || 0)) return 0;
+    return Math.min(x, info.max);
   }
   /** why an order for `qty` on `sym` can't be placed, or null: checked before the order's own checks */
   check(sym: string, side: Side, qty: number) { return this.canOpen(addsOf(this.account, sym, side, qty)); }
@@ -492,6 +539,29 @@ export class PropSim implements PropEngine {
   }
   state(): PropState { return clone(this.s); }
   load(s: PropState) { this.s = normSim(s, this.cfg); }
+}
+
+/* ---------------- the prop simulation in a strategy run (the runner's hook points) ---------------- */
+export interface SimRun { sim: PropSim | null; cfg: PropConfig }
+/** rules for runBacktest: a fresh prop simulation on the run's account; a failed account buys a new evaluation when
+ * rebuy is on (up to maxEvals, 0 = no limit), else the run ends there */
+export function simRules(c: PropConfig, rebuy: boolean, maxEvals: number, out: SimRun): RunRules {
+  let sim: PropSim, acc: Account;
+  const cfg = simConfig({ ...c, on: true, auto: true }); // nobody is there to ask for payouts in a run
+  out.cfg = cfg;
+  return {
+    start(a, log) {
+      acc = a; sim = new PropSim(cfg, a, { resetHour: cfg.resetNY }); out.sim = sim;
+      if (log) sim.onEvent = e => log(e.text, e.up === false ? 'er' : e.up ? 'ok' : 'pr');
+    },
+    idle: t1 => sim.canSkipBar(t1),
+    afterTick() {
+      sim.onTick(acc.quote('').time);
+      const r = sim.rebuy(rebuy, maxEvals);
+      return !r ? null : r.restarted ? { restarted: r.text } : r.text;
+    },
+    block: adds => sim.canOpen(adds),
+  };
 }
 
 /* ---------------- the plain prop rules (legacy) ---------------- */
@@ -587,7 +657,7 @@ export class PropRules implements PropEngine {
     const f = (P.mllType === 'eod' ? s.eodPeak : s.peak) - P.mll;
     return P.mllLock ? Math.min(f, start) : f;
   }
-  // closed trades and fills into the per-day books (the classic app wrote them as trades closed)
+  // closed trades and fills into the per-day books (written as trades close)
   private book() {
     const s = this.s, A = this.account;
     if (s.nh > A.hist.length) s.nh = A.hist.length;
@@ -632,7 +702,7 @@ export class PropRules implements PropEngine {
     }
     if (P.flatBy && this.inFlat(now) && (A.trades.length || A.orders.length)) {
       flatten(A, 'Flat-by time');
-      this.emit('info', `It is past the ${P.flatBy} flat-by time: positions closed and orders cancelled.`);
+      this.emit('info', `It is past the ${P.flatBy} flat-by time: positions closed and orders canceled.`);
     }
     // passing changes only with the settings, a fill or the balance: checked then, not on every tick
     const K = this.memo;

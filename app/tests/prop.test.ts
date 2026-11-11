@@ -143,6 +143,11 @@ const rulesRig = (cfg: Partial<RulesConfig>, zone = 0) => rig(A => new PropRules
   const st = h.p.stats();
   check(st.attempts === 3 && st.failEval === 3 && st.fees === 300 && st.passed === 0 && st.nPay === 0 && st.take === -300, 'stats');
   check(h.p.summaryLine() === 'Prop simulation: 3 evaluations (0 passed, 0 went live), $300.00 in fees, 0 payouts, $0.00 paid out to you: −$300.00. Account now: Evaluation failed.', 'end-of-run line');
+  // each account on its own: three evaluations, each failed, holding its own trades
+  const ac = h.p.accounts();
+  check(ac.length === 3 && ac.every((x, i) => x.stage === 'eval' && x.attempt === i + 1 && x.end === 'failed' && x.why.startsWith('Max loss')), 'three failed evaluations, in order');
+  check(ac[0].h0 === 0 && ac[0].h1 === ac[1].h0 && ac[1].h1 === ac[2].h0 && ac[2].h1 === h.A.hist.length, 'their trades follow on from each other');
+  check(ac[1].h1! - ac[1].h0 >= 1 && h.A.hist[ac[1].h1! - 1].reason === 'Rule breach', 'an account ends with the trade its breach closed');
 }
 
 /* ---- the max loss trails the end-of-day high and locks at start + lockPad ---- */
@@ -301,6 +306,30 @@ const toFunded = (cfg: Partial<PropConfig> = {}) => { const h = simRig({ ePt: 10
   check(l.p.stats().live === 1, 'went live');
 }
 
+/* ---- automatic live payouts: they leave a cushion, so a payout never puts the account on the edge ---- */
+{
+  const h = toFunded({ auto: true, fDays: 1, fPayouts: 1, lMll: 2000, lBonus: 0, lPayMin: 500, lPayDays: 2 });
+  h.day(1); h.trade(1200); h.day(2);
+  check(h.p.s.stage === 'live', 'live after the last funded payout');
+  h.trade(3000); h.day(3);
+  check(h.p.stats().nPayLive === 0 && h.p.livePayout() === 0, 'not before two trading days');
+  h.trade(100); h.day(4);
+  // on the second day's end: the floor locks at 50,100 and the live max loss ($2,000) stays above it: 53,100 - 52,100
+  check(h.p.stats().nPayLive === 1 && near(h.p.s.paid, 1000) && near(h.A.balance, 52100) && near(h.p.floor(), 50100), 'takes only what is above the floor plus the max loss');
+  h.trade(-1900); h.day(5);
+  check(!h.p.s.over, 'a $1,900 loss right after the payout does not fail the account');
+  h.trade(300); h.day(6); h.trade(50); h.day(7); h.trade(50);
+  check(h.p.stats().nPayLive === 1, 'nothing taken while under the floor plus the cushion and the minimum');
+  // a smaller cushion, set by hand
+  const k = toFunded({ auto: true, fDays: 1, fPayouts: 1, lKeep: 1000, lPayMin: 100, lPayDays: 1, lBonus: 0 });
+  k.day(1); k.trade(1200); k.day(2); k.trade(2000); k.day(3);
+  check(near(k.p.s.paid, 900) && near(k.A.balance, 51100), 'the cushion can be set');
+  // without auto (a replay session left to you), nothing is taken
+  const n = toFunded({ fDays: 1, fPayouts: 1 });
+  n.day(1); n.trade(1200); n.day(2); n.p.payout(); n.trade(5000); n.day(3); n.trade(50); n.day(9); n.trade(50);
+  check(n.p.stats().nPayLive === 0, 'no automatic live payouts without auto');
+}
+
 /* ---- saving and step back: state() and load() ---- */
 {
   const h = simRig({ ePt: 5000, eCons: 50, dll: 1000 });
@@ -386,7 +415,7 @@ const toFunded = (cfg: Partial<PropConfig> = {}) => { const h = simRig({ ePt: 10
   f.tick(1000, D(0, 15, 50)); f.buy(10); f.tick(1000, D(0, 15, 59));
   check(f.A.trades.length === 1, 'before the flat-by time');
   f.tick(1000, D(0, 16));
-  check(f.A.trades.length === 0 && f.last().text === 'It is past the 20:00 flat-by time: positions closed and orders cancelled.' && !f.last().pause, 'flattened at the flat-by time');
+  check(f.A.trades.length === 0 && f.last().text === 'It is past the 20:00 flat-by time: positions closed and orders canceled.' && !f.last().pause, 'flattened at the flat-by time');
   check(f.p.check('X', 1, 1) === 'New trades are blocked after the flat-by time (20:00) until the next trading day.' && f.p.view().status === 'Past flat-by time', 'blocked');
   f.tick(1000, D(0, 18, 1));
   check(f.p.check('X', 1, 1) === null, 'open again when the next day starts');

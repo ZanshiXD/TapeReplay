@@ -1,7 +1,7 @@
 """Reaching the drawing tools on a computer (app/index.html), in Chromium at 1280x720: each group's arrow is visible
 without hovering; a right-click or a long press on a group opens all its tools beside the rail, inside the window
 (a long group has a search); "All drawing tools" opens every tool in one panel whose search finds them and whose
-tiles arm a tool and close it; a star puts a tool on the favourites bar on the chart, which arms it and stays shown
+tiles arm a tool and close it; a star puts a tool on the favorites bar on the chart, which arms it and stays shown
 after a reload. Build the page first (desktop/web), then:
     python tests/test_drawtools.py [folder for screenshots]
 """
@@ -118,19 +118,19 @@ async def main():
             await pg.click(".drawrail button[aria-label='All drawing tools']")
             await pg.keyboard.press("Escape")
             check(await pg.locator(".dpanel").count() == 0, f"{scheme}: Esc closes the panel")
-            # the favourites bar: star a tool, show the bar, use it
+            # the favorites bar: star a tool, show the bar, use it
             await pg.click(".drawrail button[aria-label='All drawing tools']")
             await pg.click(".dpanel .dtabs button:has-text('Patterns')")
             await pg.click(".dpanel .dtw:has(.dtile:has-text('XABCD')) .dstar")
             await pg.keyboard.press("Escape")
-            await pg.click(".drawrail button[aria-label='Favourites bar']")
-            check(await pg.locator(".favbar").is_visible(), f"{scheme}: the favourites bar")
+            await pg.click(".drawrail button[aria-label='Favorites bar']")
+            check(await pg.locator(".favbar").is_visible(), f"{scheme}: the favorites bar")
             ok, fb = await inside(pg, ".favbar")
             lw = await pg.locator(".pane .lw").bounding_box()
-            check(ok and fb["x"] >= lw["x"] - 1, f"{scheme}: the favourites bar is on the chart ({fb})")
+            check(ok and fb["x"] >= lw["x"] - 1, f"{scheme}: the favorites bar is on the chart ({fb})")
             check(await pg.locator(".favbar button[aria-label='XABCD pattern']").count() == 1, f"{scheme}: the starred tool is on it: {await pg.locator('.favbar').inner_text()}")
             await pg.click(".favbar button[aria-label='XABCD pattern']")
-            check("XABCD" in await armed(pg), f"{scheme}: the favourites bar armed it ({await armed(pg)})")
+            check("XABCD" in await armed(pg), f"{scheme}: the favorites bar armed it ({await armed(pg)})")
             await pg.keyboard.press("Escape")
             # dragged by its grip, kept on the chart
             gb = await pg.locator(".favbar .grip").bounding_box()
@@ -157,7 +157,7 @@ async def main():
             else:
                 await pg.click(".summary button:has-text('Start with these now')")
             await pg.wait_for_selector(".pane .lw canvas", timeout=30000)
-            check(await pg.locator(".favbar button[aria-label='XABCD pattern']").count() == 1, f"{scheme}: the favourites bar is back after a reload")
+            check(await pg.locator(".favbar button[aria-label='XABCD pattern']").count() == 1, f"{scheme}: the favorites bar is back after a reload")
             check(not errors, f"{scheme}: no page errors: {errors}")
             await ctx.close()
         await b.close()

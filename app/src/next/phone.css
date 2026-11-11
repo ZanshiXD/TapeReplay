@@ -37,6 +37,7 @@ html.m .work[data-mview="trade"] .side { width: auto; flex: 1 1 auto; border: 0;
 html.m .work[data-mview="pos"] .chartrow, html.m .work[data-mview="pos"] .side, html.m .work[data-mview="pos"] .otree, html.m .work[data-mview="pos"] .mrbar { display: none; }
 html.m .work[data-mview="pos"] .dock { flex: 1 1 auto; height: auto; border: 0; }
 html.m .dock .body { overflow: auto; }
+html.m .rsz { display: none; }
 html.m .tabs { overflow-x: auto; scrollbar-width: none; }
 html.m .tabs::-webkit-scrollbar { display: none; }
 html.m .tabs > * { flex: none; }

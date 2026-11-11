@@ -11,12 +11,16 @@ says so.
 | `tape-replay.html`, 10,300 lines: markup, CSS, Python runtime and all the JavaScript | `app/`: Vite + TypeScript project, `npm run dev` / `npm run build` |
 | Copies committed in `desktop/web/` and `ios/Sources/TapeReplay/web/` | Built by `desktop/build.py` and `ios/sync_web.py` from `app/dist`, not kept in git |
 | Chart library and fonts downloaded by `build.py` | npm packages, bundled |
-| Optimizer workers re-ran the page's script text, read back out of the page with `eval` | A real worker module (`src/opt-worker.ts`) |
+| Optimizer workers re-ran the page's script text, read back out of the page with `eval` | A real worker module (now `src/core/opt.worker.ts`) |
 | Python runtime in a `<script type="text/x-python">` tag | `app/src/python/runtime.py`, imported as text |
 
-`app/src/app.ts` is still the old script, moved as is inside one `app()` function with `// @ts-nocheck`.
+At step 0, `app/src/app.ts` was the old script, moved as is inside one `app()` function with `// @ts-nocheck`. It
+has since been replaced by the new app (see the UI overhaul below) and removed, with its page and tests.
 
 ## Steps
+
+Steps 1 and 2 were overtaken by the UI overhaul below: the new app was written on a new core instead of splitting the
+old script.
 
 0. **Project and build** (this branch). Same behavior; all existing tests pass on the built page.
 1. **Split `app.ts` into modules**, in this order so each move is small and testable:
@@ -56,10 +60,10 @@ for them too.
 
 ## The UI overhaul (from the clickable prototype)
 
-The new app (React, `app/index.html`, code in `app/src/next`) runs on a new core in `app/src/core`. The classic app
-(`app/classic.html`, `app/src/app.ts`) stays one more release as a fallback.
+The new app (React, `app/index.html`, code in `app/src/next`) runs on a new core in `app/src/core`. It is the only
+app: the old page, kept for one release as a fallback, has been removed.
 
-The core keeps the classic engine's replay exactly — each bar plays open, then the low and high in the likely order,
+The core keeps the original engine's replay exactly — each bar plays open, then the low and high in the likely order,
 then the close, on an even grid of ticks — and its fill rules (spread on buys, slippage on stops, gaps fill at the
 gapped price, stop losses before targets, netting per market). New in the core: several markets on one clock with
 one account, stepping back a candle, jumping back or ahead on the timeline, intrabar ticks on the market's tick
@@ -70,15 +74,16 @@ grid, and a journal entry with chart snapshots for every closed trade.
 | 1 | Core (`src/core`), Replay screen (one, two or four charts, replay bar with step back and timeline, trade panel sized by risk with the order in plain words, positions, orders, history), indicators manager (EMA, SMA, VWAP), Journal, New session (practice markets) | done |
 | 2 | Drawings: TradingView's tools (lines, channels, pitchforks, Fibonacci and Gann, patterns, Elliott waves, cycles, long and short positions, forecast, bars pattern, ghost feed, anchored VWAP, volume profiles, ranges, shapes, brushes, text and notes), drawn the way TradingView draws them (see below) | done |
 | 3 | Real data: the Library (saved sessions, CSV and Databento imports, through the apps' storage or IndexedDB in a browser), sessions saved as you go and reopened exactly, long series a month at a time | done |
-| 4 | Prop firm challenge (evaluation, funded, live) on the new account, as the classic simulation | done |
+| 4 | Prop firm challenge (evaluation, funded, live) on the new account, with the original simulation's numbers and words | done |
 | 5 | Backtest: Python and JavaScript strategies on the core, the Backtest page, the optimizer (smart search, grid, random) and robustness tests | done |
 | 6 | Python indicators, chart studies (price zones, session lines), Settings (themes, time zone, trading day, replay, shortcuts), trading on the chart, Performance, phones, tablets and touch | done |
-| 7 | Switch: the new app is `index.html`, what the Windows and iOS apps open; the classic app is `classic.html`, kept one more release (linked as Classic) in case anything was missed, then removed | done |
+| 7 | Switch: the new app is `index.html`, what the Windows and iOS apps open; the old page was kept one more release in case anything was missed, then removed | done |
 
-Tests, in `app/`: `npx tsx tests/<name>.test.ts` for core, prop, zones, backtest and optimizer (`tests/backtest.bench.ts`
+Tests, in `app/`: `npx tsx tests/<name>.test.ts` for core, prop, zones, backtest, optimizer, guide and jsindicator (`tests/backtest.bench.ts`
 measures speed). In the browser (build first, then copy `app/dist` to `desktop/web`): `python tests/test_<name>.py` for
-next, drawings, library, prop_ui, chart_trade, studies, settings, pyind and backtest_ui; the classic page's tests
-(browser, store, playon, optimize, robust, indicator_browser, update) open `classic.html`.
+next, drawings, library, prop_ui, chart_trade, studies, settings, pyind, mobile, guide, jsind, drawtools, dropdowns,
+freeze, backtest_ui and desktop (the Windows app's server and update prompt). `python tests/test_runtime.py` and
+`test_indicators.py` test the Python runtime on its own; `test_import.py` the Windows app's DBN and CSV import.
 
 ### Where things are
 
@@ -94,7 +99,7 @@ next, drawings, library, prop_ui, chart_trade, studies, settings, pyind and back
 | Look | — | `look.ts`, `SettingsPage`, `theme.css`, `phone.css` |
 
 Speed: a Python strategy is called about 1 µs per tick inside a batch (4.5 µs a call before); on 10 days of 1-second
-bars an MA cross runs 1.4× faster than the classic bridge in Python and 5× faster as a JavaScript strategy, a trailing
+bars an MA cross runs 1.4× faster than the per-call bridge in Python and 5× faster as a JavaScript strategy, a trailing
 stop on every tick 1.9× and 14×. The smart search finds a near-best with about a tenth of the runs of a full grid, and
 the optimizer uses every core but one.
 

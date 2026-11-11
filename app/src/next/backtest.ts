@@ -3,9 +3,8 @@
 import RUNTIME from '../python/runtime.py?raw';
 import RUNNER from '../python/runner.py?raw';
 import { loadPython, type PyHost } from '../core/pybridge';
-import { PropSim, simConfig, type PropConfig } from '../core/prop';
-import type { Mode, RunRules } from '../core/backtest';
-import type { Account } from '../core/account';
+import type { PropConfig } from '../core/prop';
+import type { Mode } from '../core/backtest';
 import { PRACTICE } from '../core/practice';
 import { parseTF, tfLabel, tfValid, zoneToUtc, zp, p2 } from '../core/time';
 import { store } from './appstore';
@@ -16,7 +15,7 @@ import type { Instrument, Series } from '../core/series';
 export type Lang = 'py' | 'js';
 export interface Strat { code: string; lang: Lang }
 
-/* ---- templates: the classic app's four (Python) and two in JavaScript ---- */
+/* ---- templates: four in Python and two in JavaScript ---- */
 export const TEMPLATES: Record<string, Strat> = {
   'MA cross': { lang: 'py', code: `# Moving-average cross: long when the fast average is above the slow one, short when below.
 # Orders use the order size on the Run panel unless you give one, like ctx.buy(2).
@@ -139,7 +138,7 @@ function on_bar(ctx, bar) {
 /** which template a template-named strategy switches the mode to */
 export const TICK_TEMPLATES = new Set(['Breakout with trailing stop']);
 
-/* ---- saved strategies: pref('strategies'), name -> {code, lang} (the classic view kept plain Python text) ---- */
+/* ---- saved strategies: pref('strategies'), name -> {code, lang} (or plain Python text, from older versions) ---- */
 export function loadStrats(): Record<string, Strat> {
   const raw = pref<Record<string, Strat | string>>('strategies', {}), out: Record<string, Strat> = {};
   for (const [k, v] of Object.entries(raw)) out[k] = typeof v === 'string' ? { code: v, lang: 'py' } : { code: v.code, lang: v.lang === 'js' ? 'js' : 'py' };
@@ -175,7 +174,7 @@ export async function python(libs: string[] = []): Promise<PyHost> {
 
 /* ---- dates and timeframes ---- */
 export const STRAT_TFS = ['1m', '2m', '3m', '5m', '10m', '15m', '30m', '1h', '2h', '4h', '1D', '1W'];
-/** the timeframes a strategy can use on data of this bar size: the classic list, plus the bars' own */
+/** the timeframes a strategy can use on data of this bar size: the usual list, plus the bars' own */
 export function stratTfs(base: number): string[] {
   const own = tfLabel({ kind: 's', sec: base }), out = STRAT_TFS.filter(t => tfValid(parseTF(t)!, base));
   return out.includes(own) ? out : [own, ...out];
@@ -213,25 +212,5 @@ export function seriesFor(m: MarketSource, progress?: (f: number, step?: string)
   return cache.s.then(s => ({ ...s, inst: { ...s.inst, ...costs } }));
 }
 
-/* ---- the prop simulation in a run (the classic propTick/simTick hook points of the runner) ---- */
-export interface SimRun { sim: PropSim | null; cfg: PropConfig }
-/** rules for runBacktest: a fresh prop simulation on the run's account; a failed account buys a new evaluation when
- * rebuy is on (up to maxEvals, 0 = no limit), else the run ends there */
-export function simRules(c: PropConfig, rebuy: boolean, maxEvals: number, out: SimRun): RunRules {
-  let sim: PropSim, acc: Account;
-  const cfg = simConfig({ ...c, on: true });
-  out.cfg = cfg;
-  return {
-    start(a, log) {
-      acc = a; sim = new PropSim(cfg, a, { resetHour: cfg.resetNY }); out.sim = sim;
-      if (log) sim.onEvent = e => log(e.text, e.up === false ? 'er' : e.up ? 'ok' : 'pr');
-    },
-    idle: t1 => sim.canSkipBar(t1),
-    afterTick() {
-      sim.onTick(acc.quote('').time);
-      const r = sim.rebuy(rebuy, maxEvals);
-      return !r ? null : r.restarted ? { restarted: r.text } : r.text;
-    },
-    block: adds => sim.canOpen(adds),
-  };
-}
+/* ---- the prop simulation in a run: in core (the optimizer's workers use it too) ---- */
+export { simRules, type SimRun } from '../core/prop';

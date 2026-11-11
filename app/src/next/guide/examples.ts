@@ -280,7 +280,7 @@ def on_bar(ctx, bar):
 ` };
 
 export const STRAT_ORB: Example = { id: 'st-orb', title: 'Opening range breakout, sized by risk', what: 'The full pattern: settings at the top, Central Time, a dollar risk per trade, a cap on contracts and on trades per day, flat before the close.', code: `# Opening range breakout: stop orders above and below the first candles after the open. Each trade
-# risks RISK_USD at its stop; one trade a day; flat (and orders cancelled) at FLAT_TIME.
+# risks RISK_USD at its stop; one trade a day; flat (and orders canceled) at FLAT_TIME.
 import math
 from datetime import datetime, timedelta, timezone
 
@@ -423,7 +423,7 @@ function on_bar(ctx, bar) {
 ` };
 
 export const STRAT_JS_ORB: Example = { id: 'st-js-orb', title: 'Opening range breakout in JavaScript', what: 'The risk-sized opening range breakout above, written in JavaScript: the same settings, sizing, times and limits.', code: `// Opening range breakout: stop orders above and below the first candles after the open. Each trade
-// risks RISK_USD at its stop; one trade a day; flat (and orders cancelled) at FLAT_TIME.
+// risks RISK_USD at its stop; one trade a day; flat (and orders canceled) at FLAT_TIME.
 const RISK_USD   = 200;       // $ risked per trade (the loss at the stop)
 const QTY_STEP   = 1;         // 1 for futures contracts, 0.01 for forex lots
 const MAX_QTY    = 5;         // most contracts per trade, 0 = off

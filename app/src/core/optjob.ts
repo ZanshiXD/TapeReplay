@@ -5,7 +5,8 @@
 //                                                                             -> {type:'result', idx, res} or {type:'error', idx, error}
 import { runBacktest, type Bridge } from './backtest';
 import { jsStrategy } from './jsstrategy';
-import { totals, type Combo, type OptJob, type OptRes } from './optimizer';
+import { simRes, totals, type Combo, type OptJob, type OptRes } from './optimizer';
+import { simRules, type SimRun } from './prop';
 import { pyStrategy, type PyHost } from './pybridge';
 import { parseTF, setZone } from './time';
 
@@ -13,10 +14,13 @@ import { parseTF, setZone } from './time';
 export async function runCombo(job: OptJob, bridge: Bridge, overrides: Combo, withTrades = false): Promise<OptRes> {
   const tf = parseTF(job.tf);
   if (!tf) return { fail: `Unknown timeframe ${job.tf}.` };
-  const r = await runBacktest({ series: job.data, startIdx: job.start, endIdx: job.end, tf, mode: job.mode, balance: job.balance, qty: job.qty, ticksPerBar: job.ticksPerBar,
-    hedge: job.hedge, costs: job.costs, name: job.name, overrides, quiet: true }, bridge, { slice: null, sliceMs: 0 });
+  const P = job.prop, sim: SimRun | null = P ? { sim: null, cfg: P.cfg } : null;
+  const r = await runBacktest({ series: job.data, startIdx: job.start, endIdx: job.end, tf, mode: job.mode, balance: P ? P.cfg.size : job.balance, qty: job.qty, ticksPerBar: job.ticksPerBar,
+    hedge: job.hedge, costs: job.costs, name: job.name, overrides, quiet: true, rules: P && sim ? simRules(P.cfg, P.rebuy, P.maxEvals, sim) : undefined }, bridge, { slice: null, sliceMs: 0 });
   if (r.fail) return { fail: r.fail };
-  return totals(r.account.hist, r.account.trades.length, job.splitT, withTrades);
+  const res = totals(r.account.hist, r.account.trades.length, job.splitT, withTrades);
+  if (sim?.sim) res.sim = simRes(sim.sim.stats(), sim.sim.label());
+  return res;
 }
 
 /** the message handler: python(base, libs) gives a Python with those packages (loaded once per worker) */

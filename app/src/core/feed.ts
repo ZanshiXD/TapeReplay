@@ -1,7 +1,6 @@
 // One market's replay: a cursor over its bars, the simulated ticks inside each bar, and the candles at the chart's
-// timeframe. Ported from the classic app's replay engine (buildTicks, processTick, rebuild), unchanged in how a bar
-// plays: open, then low and high (in the order the bar's direction makes likely), then close, on an even grid of
-// ticks with the turning points kept exactly.
+// timeframe. How a bar plays: open, then low and high (in the order the bar's direction makes likely), then close, on
+// an even grid of ticks with the turning points kept exactly.
 import type { Candle, Series } from './series';
 import { makeBucket, tfSeconds, type TF } from './time';
 import { makeInd, type Ind, type IndSpec } from './indicators';
@@ -21,7 +20,13 @@ export class Feed {
   tf: TF;
   bucket: (t: number) => number;
   ticksPerBar: number;
+  /** while the replay plays slowly, at least this many ticks in a bar (set by the session; 0 otherwise). The extra
+   *  ticks wander a tick or two about the path between the open, the extremes and the close, never past the bar's high
+   *  or low, so the price keeps moving the way a live market does rather than sitting still for seconds. */
+  pace = 0;
   i: number; k = 0; nt = 0;
+  /** how far through the bar playing the ticks so far have got (0 to 1) */
+  private fDone = 0;
   readonly tkF = new Float64Array(608);
   readonly tkP = new Float64Array(608);
   time: number; price: number | null; prevClose: number | null; barTime: number;
@@ -66,7 +71,7 @@ export class Feed {
       if (d <= s0 + s1) return s1 ? p1 + (p2 - p1) * (d - s0) / s1 : p1;
       return s2 ? p2 + (p3 - p2) * Math.min(1, (d - s0 - s1) / s2) : p2;
     };
-    const N = Math.max(4, Math.min(600, this.ticksPerBar)), ta = s0 / tot, tb = (s0 + s1) / tot;
+    const N = Math.max(4, Math.min(600, Math.max(this.ticksPerBar, this.chart ? this.pace : 0))), ta = s0 / tot, tb = (s0 + s1) / tot;
     let n = 0, j = 0;
     const put = (f: number) => { if (n === 0 || F[n - 1] !== f) F[n++] = f; };
     for (let k = 0; k < N; k++) {
@@ -75,8 +80,48 @@ export class Feed {
       put(g);
     }
     for (; j < 2; j++) put(j ? tb : ta);
-    for (let k = 0; k < n; k++) P[k] = this.round(at(F[k]));
+    for (let k = 0; k < n; k++) P[k] = at(F[k]);
+    if (this.chart && this.pace > this.ticksPerBar && n > 8) this.wiggle(i, n, ta, tb, l, h);
+    for (let k = 0; k < n; k++) P[k] = this.round(P[k]);
     return n;
+  }
+  /** the extra ticks of a slow replay: between the open, the two extremes and the close (which stay exactly where they
+   *  are), a jitter of a tick or two about the path that comes back to it at each of them, kept inside the bar's range.
+   *  The same bar always gets the same walk. */
+  private wiggle(i: number, n: number, ta: number, tb: number, l: number, h: number) {
+    const F = this.tkF, P = this.tkP, W = Feed.walk, tk = this.s.inst.tick;
+    const amp = Math.min(2.5, Math.max(1, (h - l) / tk / 6)) * tk;
+    let seed = (Math.imul(Math.floor(this.s.t[i]) | 0, 2654435761) ^ 0x9e3779b9) >>> 0; // by the bar's time, not its place in memory
+    const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296 - 0.5; };
+    let a = 0;
+    for (let k = 1; k < n; k++) {
+      if (k < n - 1 && F[k] !== ta && F[k] !== tb) continue;
+      const m = k - a;
+      if (m > 1) {
+        // a walk that keeps being pulled back towards the path (so it stays within a tick or two of it), then bent so
+        // it ends on the path at the next anchor
+        W[0] = 0; for (let q = 1; q <= m; q++) W[q] = W[q - 1] * 0.65 + rnd() * 2.1;
+        const end = W[m];
+        for (let q = 1; q < m; q++) {
+          let x = P[a + q] + (W[q] - end * q / m) * amp;
+          if (x > h) x = h - (x - h); else if (x < l) x = l + (l - x); // off the range: back in, as far as it went out
+          P[a + q] = Math.min(h, Math.max(l, x));
+        }
+      }
+      a = k;
+    }
+  }
+  private static walk = new Float64Array(608);
+
+  /** a new pace (see pace); the rest of the bar playing now gets it at once, from where its ticks have got to */
+  setPace(n: number) {
+    if (n === this.pace) return;
+    this.pace = n;
+    if (!this.nt || this.i >= this.s.n) return;
+    if (this.k === 0) { this.nt = 0; return; } // none played yet: built again when the first is asked for
+    const f0 = this.fDone, n2 = this.buildTicks(this.i);
+    let k = 1; while (k < n2 - 1 && this.tkF[k] <= f0) k++;
+    this.nt = n2; this.k = k;
   }
 
   nextTickTime(): number {
@@ -107,8 +152,9 @@ export class Feed {
       if (p > F.h) F.h = p; if (p < F.l) F.l = p; F.c = p;
       if (p > P.h) P.h = p; if (p < P.l) P.l = p; P.c = p;
     }
-    const dv = s.v[i] * (f - (this.k ? this.tkF[this.k - 1] : 0));
+    const dv = s.v[i] * (f - (this.k ? this.fDone : 0));
     this.F!.v += dv; this.P!.v += dv;
+    this.fDone = f;
     this.k++;
     if (this.k >= this.nt) { this.prevClose = p; this.i++; this.k = 0; this.nt = 0; this.P = null; }
     return move;

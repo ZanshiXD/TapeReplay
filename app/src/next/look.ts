@@ -1,4 +1,4 @@
-// How the app looks and tells time: the theme (the classic view's palettes, light or dark, or following the system),
+// How the app looks and tells time: the theme (the palettes, light or dark, or following the system),
 // the candle and chart colors, the chart time zone and when a trading day starts. Kept with the preferences; applyLook()
 // puts them in force: CSS tokens on <html>, the chart colors in C, the zone in core/time. Charts and pages that draw
 // with colors or times call onLook() to hear of a change (most just re-render, which bump() already does).
@@ -6,7 +6,7 @@ import { setDayStart, setZone } from '../core/time';
 import { bump, pref } from './live';
 
 export interface Palette { id: string; name: string; kind: 'dark' | 'light'; note?: string; v: Record<string, string> }
-/** the palettes: this app's own dark look, then the classic view's 14 (same ids, names and colors) */
+/** the palettes: this app's own dark look, then 14 more */
 export const PALETTES: Palette[] = [
   { id: 'tape', name: 'Tape', kind: 'dark', note: 'This app’s own dark look', v: { bg: '#0b0e13', panel: '#10131a', raise: '#191d26', line: '#232833', grid: '#161a22', fg: '#d1d4dc', muted: '#8a91a0', accent: '#2962ff', 'accent-ink': '#ffffff', up: '#26a69a', down: '#ef5350' } },
   { id: 'terminal', name: 'Terminal', kind: 'dark', v: { bg: '#0c1016', panel: '#121820', raise: '#18202b', line: '#242e3b', grid: '#161d26', fg: '#d6dce6', muted: '#8692a4', accent: '#e2a63c', 'accent-ink': '#1b1306', up: '#2db38a', down: '#e5554c' } },
@@ -25,7 +25,7 @@ export const PALETTES: Palette[] = [
   { id: 'sand', name: 'Sand', kind: 'light', v: { bg: '#f1ebdf', panel: '#fbf8f2', raise: '#f3ede2', line: '#ddd2bf', grid: '#efe8db', fg: '#2a2319', muted: '#756856', accent: '#b0601a', 'accent-ink': '#ffffff', up: '#2b8a57', down: '#c0392b' } },
 ];
 export const palOf = (id: string) => PALETTES.find(p => p.id === id);
-/** up and down pairs that work on any palette (as the classic view's) */
+/** up and down pairs that work on any palette */
 export const CANDLE_SETS: Array<[string, string, string]> = [['#2f7fe0', '#f08a24', 'Blue and orange (color-blind friendly)'], ['#00b386', '#ff3b30', 'Bright green and red'],
   ['#26a69a', '#ef5350', 'Teal and coral'], ['#5b8def', '#e05ca8', 'Blue and pink']];
 
@@ -34,7 +34,7 @@ export interface Theme { mode: string; dark: string; light: string; up: string; 
 export const THEME_DEF: Theme = { mode: 'system', dark: 'tape', light: 'paper', up: '', down: '', wickUp: '', wickDown: '', border: false, chartBg: '', grid: '' };
 export const theme = (): Theme => ({ ...THEME_DEF, ...pref<Partial<Theme>>('theme', {}) });
 
-/* ---- time zones (as the classic view's) ---- */
+/* ---- time zones ---- */
 export const ZONES: Array<[string, string]> = [['local', 'Your computer’s time'], ['UTC', 'UTC'], ['America/New_York', 'New York'], ['America/Chicago', 'Chicago'],
   ['America/Los_Angeles', 'Los Angeles'], ['Europe/London', 'London'], ['Europe/Berlin', 'Frankfurt'], ['Asia/Tokyo', 'Tokyo'], ['Asia/Hong_Kong', 'Hong Kong'], ['Australia/Sydney', 'Sydney']];
 export const FIXED_OFFSETS = [-12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 5.5, 6, 7, 8, 9, 9.5, 10, 11, 12, 13, 14];

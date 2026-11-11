@@ -43,7 +43,7 @@ async def main():
         pg.on("pageerror", lambda e: errors.append(str(e)))
         await pg.goto(serve())
         await pg.click(".steps button:has-text('Account')")
-        await pg.click("text=Practise a prop firm challenge")
+        await pg.click("text=Practice a prop firm challenge")
         await pg.select_option(".card select", "L Flex 50K")
         await pg.click(".seg button:has-text('Minis')")
         check(await pg.locator(".summary:has-text('L Flex 50K')").count() == 1, "the summary names the challenge")

@@ -23,10 +23,13 @@ export function ChartTrade({ session, sym, geom, menuAt, onCloseMenu, onToast }:
     const move = () => {
       const el = box.current; if (!el) return;
       const h = geom.paneH();
+      // only what moved is written (a style written on every frame makes the browser lay the page out again)
       for (const t of el.querySelectorAll<HTMLElement>('[data-price]')) {
-        const y = geom.y(+t.dataset.price!);
-        if (y == null || y < 0 || y > h) { t.style.visibility = 'hidden'; continue; }
-        t.style.visibility = ''; t.style.top = `${Math.round(y)}px`;
+        const y = geom.y(+t.dataset.price!), at = y == null || y < 0 || y > h ? 'hidden' : String(Math.round(y));
+        if (t.dataset.at === at) continue;
+        t.dataset.at = at;
+        if (at === 'hidden') { t.style.visibility = 'hidden'; continue; }
+        t.style.visibility = ''; t.style.top = `${at}px`;
       }
     };
     frameHooks.add(move); move();
