@@ -422,6 +422,8 @@ async def main():
         check(st == "Done" and pay and pay != "$0.00", f"funded payouts are taken in a run ({pay})")
         pays = await pg.locator(".bt-acctable tbody tr td:nth-child(7)").all_inner_texts()
         check(any(p not in ("—", "$0.00") for p in pays[1:]), f"the accounts show their payouts ({pays[:6]})")
+        ah = (await pg.locator(".bt-accts").bounding_box())["height"]
+        check(ah > 120, f"the Accounts card is tall enough to read ({ah:.0f}px)")
         await pg.screenshot(path=f"{OUT}/backtest-6-accounts.png")
         await pg.click(".bt-head .tabs button:has-text('Optimize')")
         await pg.wait_for_selector("input[aria-label='Try FAST']", timeout=60000)

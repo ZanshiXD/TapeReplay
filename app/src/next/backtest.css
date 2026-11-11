@@ -157,7 +157,8 @@ html.m .bt-settable td:last-child { width: auto; white-space: normal; }
 html.m .bt-setin { width: 100%; min-width: 140px; max-width: none; height: 34px; font-size: 15px; }
 @media (max-width: 1100px) { html:not(.m) .bt-list { width: 180px; } }
 /* a prop run's accounts */
-.bt-accts { padding: 0; overflow: hidden; }
+.bt-accts { padding: 0; overflow: hidden; flex: none; }
+.bt-results > * { flex-shrink: 0; }
 .bt-acchead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); font-size: 12.5px; }
 .bt-acchead b { font-size: 13.5px; }
 .bt-accscroll { max-height: 300px; overflow: auto; }
