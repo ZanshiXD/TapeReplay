@@ -186,6 +186,6 @@ export class Painter {
     return box;
   }
   measure(str: string, size = 12, bold = false) { this.ctx.font = `${bold ? 700 : 500} ${size}px Inter, system-ui, sans-serif`; return this.ctx.measureText(str).width; }
-  /** a dot with a ring, where a point is labelled (patterns, waves) */
+  /** a dot with a ring, where a point is labeled (patterns, waves) */
   dot(p: XY, color: string, r = 3) { const c = this.ctx; c.beginPath(); c.arc(p.x, p.y, r, 0, Math.PI * 2); c.fillStyle = color; c.fill(); }
 }

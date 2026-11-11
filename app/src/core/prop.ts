@@ -632,7 +632,7 @@ export class PropRules implements PropEngine {
     }
     if (P.flatBy && this.inFlat(now) && (A.trades.length || A.orders.length)) {
       flatten(A, 'Flat-by time');
-      this.emit('info', `It is past the ${P.flatBy} flat-by time: positions closed and orders cancelled.`);
+      this.emit('info', `It is past the ${P.flatBy} flat-by time: positions closed and orders canceled.`);
     }
     // passing changes only with the settings, a fill or the balance: checked then, not on every tick
     const K = this.memo;

@@ -2,7 +2,7 @@
 // The Nasdaq-style market is the classic app's practice futures, ported as is: daily levels drift from about 6,500
 // to 25,500 with changing volatility, and each futures day (6 PM to 5 PM New York) is busy in US hours and quiet
 // overnight. The S&P-style market moves with it, with its own slow wander, so the two diverge now and then — enough
-// to practise SMT divergences on.
+// to practice SMT divergences on.
 import { barColumns, type Bars, type Instrument, type Series } from './series';
 import { localToUtc, tzOffset } from './time';
 

@@ -24,7 +24,7 @@ export function PropSetupCard({ value, onChange }: { value: PropConfig; onChange
   const presets = { ...PROP_PRESETS, ...saved };
   return (
     <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 760 }}>
-      <label className="chk" style={{ fontSize: 14 }}><input type="checkbox" checked={c.on} onChange={e => onChange({ ...c, on: e.target.checked })} /><b>Practise a prop firm challenge</b></label>
+      <label className="chk" style={{ fontSize: 14 }}><input type="checkbox" checked={c.on} onChange={e => onChange({ ...c, on: e.target.checked })} /><b>Practice a prop firm challenge</b></label>
       <span className="muted" style={{ fontSize: 12.5, marginTop: -6 }}>Pass the evaluation, get funded, take payouts, go live. The rules are checked on every tick, as the firm would.</span>
       {c.on && <>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>

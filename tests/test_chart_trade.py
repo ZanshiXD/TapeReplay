@@ -55,7 +55,7 @@ async def main():
         check(await pg.locator(".ttag.order").count() == 1, "the order has a tag on the chart")
         check(await pg.locator(".dock .tabs button:has-text('Orders (1)')").count() == 1, "the order is listed")
         await pg.click(".ttag.order .tx")
-        check(await pg.locator(".ttag.order").count() == 0, "× on the tag cancelled it")
+        check(await pg.locator(".ttag.order").count() == 0, "× on the tag canceled it")
         # a market buy with no stop or target, then a target dragged out of its tag
         await pg.fill(".field:has-text('Stop loss') input", "0")
         await pg.fill(".field:has-text('Take profit') input", "0")

@@ -273,7 +273,7 @@ async def main():
         await pg.click(".bt-head .tabs button:has-text('Code')")
         await pg.click("button:has-text('New')")
         await pg.click(".bt-newmenu button:has-text('MA cross'):has-text('JavaScript')")
-        await pg.check(".bt-run label:has-text('Practise a prop firm challenge') input")
+        await pg.check(".bt-run label:has-text('Practice a prop firm challenge') input")
         await pg.check(".bt-run label:has-text('Buy a new evaluation') input")
         st = await run_and_wait(pg)
         lines = await pg.evaluate(CONSOLE)

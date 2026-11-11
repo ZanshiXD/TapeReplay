@@ -2,7 +2,7 @@
 # after runtime.py, in the same namespace: scripts see the same ctx members, Bar, Tick and Fill, the same errors and
 # rejection messages as with the classic _tr_* calls, but the work crosses between JS and Python far less often:
 #   - candles and ticks arrive in batches (a flat buffer); a batch stops after the first one whose hook acted
-#     (placed, cancelled or closed something), and JS plays the engine up to that point first (api.sync(i))
+#     (placed, canceled or closed something), and JS plays the engine up to that point first (api.sync(i))
 #   - datetimes (ctx.time, bar.time, tick.time, fill.time) are built only when read
 #   - the account (position, balance, open trades, working orders) crosses only when its version changed;
 #     equity and the open trades' P&L are worked out here from the price, as JS would

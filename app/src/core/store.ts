@@ -35,7 +35,7 @@ export interface Store {
   deleteDataset(id: string): Promise<void>;
   /** a file the person dropped or chose in the browser, added to the Library */
   addFile(file: Blob, meta: Partial<DatasetMeta>): Promise<DatasetMeta>;
-  /** the app's own file dialog (null when cancelled) */
+  /** the app's own file dialog (null when canceled) */
   pick(): Promise<Picked | null>;
   /** a file chosen in the app's dialog, added to the Library */
   adopt(pick: string, meta: Partial<DatasetMeta>): Promise<DatasetMeta>;

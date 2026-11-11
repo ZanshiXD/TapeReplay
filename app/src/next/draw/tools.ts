@@ -60,7 +60,7 @@ function lineStats(d: Drawing, g: Geo, x: XY[]) {
 function labelAt(P: Painter, p: XY, text: string, color: string, up: boolean) {
   P.text(text, p.x, p.y + (up ? -8 : 8), { color: '#fff', size: 12, bold: true, align: 'center', base: up ? 'bottom' : 'top', bg: color, pad: 4, radius: 4 }, false);
 }
-/** pattern points labelled above when they are peaks, below when troughs */
+/** pattern points labeled above when they are peaks, below when troughs */
 function pointLabels(P: Painter, d: Drawing, x: XY[], names: string[]) {
   x.forEach((p, i) => {
     const prev = x[i - 1] || x[i + 1], next = x[i + 1] || x[i - 1];

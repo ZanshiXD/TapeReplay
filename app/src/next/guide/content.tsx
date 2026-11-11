@@ -35,7 +35,7 @@ function Keys({ rows }: { rows: Array<[string, string]> }) {
 export const CHAPTERS: Chapter[] = [
   { id: 'start', title: 'Getting started', sections: [
     { id: 'welcome', title: 'What Tape Replay does', body: <>
-      <p>Tape Replay plays past market data back to you as if it were live, so you can practise trading without risking money and without knowing what comes next. You buy and sell while the candles form, the app tracks your account, and every closed trade goes to a journal with a picture of the chart.</p>
+      <p>Tape Replay plays past market data back to you as if it were live, so you can practice trading without risking money and without knowing what comes next. You buy and sell while the candles form, the app tracks your account, and every closed trade goes to a journal with a picture of the chart.</p>
       <p>It also tests ideas automatically: write a strategy in Python or JavaScript, backtest it over months of data, let the optimizer try its settings, then check the best ones on dates they were not chosen on.</p>
       <h4>Your first session in a minute</h4>
       <Steps items={[
@@ -62,7 +62,7 @@ export const CHAPTERS: Chapter[] = [
         <li><b>Starting balance</b>: play money.</li>
         <li><b>Risk per trade</b>: what you lose if a trade hits its stop. The order ticket sizes trades from it.</li>
         <li><b>Costs per contract</b>: commission per side, the spread (buys pay this many ticks above the price) and slippage (stop orders, stop losses and orders at the market fill this many ticks worse). They are filled in for the market; change anything that does not match your broker.</li>
-        <li><b>Practise a prop firm challenge</b>: see <i>Prop firm challenges</i>.</li>
+        <li><b>Practice a prop firm challenge</b>: see <i>Prop firm challenges</i>.</li>
       </ul>
     </> },
     { id: 'play', title: 'Playing the tape', body: <>
@@ -130,7 +130,7 @@ export const CHAPTERS: Chapter[] = [
       </ul>
     </> },
     { id: 'prop', title: 'Prop firm challenges', body: <>
-      <p>Tick <b>Practise a prop firm challenge</b> in New session (Account) to trade under a funding firm's rules. They are checked on every tick, on your equity (balance plus open profit or loss), as the firm would.</p>
+      <p>Tick <b>Practice a prop firm challenge</b> in New session (Account) to trade under a funding firm's rules. They are checked on every tick, on your equity (balance plus open profit or loss), as the firm would.</p>
       <ul>
         <li><b>Rules</b>: a preset (L Flex 25K or 50K) or your own. Change any number and <b>Save as my rules</b>. Choose whether you trade <b>Micros</b> or <b>Minis</b>: size limits are in minis, and each mini allows 10 micros.</li>
         <li><b>Evaluation</b>: a <b>profit target</b> to pass; a <b>max loss</b> that trails the highest end-of-day balance and stops trailing once it reaches the starting balance plus a small amount (it "locks"); a <b>consistency</b> rule (your best day may be at most this share of the total profit; 0 turns it off); <b>minimum trading days</b>; a <b>max contracts</b> limit; and the <b>evaluation fee</b>.</li>
@@ -150,7 +150,7 @@ export const CHAPTERS: Chapter[] = [
       <ul>
         <li><b>A whole group</b>: click the arrow strip on the right of a group's button, right-click the button, or hold it down. The list opens beside the toolbar with each tool's name and shortcut (and a search box in the long groups).</li>
         <li><b>All drawing tools</b>: the button under the cursors opens every tool in one panel: search by name (Enter picks the first match), your recent tools, then the groups as tabs. The magnet, keep drawing, lock, hide, the list of drawings, remove, undo and redo are there too.</li>
-        <li><b>Favourites</b>: star any tool (in a group's list or the panel) and the star button on the toolbar shows your starred tools as a small toolbar on the chart. Drag it by its grip; it stays where you put it.</li>
+        <li><b>Favorites</b>: star any tool (in a group's list or the panel) and the star button on the toolbar shows your starred tools as a small toolbar on the chart. Drag it by its grip; it stays where you put it.</li>
       </ul>
       <ul>
         <li>Pick a tool, then click on the chart: once for a one-point tool, twice (or press and drag) for a line, more for patterns. A path ends with a double-click or <kbd>Enter</kbd>. The hint at the top says what to do; <kbd>Esc</kbd> cancels.</li>
@@ -194,9 +194,9 @@ export const CHAPTERS: Chapter[] = [
     { id: 'files', title: 'Your own data', body: <>
       <p><b>Add a data file</b> (Library, or New session › Market), or drop files on the Library's Data files tab. It reads CSV files and Databento DBN files of candles (OHLCV, not zstd-compressed), of any size and any bar size, from 1-second to daily.</p>
       <ul>
-        <li><b>CSV</b>: one candle per row with a time, open, high, low and close; volume is optional. Headers are recognised by name (time, date, datetime, timestamp, open, high, low, close, volume and the usual variants); without a header the columns are read in that order. Commas, semicolons, tabs and pipes all work, as do separate date and time columns.</li>
+        <li><b>CSV</b>: one candle per row with a time, open, high, low and close; volume is optional. Headers are recognized by name (time, date, datetime, timestamp, open, high, low, close, volume and the usual variants); without a header the columns are read in that order. Commas, semicolons, tabs and pipes all work, as do separate date and time columns.</li>
         <li><b>Times</b>: ISO dates (<C>2026-04-01 13:30:00</C>), US or European dates (AM and PM included), compact ones (<C>20260401 133000</C>) and Unix timestamps in seconds, milliseconds, microseconds or nanoseconds. Day and month are told apart by the dates themselves (a first number over 12 means day first). Times without a zone are read as UTC; ISO times with <C>Z</C> or an offset like <C>-05:00</C> are converted. If your file is in another zone without saying so, convert it to UTC first.</li>
-        <li><b>Contracts</b>: the app recognises futures by their symbol (ES, NQ, MNQ, CL, GC, ZN, 6E and others, with months like ESM6 or NQZ25) and fills in the point value and tick size. A file with several contracts can follow the busiest one each day (a continuous series), or you pick one.</li>
+        <li><b>Contracts</b>: the app recognizes futures by their symbol (ES, NQ, MNQ, CL, GC, ZN, 6E and others, with months like ESM6 or NQZ25) and fills in the point value and tick size. A file with several contracts can follow the busiest one each day (a continuous series), or you pick one.</li>
         <li>Several files of one market (a batch download, a month each, say) can be chosen or dropped together: they are read one after the other in name order, as one data set, so name them so they sort by date (Databento's do).</li>
       </ul>
       <Note>A file is read once and kept in a fast form, so it reopens in a moment. Deleting it from the Library removes that copy, not your original file.</Note>
@@ -493,7 +493,7 @@ export const CHAPTERS: Chapter[] = [
         ['An indicator stopped', 'Its name is marked in the Indicators list. Open it: the console shows the error and the line. Fix it and press Apply to chart.'],
         ['"Order rejected" in the console', 'The message says why: a stop on the wrong side of the price, a size of 0, or a prop rule. Each kind is printed once, then counted.'],
         ['Times look an hour off', 'Check Settings › Time zone, and that your file\'s times are UTC or carry their offset. Scripts comparing times should convert with to_ct.'],
-        ['My file was not recognised', 'It needs a time column and open, high, low and close. The error names the header it found; rename the columns if they are unusual.'],
+        ['My file was not recognized', 'It needs a time column and open, high, low and close. The error names the header it found; rename the columns if they are unusual.'],
         ['A strategy runs slowly', 'Use At bar close unless you need ticks, avoid whole-array ta functions on every candle, prefer numpy to loops, or write it in JavaScript.'],
         ['The optimizer says too many combinations', 'Narrow the ranges, add a rule, use Smart, or a random sample.'],
       ]} />

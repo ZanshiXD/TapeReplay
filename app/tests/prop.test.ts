@@ -386,7 +386,7 @@ const toFunded = (cfg: Partial<PropConfig> = {}) => { const h = simRig({ ePt: 10
   f.tick(1000, D(0, 15, 50)); f.buy(10); f.tick(1000, D(0, 15, 59));
   check(f.A.trades.length === 1, 'before the flat-by time');
   f.tick(1000, D(0, 16));
-  check(f.A.trades.length === 0 && f.last().text === 'It is past the 20:00 flat-by time: positions closed and orders cancelled.' && !f.last().pause, 'flattened at the flat-by time');
+  check(f.A.trades.length === 0 && f.last().text === 'It is past the 20:00 flat-by time: positions closed and orders canceled.' && !f.last().pause, 'flattened at the flat-by time');
   check(f.p.check('X', 1, 1) === 'New trades are blocked after the flat-by time (20:00) until the next trading day.' && f.p.view().status === 'Past flat-by time', 'blocked');
   f.tick(1000, D(0, 18, 1));
   check(f.p.check('X', 1, 1) === null, 'open again when the next day starts');

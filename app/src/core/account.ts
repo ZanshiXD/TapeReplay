@@ -16,7 +16,7 @@ export interface Trade {
 export interface Closed extends Trade { exit: number; exitTime: number; gross: number; net: number; reason: string; balanceAfter: number }
 /** 'payout': money taken out of a prop account (sym '' as it is the whole account's; net is what you got after the split) */
 export interface Mark { sym: string; t: number; side: Side; kind: 'in' | 'out' | 'payout'; id: number; reason?: string; net?: number; bonus?: boolean }
-export interface AccountEvent { kind: 'entry' | 'exit' | 'placed' | 'cancelled' | 'error' | 'pause'; text: string; sym?: string; up?: boolean; closed?: Closed }
+export interface AccountEvent { kind: 'entry' | 'exit' | 'placed' | 'canceled' | 'error' | 'pause'; text: string; sym?: string; up?: boolean; closed?: Closed }
 /** one fill, as strategies see it: side of the fill (1 buy, -1 sell), entry or exit, its reason, the trade it belongs
  * to and, on exits, the net P&L of the part closed */
 export interface FillEvent { sym: string; side: Side; qty: number; price: number; kind: 'entry' | 'exit'; reason: string; id: number; pnl: number | null; time: number }
@@ -241,10 +241,10 @@ export class Account {
   cancel(id: number) {
     const o = this.orders.find(x => x.id === id); if (!o) return;
     this.orders.splice(this.orders.indexOf(o), 1);
-    this.onEvent({ kind: 'cancelled', sym: o.sym, text: `Cancelled the ${o.side > 0 ? 'buy' : 'sell'} ${o.type} at ${o.price}` });
+    this.onEvent({ kind: 'canceled', sym: o.sym, text: `Canceled the ${o.side > 0 ? 'buy' : 'sell'} ${o.type} at ${o.price}` });
     this.changed(false);
   }
-  cancelAll(sym?: string) { const n = this.orders.length; this.orders = this.orders.filter(o => sym && o.sym !== sym); if (n !== this.orders.length) { this.onEvent({ kind: 'cancelled', text: 'Cancelled the working orders' }); this.changed(false); } }
+  cancelAll(sym?: string) { const n = this.orders.length; this.orders = this.orders.filter(o => sym && o.sym !== sym); if (n !== this.orders.length) { this.onEvent({ kind: 'canceled', text: 'Canceled the working orders' }); this.changed(false); } }
   /** moves a trade's stop or target, or an order's price; returns an error in plain words, or null */
   setBracket(tr: Trade, which: 'sl' | 'tp', price: number | null): string | null {
     const b = this.bid(tr.sym)!, a = this.ask(tr.sym)!;

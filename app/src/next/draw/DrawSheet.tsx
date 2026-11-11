@@ -1,7 +1,7 @@
 // Every drawing tool in one panel: Recent first, then the tool groups as tabs of big, named tiles, and below the
 // switches the rail has (magnet, keep drawing, lock, hide, the list of drawings, remove). On phones it is a bottom
 // sheet (the pencil in the chart's header); on a computer the rail's "All drawing tools" button opens it beside the
-// rail as a panel with a search over every tool and a star on each tile for the favourites bar. Picking a tool
+// rail as a panel with a search over every tool and a star on each tile for the favorites bar. Picking a tool
 // closes it, so the whole chart is free to draw on.
 import { useEffect, useRef, useState } from 'react';
 import type { Session } from '../../core/session';
@@ -17,7 +17,7 @@ const MAG: Record<Magnet, string> = { off: 'Magnet', weak: 'Magnet: weak', stron
 /** the tools that are not drawings: measure and zoom (zoom out acts at once) */
 const EXTRA: Array<{ id: string; name: string; icon: string }> = [{ id: 'measure', name: 'Measure', icon: ICONS.measure }, { id: 'zoom', name: 'Zoom in', icon: ICONS.zoom }, { id: 'zoomout', name: 'Zoom out', icon: UI.zoomout }];
 
-/** the tools used last, newest first (the favourites until there are some) */
+/** the tools used last, newest first (the favorites until there are some) */
 export function recentTools(): string[] {
   const r = pref<string[]>('drawRecent', []).filter(id => TOOL[id]);
   return (r.length ? r : ds.favs.filter(id => TOOL[id])).slice(0, 8);
@@ -26,7 +26,7 @@ export function noteRecent(id: string) {
   if (!TOOL[id] || TOOL[id].group === 'cursor') return;
   setPref('drawRecent', [id, ...pref<string[]>('drawRecent', []).filter(x => x !== id)].slice(0, 8));
 }
-/** star or unstar a tool for the favourites bar */
+/** star or unstar a tool for the favorites bar */
 export function toggleFav(id: string) { setDs({ favs: ds.favs.includes(id) ? ds.favs.filter(x => x !== id) : [...ds.favs, id] }); }
 /** arm a tool (or zoom out at once), as the rail and the panels do */
 export function armTool(session: Session, id: string) {
@@ -36,10 +36,10 @@ export function armTool(session: Session, id: string) {
   noteRecent(id);
   setDs({ tool: id, selected: null, ...(g && g !== 'cursor' ? { last: { ...ds.last, [g]: id } } : {}) });
 }
-/** a star button: on (a favourite) or off */
+/** a star button: on (a favorite) or off */
 export function Star({ id, name }: { id: string; name: string }) {
   const on = ds.favs.includes(id);
-  return <button className={'dstar' + (on ? ' on' : '')} aria-pressed={on} title={on ? `Take ${name} off the favourites bar` : `Put ${name} on the favourites bar`} aria-label={on ? `Unstar ${name}` : `Star ${name}`}
+  return <button className={'dstar' + (on ? ' on' : '')} aria-pressed={on} title={on ? `Take ${name} off the favorites bar` : `Put ${name} on the favorites bar`} aria-label={on ? `Unstar ${name}` : `Star ${name}`}
     onClick={e => { e.stopPropagation(); toggleFav(id); }}><svg width="14" height="14" viewBox="0 0 24 24" fill={on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d={UI.star} /></svg></button>;
 }
 

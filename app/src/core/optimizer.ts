@@ -19,7 +19,7 @@ export type Combo = Record<string, Setting>;
 export interface ParamInfo { name: string; kind: 'int' | 'float' | 'bool' | 'choice'; value: Setting; choices?: Setting[]; zero_off?: boolean; param?: boolean; lo?: number; hi?: number; step?: number; values?: Setting[] }
 export const niceStep = (x: number) => { if (!(x > 0)) return 1; const e = 10 ** Math.floor(Math.log10(x)); for (const m of [1, 2, 2.5, 5, 10]) if (x <= m * e * 1.0001) return m * e; return 10 * e; };
 export const roundTo = (x: number, step: number) => +x.toFixed(Math.min(10, Math.max(0, -Math.floor(Math.log10(step)) + 2)));
-/** values to try for a setting: centred on its value with a round step (narrow, normal or wide), or param()'s range */
+/** values to try for a setting: centered on its value with a round step (narrow, normal or wide), or param()'s range */
 export function optValues(p: ParamInfo, preset: 'narrow' | 'normal' | 'wide' | 'param' = 'normal'): Setting[] {
   if (p.kind === 'bool') return [true, false];
   if (p.kind === 'choice') return (p.choices && p.choices.length ? p.choices : [p.value]).slice();
@@ -277,7 +277,7 @@ export function optCsv(sorted: OptRow[], combos: Combo[], names: string[], split
 
 /* ---- the smart search ---- */
 // Settings are axes of indexes into their values (numbers sorted; True/False and text choices are categories).
-//  1. a coarse grid at the centres of even cells, sized to about a third of the budget (or a Latin hypercube sample
+//  1. a coarse grid at the centers of even cells, sized to about a third of the budget (or a Latin hypercube sample
 //     when even two levels per setting are too many)
 //  2. a pattern search around the best few: each tries one step up and down each axis (and every other choice); a
 //     point with nothing new around it halves its steps, down to one; better points inherit the step
