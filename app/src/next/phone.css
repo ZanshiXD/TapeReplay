@@ -172,6 +172,8 @@ html.m .dsheet .dtabs button { flex: none; height: 34px; padding: 0 14px; border
 html.m .dsheet .dtabs button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 html.m .dsheet .dbody { flex: 1 1 auto; min-height: 120px; overflow-y: auto; overflow-x: hidden; padding: 0 12px 8px; border-top: 1px solid var(--line-soft); }
 html.m .dsheet h5 { margin: 12px 4px 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+html.m .dsheet .dtw { position: relative; display: flex; min-width: 0; }
+html.m .dsheet .dtw > .dtile { flex: 1; min-width: 0; }
 html.m .dsheet .dgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding-top: 8px; }
 html.m .dsheet h5 + .dgrid { padding-top: 0; }
 html.m .dtile { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px; min-height: 78px; padding: 10px 4px 8px; border: 1px solid transparent; border-radius: 12px; background: var(--field); color: var(--fg); font-size: 11.5px; line-height: 1.2; text-align: center; }
