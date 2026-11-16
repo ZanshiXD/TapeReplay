@@ -11,6 +11,8 @@ import { stripWhen } from './when';
 /* ---- time ---- */
 const p2 = (n: number) => String(n).padStart(2, '0');
 /** an instant in a fixed zone offset (seconds east of UTC), like Python's aware datetime */
+/** "HH:MM" to seconds since midnight, kept: ctx.at and ctx.between are called on every bar */
+const AT = new Map<string, number>();
 export class ZTime {
   private d: Date | null = null;
   constructor(readonly t: number, readonly off: number) {}
@@ -174,7 +176,11 @@ export class Ctx {
   round(p: number) { const m = 10 ** this._prec; return Math.round(p * m) / m; }
   ticks(n: number) { return n * this.tick_size; }
   /** "09:30" as seconds since midnight, to compare with bar.time.time() */
-  at(hhmm: string) { const [h, m] = String(hhmm).trim().split(':'); return +h * 3600 + +m * 60; }
+  at(hhmm: string) { // strategies call it on every bar: the parsed times are kept
+    let v = AT.get(hhmm);
+    if (v === undefined) { const [h, m] = String(hhmm).trim().split(':'); v = +h * 3600 + +m * 60; if (AT.size < 1000) AT.set(hhmm, v); }
+    return v;
+  }
   /** whether a time of day is in the window [start, end): t a time (bar.time or its .time() seconds), start and end
    *  "HH:MM" or seconds. When end is before start the window runs across midnight: between(t, "18:00", "14:30") is
    *  true from 18:00 to 14:30 the next day. The same start and end mean all day. */

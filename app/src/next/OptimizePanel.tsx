@@ -3,7 +3,7 @@
 // were not chosen on (a holdout), in walk-forward windows, and by reshuffling their trades (Monte Carlo).
 import { openGuide } from './guide/Guide';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { optimize, optValues, optText, optParse, optSorted, optCsv, optScoreTxt, comboTotal, distinctTotal, whenOf, offBy, smartBudget, workerCount, seriesSlice, OptPool, type When,
+import { type DDStop, optimize, optValues, optText, optParse, optSorted, optCsv, optScoreTxt, comboTotal, distinctTotal, whenOf, offBy, smartBudget, workerCount, seriesSlice, OptPool, type When,
          OPT_CAP, OPT_CAP_SMALL, OPT_GOALS, type Combo, type Goal, type OptJob, type OptRow, type ParamInfo, type RunTasks } from '../core/optimizer';
 import { robCandidates, robCompute, robCsv, robPlan, robRanked, robSorted, robSortDir, robSummary, ROB_CAP, ROB_CAP_SMALL, ROB_DEFAULTS, type RobSpec, type RobView } from '../core/robust';
 import { optFmt, optLabel, type Mode } from '../core/backtest';
@@ -32,6 +32,8 @@ export interface OptDoc {
     when?: Record<string, When>; base?: Combo };
   /** combinations not run: they differ from one that was only in settings that are off */
   repeats?: number;
+  /** the drawdown stop the runs had, and how many it ended early */
+  ddStop?: DDStop; cut?: number;
   kinds: Record<string, ParamInfo['kind']>;
   combos: Combo[]; rows: OptRow[]; total: number; skipped: number; done: number; best: string; stopped?: boolean;
   robust?: { code: string; runTo: number; trades: Record<number, number[]>; fails: Record<number, string>; spec: RobSpec };
@@ -53,7 +55,7 @@ export function OptimizePanel({ active, which, code, lang, name, setup, busy, on
   onUse: (name: string, lang: Lang, docCode: string, combo: Combo) => void; onShow: (su: RunSetup, combo: Combo) => void; onToast: (m: string, k?: string) => void;
   openId: string | null; onOpened: () => void; goRob: () => void;
 }) {
-  const O = pref<{ search?: 'smart' | 'grid' | 'random'; n?: number; goal?: Goal; minT?: number; split?: number }>('opt', {});
+  const O = pref<{ search?: 'smart' | 'grid' | 'random'; n?: number; goal?: Goal; minT?: number; split?: number; ddMode?: 'off' | 'best' | 'usd'; ddUsd?: string }>('opt', {});
   const [rows, setRows] = useState<PRow[]>([]);
   const [detectErr, setDetectErr] = useState('');
   const [search, setSearch] = useState(O.search || 'smart');
@@ -61,6 +63,10 @@ export function OptimizePanel({ active, which, code, lang, name, setup, busy, on
   const [rules, setRules] = useState('');
   const [goal, setGoal] = useState<Goal>(O.goal || 'ndd');
   const [minT, setMinT] = useState(O.minT ?? 10);
+  // runs that are clearly beaten stop early: off, at twice the best result's drawdown, or at an amount
+  const [ddMode, setDdMode] = useState<'off' | 'best' | 'usd'>(O.ddMode ?? 'off');
+  const [ddUsd, setDdUsd] = useState<string>(O.ddUsd ?? '5000');
+  const ddStop: DDStop = ddMode === 'best' ? { kind: 'best', times: 2 } : ddMode === 'usd' && +ddUsd > 0 ? { kind: 'usd', usd: +ddUsd } : { kind: 'off' };
   const [split, setSplit] = useState(O.split ?? 30);
   const [doc, setDoc] = useState<OptDoc | null>(null);
   const [running, setRunning] = useState(false);
@@ -142,13 +148,13 @@ export function OptimizePanel({ active, which, code, lang, name, setup, busy, on
       const kinds = Object.fromEntries(rows.map(r => [r.p.name, r.p.kind]));
       const d: OptDoc = { v: 1, id: newId(), name: `${su.name} optimization`, strategy: su.name, lang: su.lang, code: su.code, mode: su.mode, libs: su.libs, tf: su.tf, data: su.data, market: su.market,
         datasetName: su.dataName, t0: su.t0, t1: su.t1, from: s.t[startI], to: s.t[endI - 1], balance: su.balance, qty: su.qty, costs: su.costs, prop: su.prop, created: Date.now(), updated: Date.now(),
-        goal, minTrades: minT, split, splitT, spec: { params, rules: rules.split('\n'), search, n: search === 'random' ? nRandom : undefined, seed, ...(Object.keys(when).length ? { when, base: codeVals } : {}) }, kinds,
+        goal, minTrades: minT, split, splitT, ddStop, spec: { params, rules: rules.split('\n'), search, n: search === 'random' ? nRandom : undefined, seed, ...(Object.keys(when).length ? { when, base: codeVals } : {}) }, kinds,
         combos: [], rows: [], total, skipped: 0, done: 0, best: '' };
       const seen = new Map<number, Combo>(), base = pool.runner(job, n);
-      const runTasks: RunTasks = (tasks, on) => { for (const t of tasks) seen.set(t.idx, t.overrides); return base(tasks, on); };
+      const runTasks: RunTasks = (tasks, on, o) => { for (const t of tasks) seen.set(t.idx, t.overrides); return base(tasks, on, o); };
       const t0 = performance.now();
       setStatus({ text: `Starting ${n} parallel run${n === 1 ? '' : 's'}…` });
-      const out = await optimize({ params, rules: d.spec.rules, search, n: search === 'random' ? nRandom : undefined, seed, cap, goal, minTrades: minT, when: d.spec.when, base: d.spec.base }, runTasks, {
+      const out = await optimize({ params, rules: d.spec.rules, search, n: search === 'random' ? nRandom : undefined, seed, cap, goal, minTrades: minT, when: d.spec.when, base: d.spec.base, ddStop }, runTasks, {
         stopped: () => stopRef.current,
         progress: p => {
           const el = (performance.now() - t0) / 1000, left = p.done ? el / p.done * Math.max(0, p.planned - p.done) : 0;
@@ -158,12 +164,13 @@ export function OptimizePanel({ active, which, code, lang, name, setup, busy, on
         },
       });
       if (out.error) { setStatus({ text: out.error, kind: 'er' }); return; }
-      Object.assign(d, { combos: out.combos, rows: out.rows.map(r => ({ i: r.i, res: r.res })), skipped: out.skipped, repeats: out.repeats, done: out.rows.length, stopped: out.stopped, updated: Date.now(),
+      Object.assign(d, { combos: out.combos, rows: out.rows.map(r => ({ i: r.i, res: r.res })), skipped: out.skipped, repeats: out.repeats, cut: out.cut, done: out.rows.length, stopped: out.stopped, updated: Date.now(),
         best: out.best ? `${optLabel(out.combos[out.best.i])}: ${optScoreTxt(out.best.score!, goal, smoney)}` : '' });
       setDoc(d); setSort({ key: 'score', dir: -1 });
-      const allFailed = out.rows.length && out.rows.every(r => r.res.fail);
-      setStatus(allFailed ? { text: `Every run failed: ${out.firstErr.split('\n')[0]}`, kind: 'er' }
-        : { text: (out.stopped ? `Stopped: ${out.rows.length} of ${search === 'grid' ? out.combos.length : runs} done` : 'Optimization done') + (out.firstErr ? `. Some runs failed: ${out.firstErr.split('\n')[0]}` : '') + ` (${dur((performance.now() - t0) / 1000)}).`, kind: out.firstErr ? 'er' : 'ok' });
+      const allFailed = out.rows.length && out.rows.every(r => r.res.fail && !r.res.cut), allCut = out.rows.length && out.rows.every(r => r.res.cut);
+      setStatus(allCut ? { text: 'Every run was stopped early by the drawdown stop: raise it, or turn it off.', kind: 'er' }
+        : allFailed ? { text: `Every run failed: ${out.firstErr.split('\n')[0]}`, kind: 'er' }
+        : { text: (out.stopped ? `Stopped: ${out.rows.length} of ${search === 'grid' ? out.combos.length : runs} done` : 'Optimization done') + (out.cut ? `; ${out.cut.toLocaleString('en-US')} stopped early by the drawdown stop` : '') + (out.firstErr ? `. Some runs failed: ${out.firstErr.split('\n')[0]}` : '') + ` (${dur((performance.now() - t0) / 1000)}).`, kind: out.firstErr ? 'er' : 'ok' });
       try { await store.saveOptim(d.id, d); setSavedV(v => v + 1); } catch (e) { onToast('Could not save the optimization: ' + (e as Error).message, 'err'); }
     } catch (e) { setStatus({ text: (e as Error).message, kind: 'er' }); }
     finally { setRunning(false); setProg(null); if (touch()) store.awake(false); }
@@ -211,6 +218,10 @@ export function OptimizePanel({ active, which, code, lang, name, setup, busy, on
           <select className="in ui" value={goal} onChange={e => { const g = e.target.value as Goal; setGoal(g); remember({ goal: g }); }}>{(Object.keys(OPT_GOALS) as Goal[]).map(g => <option key={g} value={g} disabled={g === 'take' && !propOn && goal !== 'take'}>{OPT_GOALS[g]}{g === 'take' ? (propOn ? ' (prop challenge)' : ' (needs the prop challenge)') : ''}</option>)}</select></label>
         <label className="field" style={{ width: 130 }}><span className="lbl">Minimum trades <span className="q" title="Combinations with fewer trades are not ranked: a handful of trades proves little.">?</span></span>
           <input className="in" inputMode="numeric" value={minT} onChange={e => { const v = Math.max(0, parseInt(e.target.value) || 0); setMinT(v); remember({ minT: v }); }} /></label>
+        <div className="field bt-ddstop"><span className="lbl">Stop runs early <span className="q" title="Ends a run as soon as its drawdown (open trades included) passes a limit: it is clearly beaten, so the time goes to the others. Such runs are listed last, as stopped early. At twice the best's: twice the drawdown of the best result so far (from the 8th result on).">?</span></span>
+          <span className="bt-ddrow"><select className="in ui" aria-label="Stop runs early" value={ddMode} onChange={e => { const v = e.target.value as typeof ddMode; setDdMode(v); remember({ ddMode: v }); }}>
+            <option value="off">Off</option><option value="best">At twice the best's drawdown</option><option value="usd">At a drawdown of…</option></select>
+            {ddMode === 'usd' && <input className="in" aria-label="Drawdown to stop at" inputMode="decimal" value={ddUsd} onChange={e => { setDdUsd(e.target.value); remember({ ddUsd: e.target.value }); }} />}</span></div>
         <div className="field"><span className="lbl">Check on the last <span className="q" title="Keeps the last part of the dates out of the ranking, and shows how each combination did there (the Check columns): a guard against settings that only fit the past.">?</span></span>
           <span className="seg">{[0, 20, 30, 40].map(v => <button key={v} className={split === v ? 'on' : ''} onClick={() => { setSplit(v); remember({ split: v }); }}>{v ? v + '%' : 'Off'}</button>)}</span></div>
       </div>
@@ -255,7 +266,7 @@ function OptResults({ doc, sort, setSort, sel, setSel, busy, onUse, onShow, onTo
     <section className="bt-optres">
       <div className="bt-reshead">
         <p className="muted" style={{ margin: 0, fontSize: 12.5, flex: '1 1 320px' }}>
-          {doc.spec.search === 'smart' ? `Smart search: ${doc.done} runs over ${doc.total.toLocaleString('en-US')} combinations` : `${doc.done} of ${doc.combos.length} combinations`}{doc.skipped ? ` (${doc.skipped} skipped by the rules)` : ''}{doc.repeats ? ` (${doc.repeats.toLocaleString('en-US')} not run: they only changed settings that were off)` : ''}, ranked by {OPT_GOALS[doc.goal]} on {ymd(doc.from)} to {ymd(end - 1)}{split ? `; Check columns: ${ymd(doc.splitT!)} to ${ymd(doc.to)}` : ''}{prop ? `. Each run took the prop challenge (${doc.prop!.cfg.preset || 'your own rules'}${doc.prop!.rebuy ? ', buying new evaluations' : ''}) over all its dates` : ''}. Click a column to sort, a row to select it.
+          {doc.spec.search === 'smart' ? `Smart search: ${doc.done} runs over ${doc.total.toLocaleString('en-US')} combinations` : `${doc.done} of ${doc.combos.length} combinations`}{doc.skipped ? ` (${doc.skipped} skipped by the rules)` : ''}{doc.repeats ? ` (${doc.repeats.toLocaleString('en-US')} not run: they only changed settings that were off)` : ''}{doc.cut ? ` (${doc.cut.toLocaleString('en-US')} stopped early: their drawdown passed ${doc.ddStop?.kind === 'usd' ? money(doc.ddStop.usd) : 'twice the best\'s'})` : ''}, ranked by {OPT_GOALS[doc.goal]} on {ymd(doc.from)} to {ymd(end - 1)}{split ? `; Check columns: ${ymd(doc.splitT!)} to ${ymd(doc.to)}` : ''}{prop ? `. Each run took the prop challenge (${doc.prop!.cfg.preset || 'your own rules'}${doc.prop!.rebuy ? ', buying new evaluations' : ''}) over all its dates` : ''}. Click a column to sort, a row to select it.
           {hiddenN > 0 && <label className="chk bt-same" title="Runs with other settings that made exactly the same trades are counted on one row"><input type="checkbox" checked={allSame} onChange={e => setAllSame(e.target.checked)} />Show {hiddenN.toLocaleString('en-US')} with the same trades as another</label>}
         </p>
         {(() => { const top = optSorted(doc.rows, doc.combos, doc.goal, doc.minTrades).find(x => !x.res.fail && isFinite(x.score ?? -Infinity)); return top ?
@@ -276,7 +287,7 @@ function OptResults({ doc, sort, setSort, sel, setSel, busy, onUse, onShow, onTo
             <tr key={r.i} className={(sel === r.i ? 'sel ' : '') + (low ? 'low' : '')} onClick={() => setSel(sel === r.i ? null : r.i)}>
               <td>{k + 1}{(() => { const g = !allSame && r.res.fp && !r.res.fail ? same.get(r.res.fp) : null; return g && g.length > 1 ? <span className="tag bt-samen" title={`${g.length - 1} other combination${g.length > 2 ? 's' : ''} made exactly these trades:\n${g.slice(1, 13).map(i => optLabel(doc.combos[i])).join('\n')}${g.length > 13 ? '\n…' : ''}`}>+{g.length - 1}</span> : null; })()}</td>
               {names.map(n => { const w = offBy(n, c, when, base); return <td key={n} className={w ? 'bt-off' : undefined} title={w ? `Not used here: only ${w.text.replace(/^only /i, '')}` : undefined}>{optFmt(c[n])}</td>; })}
-              {r.res.fail ? <td className="ui down" colSpan={6 + (split ? 3 : 0) + (prop ? (doc.goal !== 'take' ? 6 : 5) : 0)}>{String(r.res.fail).split('\n')[0]}</td> : <>
+              {r.res.fail ? <td className={'ui ' + (r.res.cut ? 'muted' : 'down')} colSpan={6 + (split ? 3 : 0) + (prop ? (doc.goal !== 'take' ? 6 : 5) : 0)}>{String(r.res.fail).split('\n')[0]}</td> : <>
                 <td className="r"><b>{optScoreTxt(r.score!, doc.goal, smoney)}</b></td><td className="r">{a?.trades}</td><td className={'r ' + ((a?.net ?? 0) >= 0 ? 'up' : 'down')}>{a ? smoney(a.net) : ''}</td>
                 <td className="r">{a?.win == null ? '—' : a.win.toFixed(0)}</td><td className="r">{f2(a?.pf)}</td><td className="r">{a ? money(a.dd) : ''}</td>
                 {prop && (() => { const m = r.res.sim; return <>{doc.goal !== 'take' && <td className={'r ' + ((m?.take ?? 0) >= 0 ? 'up' : 'down')}>{m ? smoney(m.take) : '—'}</td>}

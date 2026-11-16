@@ -2,7 +2,8 @@
 //   npx tsx tests/core.test.ts
 import { practiceSeries } from '../src/core/practice';
 import { Session } from '../src/core/session';
-import { parseTF } from '../src/core/time';
+import { offsets, parseTF, tzOffset } from '../src/core/time';
+import { Feed } from '../src/core/feed';
 import { barColumns } from '../src/core/series';
 import { DrawStore, anchoredVwap, fibExtPrice, fibPrice, makeStyle, positionOutcome, regression, volumeProfile } from '../src/core/drawings';
 
@@ -166,5 +167,24 @@ console.log(`frame cost at 1000x: ${((performance.now() - tp2) / 120).toFixed(3)
   check(positionOutcome(-1, 100, 102, 95, bars).state === 'stop', 'a short reaching its stop');
   check(positionOutcome(1, 90, 88, 95, bars).state === 'waiting', 'a long never filled');
   check(positionOutcome(1, 100, 99, 104.5, [bars[0], { time: 60, h: 105, l: 98, c: 100 }]).state === 'stop', 'stop first when one bar reaches both');
+}
+/* ---- a zone's offset from its spans: the same as asking Intl, every second around each change ---- */
+{
+  let bad = 0, n = 0;
+  for (const tz of ['America/Chicago', 'America/New_York', 'Europe/London', 'Australia/Lord_Howe', 'Asia/Kolkata', 'America/Sao_Paulo', 'UTC']) {
+    const f = offsets(tz), ts: number[] = [];
+    for (let t = Date.UTC(2009, 0, 1) / 1000; t < Date.UTC(2027, 0, 1) / 1000; t += 1800) if (tzOffset(tz, t) !== tzOffset(tz, t + 1800)) for (let d = -2; d <= 2; d++) ts.push(t + 1800 + d);
+    for (let k = 0; k < 400; k++) ts.push(Date.UTC(2009, 0, 1) / 1000 + Math.floor((k * 7919 % 400) / 400 * 18 * 365 * 86400));
+    for (const t of ts) { n++; if (f(t) !== tzOffset(tz, t)) bad++; }
+  }
+  check(n > 1000 && bad === 0, `zone offsets from their spans match Intl (${n} times, ${bad} wrong)`);
+}
+/* ---- skipping many bars at once leaves the feed as skipping them one by one ---- */
+{
+  const tf = parseTF('5m')!, a = new Feed(nq, 100, tf, 20, [], false), b = new Feed(nq, 100, tf, 20, [], false);
+  for (const to of [101, 160, 161, 4000, 4001]) {
+    a.skipTo(to); while (b.i < to) b.skipBar();
+    check(a.i === b.i && a.time === b.time && a.price === b.price && a.prevClose === b.prevClose && a.barTime === b.barTime, `skipTo(${to}) is skipBar up to there`);
+  }
 }
 console.log(`core: ${passed} checks passed`);

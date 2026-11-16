@@ -503,6 +503,18 @@ async def main():
         offs = await pg.evaluate("() => [...document.querySelectorAll('.bt-rtable tbody tr')].map(tr => [...tr.querySelectorAll('td')].slice(1, 4).map(td => td.textContent + (td.classList.contains('bt-off') ? '*' : '')).join(' '))")
         check(all(("b" in r.split()[0] and r.split()[1].endswith("*") and not r.split()[2].endswith("*")) or ("a" in r.split()[0] and r.split()[2].endswith("*") and not r.split()[1].endswith("*")) or (r.split()[0] == "off" and r.split()[1].endswith("*") and r.split()[2].endswith("*")) for r in offs), f"settings that were off are shown so ({offs})")
         await pg.screenshot(path=f"{OUT}/backtest-8-opt-when.png")
+
+        # ---- stop runs early: a drawdown limit ----
+        await pg.select_option("select[aria-label='Stop runs early']", "usd")
+        await pg.fill("input[aria-label='Drawdown to stop at']", "1")
+        await pg.click("button:has-text('Run optimization')")
+        await pg.wait_for_function("() => /Optimization done|Stopped|failed|stopped early/.test(document.querySelector('.bt-optstat span')?.textContent || '')", timeout=600000)
+        st = await pg.locator(".bt-optstat span").first.inner_text()
+        rows = await pg.locator(".bt-rtable tbody tr td.muted").all_inner_texts()
+        check("stopped early" in st and any(r.startswith("Stopped early: its drawdown passed $1.00") for r in rows), f"a $1 limit stops the runs that trade, listed as stopped early, not errors ({st}; {rows[:2]})")
+        check("failed" not in st, "stopped early isn't a failure")
+        await pg.select_option("select[aria-label='Stop runs early']", "best")
+        await pg.select_option("select[aria-label='Stop runs early']", "off")
         check(not errors, f"no page errors: {errors}")
         await ctx.close()
 
