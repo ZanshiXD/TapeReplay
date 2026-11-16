@@ -37,6 +37,8 @@ export interface RunRules {
   block(adds: number): string | null;
 }
 
+/** how a run that ddStop ended says so */
+export const STOPPED_EARLY = 'Stopped early';
 export interface RunConfig {
   series: Series;
   /** the dates traded, UTC seconds: from inclusive, to exclusive (or bar indexes: startIdx, endIdx exclusive) */
@@ -59,6 +61,9 @@ export interface RunConfig {
   /** about how many points the equity curve keeps, default 5000 */
   eqPoints?: number;
   rules?: RunRules;
+  /** ends the run early once its drawdown (open trades included) passes this many dollars: an optimizer run that is
+   *  clearly beaten (RunResult.ended says so) */
+  ddStop?: number;
   /** skip bars whole only when there are no orders and no trades, the plain path (comparisons, benchmarks) */
   plainPath?: boolean;
 }
@@ -247,7 +252,11 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
   const eq: EqPoint[] = [], eqStride = Math.max(1, Math.floor(total / (cfg.eqPoints ?? 5000)));
   const pushEq = (t: number, v: number) => { const last = eq[eq.length - 1]; if (!last || t > last.time) eq.push({ time: t, value: round2(v) }); else last.value = round2(v); };
   pushEq(s.t[start - 1], account.balance);
-  const barEnd = (i: number) => { account.trackDD(); if ((i - start) % eqStride === 0) pushEq(s.t[i], account.equity()); };
+  const ddStop = cfg.ddStop && cfg.ddStop > 0 ? cfg.ddStop : 0;
+  const barEnd = (i: number) => {
+    account.trackDD(); if ((i - start) % eqStride === 0) pushEq(s.t[i], account.equity());
+    if (ddStop && account.maxDD > ddStop && !ended) ended = `${STOPPED_EARLY}: its drawdown passed ${money(ddStop)}`;
+  };
 
   /* ---- what the strategy calls ---- */
   const orderOut = (): OrderOut[] => account.orders.map(o => ({ id: o.id, side: o.side > 0 ? 'buy' : 'sell', type: o.type, price: o.price, qty: o.qty, sl: o.sl ?? null, tp: o.tp ?? null }));
@@ -340,7 +349,14 @@ export async function runBacktest(cfg: RunConfig, bridge: Bridge, hooks: RunHook
   const ends: number[] = [];
   function playBars(ci: number) { // the base bars of candles up to ci, skipped (nothing can fill)
     const b = batch!, to = ends[ci];
-    while (feed.i < to) skip();
+    if (feed.i < to && !account.trades.length && feed.k === 0 && !feed.chart) {
+      // flat: the bars change nothing but the time and the last price (equity stays the balance), so jump to the last
+      // one; the equity curve still gets its points
+      const from = feed.i, eqv = account.equity();
+      for (let i = from + ((eqStride - (from - start) % eqStride) % eqStride); i < to; i += eqStride) pushEq(s.t[i], eqv);
+      if (to - 1 > from) feed.skipTo(to - 1);
+      skip();
+    } else while (feed.i < to) skip();
     sync(); b.done = Math.max(b.done, ci + 1); C = null;
   }
   const flatBatch = (): string | null => {

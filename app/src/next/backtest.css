@@ -197,3 +197,8 @@ html.m .bt-setin { width: 100%; min-width: 140px; max-width: none; height: 34px;
 .bt-why { font-size: 12px; }
 .bt-curvecap { font-size: 12px; margin: 2px 0 -6px; }
 html.m .bt-dates .bt-dt > select { flex: 1 1 100%; }
+/* the optimizer's drawdown stop */
+.bt-ddstop { min-width: 200px; }
+.bt-ddrow { display: flex; gap: 6px; }
+.bt-ddrow select { flex: 1 1 170px; min-width: 0; }
+.bt-ddrow input { width: 90px; flex: 0 0 90px; }

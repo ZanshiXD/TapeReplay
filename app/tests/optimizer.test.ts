@@ -268,5 +268,35 @@ const hs = { params: [{ name: 'X', values: Array.from({ length: 60 }, (_, k) => 
   const side = r.params.find(p => p.name === 'SIDE')!, mode = r.params.find(p => p.name === 'MODE')!;
   check(JSON.stringify(side.choices) === '["long"]' && JSON.stringify(mode.choices) === '["a","b"]', `a note's values are not options (${JSON.stringify(side.choices)})`);
 }
+/* ---- the drawdown stop: a clearly beaten run ends early, and isn't an error ---- */
+{
+  const S = walk(6000, 11);
+  const loser = 'function on_bar(ctx, bar) { if (!ctx.position) ctx.buy(); else if (ctx.bar_index % 3 === 0) ctx.close(); }';
+  const full = await runBacktest({ series: S, tf: parseTF('1m')!, mode: 'bar', balance: 50000, qty: 5, quiet: true } as never, jsStrategy(loser), { slice: null });
+  const cut = await runBacktest({ series: S, tf: parseTF('1m')!, mode: 'bar', balance: 50000, qty: 5, quiet: true, ddStop: 300 } as never, jsStrategy(loser), { slice: null });
+  check(full.account.maxDD > 300 && cut.ended.startsWith('Stopped early') && cut.bars < full.bars, `a run stops once its drawdown passes the limit (${cut.bars} of ${full.bars} bars, ${cut.ended})`);
+  const job = { data: S, start: 1, end: S.n, tf: '1m', mode: 'bar', ticksPerBar: 20, balance: 50000, qty: 5, costs: null, zone: 'UTC', lang: 'js', code: loser } as never;
+  const res = await runCombo(job, jsStrategy(loser), {}, false, 300);
+  check(!!res.cut && String(res.fail).startsWith('Stopped early'), 'runCombo marks it stopped early');
+  const res2 = await runCombo(job, jsStrategy(loser), {}, false);
+  check(!res2.cut && !res2.fail && (res2.mdd ?? 0) > 300, 'without a stop: the whole run, with its drawdown');
+  // optimize asks for the limit as it hands out each task: a fixed amount, or twice the best so far (from the 8th on)
+  const asked: Array<number | null> = [];
+  const fake = async (tasks: Array<{ idx: number }>, on: (i: number, r: unknown) => void, o?: { ddStop?: () => number | null }) => {
+    for (const t of tasks) { const lim = o?.ddStop ? o.ddStop() : null; asked.push(lim);
+      const dd = 100 + (t.idx % 7) * 50, cutNow = lim != null && dd > lim;
+      on(t.idx, cutNow ? { fail: 'Stopped early: its drawdown passed $1', cut: true } : { a: { trades: 30, net: 1000 - t.idx, win: 50, pf: 1.4, dd }, mdd: dd }); }
+    return { firstErr: '' };
+  };
+  const sp = { params: [{ name: 'A', values: Array.from({ length: 30 }, (_, k) => k) }], search: 'grid' as const, goal: 'net' as const, minTrades: 1 };
+  const o1 = await optimize({ ...sp, ddStop: { kind: "usd", usd: 250 } } as never, fake as never);
+  check(asked.every(x => x === 250) && o1.cut > 0 && !o1.firstErr && o1.best != null, `a fixed stop: ${o1.cut} stopped early, not errors`);
+  asked.length = 0;
+  const o2 = await optimize({ ...sp, ddStop: { kind: "best", times: 2 } } as never, fake as never);
+  check(asked.slice(0, 8).every(x => x === null) && asked.slice(8).every(x => x === 200), `twice the best's drawdown, from the 8th result (${JSON.stringify(asked.slice(6, 10))})`);
+  asked.length = 0;
+  await optimize({ ...sp, ddStop: { kind: "off" } } as never, fake as never);
+  check(asked.every(x => x === null), 'off: no stop');
+}
 console.log(`optimizer: ${passed} checks passed in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
 void pyStrategy;

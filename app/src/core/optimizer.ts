@@ -277,7 +277,11 @@ export interface SimRes { attempts: number; fees: number; income: number; take: 
 /** one run's figures: a = closed trades exiting before the Check period, b = in it (null without one) */
 export interface OptRes { fail?: string; a?: Seg; b?: Seg | null; sim?: SimRes | null; open?: number; tr?: number[];
   /** the trades' fingerprint (every trade's times, size and net): runs with the same one made exactly the same trades */
-  fp?: string }
+  fp?: string;
+  /** the run's drawdown with open trades counted (what a drawdown stop compares) */
+  mdd?: number;
+  /** ended early by the drawdown stop (fail says why): clearly beaten, so not ranked, but not an error either */
+  cut?: boolean }
 /** a fingerprint of closed trades: entry and exit times, size and net of each, in order */
 export function tradesPrint(hist: ArrayLike<Closed>): string {
   let h1 = 0xdeadbeef ^ hist.length, h2 = 0x41c6ce57 ^ hist.length;
@@ -439,8 +443,11 @@ export async function smartSearch(sizes: number[], categorical: boolean[], key: 
 
 /* ---- running an optimization ---- */
 export interface Task { idx: number; overrides: Combo; trades?: boolean }
-/** runs tasks (in workers), calling onResult for each as it comes; resolves when all are done or it was stopped */
-export type RunTasks = (tasks: Task[], onResult: (idx: number, res: OptRes) => void) => Promise<{ firstErr: string }>;
+/** runs tasks (in workers), calling onResult for each as it comes; resolves when all are done or it was stopped.
+ *  ddStop, asked as each task is handed out: the drawdown at which that run stops early (null: none) */
+export type RunTasks = (tasks: Task[], onResult: (idx: number, res: OptRes) => void, opts?: { ddStop?: () => number | null }) => Promise<{ firstErr: string }>;
+/** a drawdown stop: a fixed amount, or a multiple of the best result's drawdown so far */
+export type DDStop = { kind: 'off' } | { kind: 'usd'; usd: number } | { kind: 'best'; times: number };
 export interface OptConfig extends Space {
   search: 'smart' | 'grid' | 'random';
   /** random: combinations to try (default 200); smart: the budget (default a tenth of the grid, at least 60) */
@@ -452,6 +459,8 @@ export interface OptConfig extends Space {
   cache?: Map<string, OptRes>;
   /** settings that are only used for some values of another (their notes), and every setting's value in the code */
   when?: Record<string, When>; base?: Combo;
+  /** runs that are clearly beaten stop early (their drawdown passed this) */
+  ddStop?: DDStop;
 }
 export interface OptOutput {
   /** what ran, in order: combos[i] has rows' result i (the saved document's combos and rows) */
@@ -460,6 +469,8 @@ export interface OptOutput {
   best: OptRow | null;
   /** combinations not run because they differ from one that was only in settings that are off */
   repeats: number;
+  /** runs the drawdown stop ended early */
+  cut: number;
 }
 export interface OptProgress { done: number; planned: number; best: OptRow | null }
 /** the default smart budget for a grid of `total` */
@@ -467,7 +478,11 @@ export const smartBudget = (total: number, cap = OPT_CAP) => Math.min(cap, total
 
 export async function optimize(cfg: OptConfig, runTasks: RunTasks, hooks: { progress?: (p: OptProgress) => void; stopped?: () => boolean } = {}): Promise<OptOutput> {
   const params = cfg.params.filter(p => p.values.length), space = { params, rules: cfg.rules, when: cfg.when, base: cfg.base }, total = comboTotal(space), cap = cfg.cap ?? OPT_CAP;
-  const out: OptOutput = { combos: [], rows: [], total, skipped: 0, firstErr: '', stopped: false, best: null, repeats: 0 };
+  const out: OptOutput = { combos: [], rows: [], total, skipped: 0, firstErr: '', stopped: false, best: null, repeats: 0, cut: 0 };
+  // the drawdown at which a run stops: a fixed amount, or a multiple of the best result's once there are a few
+  const dd = cfg.ddStop;
+  const ddStop = !dd || dd.kind === 'off' ? undefined : dd.kind === 'usd' ? () => dd.usd > 0 ? dd.usd : null
+    : () => { const b = out.best?.res; return b && out.rows.length >= 8 && (b.mdd ?? 0) > 0 ? b.mdd! * Math.max(1, dd.times) : null; };
   if (!params.length) return { ...out, error: 'Tick at least one setting to try.' };
   const stopped = () => !!(hooks.stopped && hooks.stopped());
   const better = (r: OptRow) => { r.score = optScore(r.res, cfg.goal, cfg.minTrades); if (isFinite(r.score) && (!out.best || r.score > out.best.score! || (r.score === out.best.score && r.i < out.best.i))) out.best = r; };
@@ -479,10 +494,11 @@ export async function optimize(cfg: OptConfig, runTasks: RunTasks, hooks: { prog
     list.forEach((_, j) => { if (res[j]) pushRow(j); });
     if (tasks.length && !stopped()) {
       const { firstErr } = await runTasks(tasks, (idx, r) => {
-        if (r.fail) out.firstErr ||= r.fail;
+        if (r.fail && !r.cut) out.firstErr ||= r.fail;
+        if (r.cut) out.cut++;
         res[idx - base] = r; pushRow(idx - base);
         if (hooks.progress) hooks.progress({ done: out.rows.length, planned, best: out.best });
-      });
+      }, { ddStop });
       out.firstErr ||= firstErr;
     }
     // a stop leaves some not run: they have no row
@@ -597,7 +613,7 @@ export class OptPool {
   private pause() { if (this.idleT) clearTimeout(this.idleT); this.idleT = null; }
   private idle() { this.pause(); if (this.idleMs > 0 && isFinite(this.idleMs)) this.idleT = setTimeout(() => this.close(), this.idleMs); }
   /** runs tasks on n workers (a worker that has this job already is not sent it again) */
-  async exec(job: OptJob, tasks: Task[], n: number, onResult: (idx: number, res: OptRes) => void): Promise<{ firstErr: string; t0: number }> {
+  async exec(job: OptJob, tasks: Task[], n: number, onResult: (idx: number, res: OptRes) => void, opts?: { ddStop?: () => number | null }): Promise<{ firstErr: string; t0: number }> {
     if (!tasks.length) return { firstErr: '', t0: 0 };
     this.pause(); this.stopFlag = false;
     const pool = this.grow(Math.max(1, Math.min(n, tasks.length)));
@@ -608,7 +624,7 @@ export class OptPool {
       for (const e of pool) {
         let fin = false;
         const finish = () => { if (fin) return; fin = true; e.handler = null; e.busy = false; if (--alive === 0) resolve(); };
-        const give = () => { if (this.stopFlag || next >= tasks.length) return finish(); const t = tasks[next++]; e.busy = true; e.ep.postMessage({ type: 'run', idx: t.idx, overrides: t.overrides, trades: !!t.trades }); };
+        const give = () => { if (this.stopFlag || next >= tasks.length) return finish(); const t = tasks[next++]; e.busy = true; e.ep.postMessage({ type: 'run', idx: t.idx, overrides: t.overrides, trades: !!t.trades, ddStop: opts?.ddStop?.() ?? null }); };
         e.handler = m => {
           if (m.type === 'crash') { e.dead = true; firstErr ||= m.error; return finish(); }
           if (m.type === 'error' && m.idx == null) e.job = null;
@@ -616,7 +632,7 @@ export class OptPool {
           if (m.type === 'error' && m.idx == null) { firstErr ||= m.error; return finish(); }
           if (m.type === 'result' || m.type === 'error') {
             const res: OptRes = m.type === 'error' ? { fail: m.error } : m.res;
-            if (res.fail) firstErr ||= res.fail;
+            if (res.fail && !res.cut) firstErr ||= res.fail;
             onResult(m.idx, res); give();
           }
         };
@@ -632,7 +648,7 @@ export class OptPool {
     return { firstErr, t0 };
   }
   /** a RunTasks for optimize(): this pool, this job, n workers */
-  runner(job: OptJob, n: number): RunTasks { return (tasks, onResult) => this.exec(job, tasks, n, onResult); }
+  runner(job: OptJob, n: number): RunTasks { return (tasks, onResult, opts) => this.exec(job, tasks, n, onResult, opts); }
   /** stops the runs in progress: busy workers are terminated (and replaced next time) */
   stop() { this.stopFlag = true; if (this.wake) this.wake(); }
   close() { this.pause(); for (const e of this.list) { e.dead = true; try { e.ep.terminate(); } catch { /* */ } } this.list = []; }

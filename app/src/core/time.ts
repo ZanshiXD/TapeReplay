@@ -15,14 +15,52 @@ export function localToUtc(tz: string, y: number, m: number, d: number, hh: numb
   const t = wall - tzOffset(tz, wall);
   return wall - tzOffset(tz, t);
 }
-const nyCache = new Map<number, number>();
-/** New York's offset: trading days (and prop days) start at 6 PM New York */
-export function nyOff(t: number): number {
-  const h = Math.floor(t / 3600);
-  let v = nyCache.get(h);
-  if (v === undefined) { v = tzOffset('America/New_York', h * 3600); nyCache.set(h, v); }
-  return v;
+/** a zone's offset at any time, from the spans its offset stays the same for (daylight saving time and back):
+ *  a few dozen for years of bars, each found with a handful of tzOffset calls (Intl is slow: once an hour of
+ *  data made it most of a backtest's time) */
+export function offsets(tz: string): (t: number) => number {
+  const spans: Array<{ a: number; b: number; off: number }> = []; // sorted, not overlapping: [a, b) at off
+  let last = { a: 1, b: 0, off: 0 };
+  const at = (t: number) => tzOffset(tz, Math.floor(t));
+  // the first second at which the offset is not `off`, between lo (still off) and hi (not)
+  const find = (t: number) => {
+    let lo = 0, hi = spans.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (spans[m].b <= t) lo = m + 1; else hi = m; }
+    return lo;
+  };
+  return (t: number) => {
+    if (t >= last.a && t < last.b) return last.off;
+    const k = find(t), sp = spans[k];
+    if (sp && t >= sp.a) { last = sp; return sp.off; }
+    // a new span around t: step out a week at a time (offsets change at most a few times a year) until the offset
+    // differs (or a known span is reached), then find the exact second
+    t = Math.floor(t);
+    const off = at(t), floor = k > 0 ? spans[k - 1].b : -Infinity, ceil = sp ? sp.a : Infinity;
+    // the first second with a different offset in (lo, hi], where lo has `off` and hi does not
+    const firstOther = (lo: number, hi: number) => { while (hi - lo > 1) { const m = Math.floor((lo + hi) / 2); if (at(m) === off) lo = m; else hi = m; } return hi; };
+    // the first second with `off` in (lo, hi], where lo does not have it and hi does
+    const firstSame = (lo: number, hi: number) => { while (hi - lo > 1) { const m = Math.floor((lo + hi) / 2); if (at(m) === off) hi = m; else lo = m; } return hi; };
+    let a = t, b = t + 1;
+    for (let n = 0; n < 60; n++) {
+      if (a <= floor) { a = floor; break; }
+      const y = Math.max(floor, a - 7 * 86400);
+      if (at(y) !== off) { a = firstSame(y, a); break; }
+      a = y;
+    }
+    for (let n = 0, x = t; n < 60; n++) {
+      if (x + 1 >= ceil) { b = ceil; break; }
+      const y = Math.min(ceil - 1, x + 7 * 86400);
+      if (at(y) !== off) { b = firstOther(x, y); break; }
+      x = y; b = y + 1;
+    }
+    const ns = { a, b, off };
+    spans.splice(k, 0, ns); last = ns;
+    return off;
+  };
 }
+const nyOffsets = offsets('America/New_York');
+/** New York's offset: trading days (and prop days) start at 6 PM New York */
+export function nyOff(t: number): number { return nyOffsets(t); }
 /** the futures trading day a time belongs to (days start at zone.dayStart, 18:00 New York unless set otherwise) */
 export const tradingDay = (t: number, resetHour = zone.dayStart) => Math.floor((t + nyOff(t) - resetHour * 3600) / 86400);
 /** the date a trading day is named by (days since 1970): one that starts in the evening is the next day's */
@@ -31,23 +69,20 @@ export const tradingDate = (t: number) => tradingDay(t) + (zone.dayStart >= 12 ?
 export const LOCAL_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } })();
 /** the chart time zone (switchable at run time with setZone), and the hour in New York a trading day starts */
 export const zone = { id: 'America/New_York', tz: 'America/New_York', fixed: null as number | null, dayStart: 18 };
-const zoneCache = new Map<number, number>();
+let zoneOffsets = offsets(zone.tz);
 export function setZone(id: string) {
   zone.id = id || 'local'; zone.fixed = null;
   if (zone.id === 'local') zone.tz = LOCAL_TZ;
   else if (/^UTC[+-]\d/.test(zone.id)) { zone.tz = 'UTC'; zone.fixed = Math.round(parseFloat(zone.id.slice(3)) * 3600); }
   else zone.tz = zone.id;
-  zoneCache.clear();
+  zoneOffsets = offsets(zone.tz);
 }
 export function setDayStart(h: number) { zone.dayStart = Math.max(0, Math.min(23, Math.round(h) || 0)); }
 /** seconds east of UTC in the chart zone at UTC time t */
 export function zoneOff(t: number): number {
   if (zone.fixed != null) return zone.fixed;
   if (zone.tz === 'UTC') return 0;
-  const k = Math.floor(t / 3600);
-  let v = zoneCache.get(k);
-  if (v === undefined) { if (zoneCache.size > 50000) zoneCache.clear(); v = tzOffset(zone.tz, k * 3600); zoneCache.set(k, v); }
-  return v;
+  return zoneOffsets(t);
 }
 export interface Parts { y: number; mo: number; d: number; h: number; mi: number; s: number; wd: number }
 export function zp(t: number): Parts {

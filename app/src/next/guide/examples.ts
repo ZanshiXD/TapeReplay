@@ -21,12 +21,17 @@ export const PY_SIZE_FOR = `def size_for(ctx, entry, stop):
         q = min(q, math.floor(MAX_QTY / QTY_STEP + 1e-9) * QTY_STEP)
     return round(q, 8) if q >= QTY_STEP else None`;
 
-export const JS_TO_CT = `// US Central Time from a bar's time (any chart time zone): the same instant, at CST or CDT
+export const JS_TO_CT = `// US Central Time from a bar's time (any chart time zone): the same instant, at CST or CDT.
+// Each year's daylight-time dates (2nd Sunday of March to 1st Sunday of November) are worked out once and kept.
+const DST = {};
 function toCT(t) {
   const u = t.timestamp(), y = new Date(u * 1000).getUTCFullYear();
-  const sunday = (month, day, hour) => { const x = Date.UTC(y, month, day, hour) / 1000; return x + ((7 - new Date(x * 1000).getUTCDay()) % 7) * 86400; };
-  const start = sunday(2, 8, 8), end = sunday(10, 1, 7);   // 2nd Sunday of March, 1st Sunday of November
-  return t.tz(start <= u && u < end ? -5 * 3600 : -6 * 3600);
+  let d = DST[y];
+  if (!d) {
+    const sunday = (month, day, hour) => { const x = Date.UTC(y, month, day, hour) / 1000; return x + ((7 - new Date(x * 1000).getUTCDay()) % 7) * 86400; };
+    d = DST[y] = [sunday(2, 8, 8), sunday(10, 1, 7)];
+  }
+  return t.tz(d[0] <= u && u < d[1] ? -5 * 3600 : -6 * 3600);
 }`;
 
 export interface Example { id: string; title: string; what: string; code: string }

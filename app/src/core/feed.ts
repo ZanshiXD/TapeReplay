@@ -237,6 +237,14 @@ export class Feed {
     this.time = s.t[i] + f[n - 1] * s.base;
     this.price = p; this.prevClose = p; this.i++; this.k = 0; this.nt = 0; this.P = null;
   }
+  /** skipBar up to bar `to`, all at once, when nothing is kept per bar (no chart candles, at a bar's start): only
+   *  where the last bar ends matters */
+  skipTo(to: number) {
+    const s = this.s; to = Math.min(to, s.n);
+    if (to <= this.i) return;
+    if (this.chart || this.k) { while (this.i < to) this.skipBar(); return; }
+    this.i = to - 1; this.skipBar();
+  }
   /** more bars after the last one (a long series loaded a month at a time) */
   append(m: { t: Float64Array; o: ArrayLike<number>; h: ArrayLike<number>; l: ArrayLike<number>; c: ArrayLike<number>; v: ArrayLike<number>; n: number }) {
     const s = this.s as { -readonly [K in keyof Series]: Series[K] }, n = s.n, last = n ? s.t[n - 1] : -Infinity;
