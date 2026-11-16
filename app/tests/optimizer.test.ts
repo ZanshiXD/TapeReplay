@@ -2,6 +2,8 @@
 //   npx tsx tests/optimizer.test.ts
 import { runBacktest, optLabel } from '../src/core/backtest';
 import { jsStrategy } from '../src/core/jsstrategy';
+import { distinctTotal, parseWhen, settle, offBy, stripWhen, tradesPrint, whenOf } from '../src/core/optimizer';
+import { jsParams } from '../src/core/jsstrategy';
 import { combos, comboAt, niceStep, OptPool, optCsv, optimize, optParse, optScore, optSorted, optText, optValues, optZoom, parseRules, seriesSlice, smartBudget, workerCount,
          type Combo, type Endpoint, type OptJob, type OptRes, type RunTasks } from '../src/core/optimizer';
 import { jobHandler, runCombo } from '../src/core/optjob';
@@ -216,5 +218,55 @@ const hs = { params: [{ name: 'X', values: Array.from({ length: 60 }, (_, k) => 
   check(shuf.rows.every(r => !r.mc || r.mc.profit === 0 || r.mc.profit === 1) && shuf.rows.every(r => r.tests === 2) && shuf.wf!.wins.length === 4, 'shuffle without skips is not a Monte Carlo test; 4 windows, no new runs');
 }
 
+/* ---- "only when" notes: settings that are off in a combination are not tried at other values ---- */
+{
+  const w = parseWhen('ATR length, only when CHOP_MODE is "ATR" or "both"')!;
+  check(w.on === 'CHOP_MODE' && JSON.stringify(w.vals) === '["ATR","both"]' && !w.not, 'a note: the setting it needs and the values');
+  check(parseWhen('only when USE_TRAIL')!.vals === null && parseWhen('only when not USE_TRAIL')!.not && parseWhen('only if MODE is not "off"')!.not, 'only when NAME, not NAME, is not X');
+  check(JSON.stringify(parseWhen('only when SIDE is 1 or -1')!.vals) === '[1,-1]' && parseWhen('no note here') === null, 'numbers; no note');
+  check(stripWhen('ticks, only when MODE is "a" or "b"') === 'ticks, ', 'a comment without its note');
+  const ps = [{ name: 'MODE', comment: '"EMA", "ATR", "both" or "off"' }, { name: 'ATR_LEN', comment: 'only when MODE is "ATR" or "both"' },
+    { name: 'EMA_LEN', comment: 'only when MODE is "EMA" or "both"' }, { name: 'ATR_X', comment: 'only when ATR_LEN is 20' }, { name: 'BAD', comment: 'only when NOPE is 1' }];
+  const when = whenOf(ps), base = { MODE: 'both', ATR_LEN: 14, EMA_LEN: 5, ATR_X: 1.5, BAD: 2 };
+  check(Object.keys(when).join() === 'ATR_LEN,EMA_LEN,ATR_X', 'notes naming a setting there is (not one that is not)');
+  const c1 = settle({ MODE: 'EMA', ATR_LEN: 20, EMA_LEN: 9, ATR_X: 3 }, when, base);
+  check(c1.ATR_LEN === 14 && c1.EMA_LEN === 9 && c1.ATR_X === 1.5, 'EMA: the ATR settings back at their values, and one that needs ATR_LEN = 20 (a chain)');
+  check(!!offBy('ATR_LEN', { MODE: 'EMA', ATR_LEN: 14 }, when, base) && !offBy('ATR_LEN', { MODE: 'ATR', ATR_LEN: 14 }, when, base), 'off in EMA, on in ATR');
+  check(offBy('ATR_LEN', { ATR_LEN: 20 }, when, base) === null, 'MODE not tried: its value in the code (both) uses ATR_LEN');
+  // 4 modes x 5 ATR lengths x 5 EMA lengths = 100; EMA 5, ATR 5, both 25, off 1 = 36
+  const space = { params: [{ name: 'MODE', values: ['EMA', 'ATR', 'both', 'off'] }, { name: 'ATR_LEN', values: [10, 14, 20, 30, 40] }, { name: 'EMA_LEN', values: [3, 5, 9, 13, 21] }], when, base };
+  check(distinctTotal(space) === 36, `36 different runs of 100 (${distinctTotal(space)})`);
+  const g = combos({ ...space, mode: 'grid' }) as Exclude<ReturnType<typeof combos>, { error: string }>;
+  check(g.combos.length === 36 && g.repeats === 64 && new Set(g.combos.map(optLabel)).size === 36, `the grid runs each once (${g.combos.length}, ${g.repeats} repeats)`);
+  check(g.combos.filter(c => c.MODE === 'off').length === 1, '"off": one run');
+  const rnd = combos({ ...space, mode: 'random', n: 50, seed: 3 }) as Exclude<ReturnType<typeof combos>, { error: string }>;
+  check(rnd.combos.length === 36 && new Set(rnd.combos.map(optLabel)).size === 36, 'a random sample: no repeats either');
+  check('error' in combos({ ...space, params: space.params, when: undefined, mode: 'grid', cap: 50 }) && !('error' in combos({ ...space, mode: 'grid', cap: 50 })), 'the cap counts different runs');
+  // smart: never the same run twice, and repeats don't use up its budget
+  const big = { params: [{ name: 'MODE', values: ['EMA', 'ATR', 'both', 'off'] }, { name: 'ATR_LEN', values: Array.from({ length: 20 }, (_, k) => 5 + k) }, { name: 'EMA_LEN', values: Array.from({ length: 20 }, (_, k) => 2 + k) }], when, base };
+  const ran: string[] = [];
+  const fake = async (tasks: Array<{ idx: number; overrides: Record<string, unknown> }>, on: (i: number, r: { a: { trades: number; net: number; win: number; pf: number; dd: number } }) => void) => {
+    for (const t of tasks) { ran.push(optLabel(t.overrides as never)); const o = t.overrides as { MODE: string; ATR_LEN: number; EMA_LEN: number };
+      const net = (o.MODE === 'both' ? 500 : o.MODE === 'off' ? 0 : 200) - Math.abs(o.ATR_LEN - 17) * 10 - Math.abs(o.EMA_LEN - 9) * 10;
+      on(t.idx, { a: { trades: 50, net, win: 50, pf: 1.5, dd: 100 } }); }
+    return { firstErr: '' };
+  };
+  const out = await optimize({ ...big, search: 'smart', n: 120, seed: 5, goal: 'net', minTrades: 1 }, fake as never);
+  check(new Set(ran).size === ran.length && ran.length === 120, `smart: 120 different runs, none twice (${ran.length}, ${new Set(ran).size} different)`);
+  check(out.repeats === 1600 - (distinctTotal(big) ?? 0) && distinctTotal(big) === 20 + 20 + 400 + 1, `smart: ${out.repeats} repeats of 1,600 not counted`);
+  check(out.best != null && out.combos[out.best.i].MODE === 'both', 'smart: finds the best mode');
+}
+/* ---- the same trades: a fingerprint ---- */
+{
+  const tr = (net: number, t = 100) => ({ time: t, exitTime: t + 60, qty: 1, net, side: 1 } as never);
+  check(tradesPrint([tr(10), tr(-5, 200)]) === tradesPrint([tr(10), tr(-5, 200)]), 'same trades, same fingerprint');
+  check(tradesPrint([tr(10), tr(-5, 200)]) !== tradesPrint([tr(10), tr(-6, 200)]) && tradesPrint([tr(10)]) !== tradesPrint([tr(10), tr(0, 200)]), 'other trades, another');
+}
+/* ---- a choice's options: not the values in a note ---- */
+{
+  const r = jsParams('const MODE = "a";  // "a" or "b"\nconst SIDE = "long";  // only when MODE is "b" or "c"\nfunction on_bar(ctx, bar) {}\n') as { params: Array<{ name: string; choices?: unknown[] }> };
+  const side = r.params.find(p => p.name === 'SIDE')!, mode = r.params.find(p => p.name === 'MODE')!;
+  check(JSON.stringify(side.choices) === '["long"]' && JSON.stringify(mode.choices) === '["a","b"]', `a note's values are not options (${JSON.stringify(side.choices)})`);
+}
 console.log(`optimizer: ${passed} checks passed in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
 void pyStrategy;
