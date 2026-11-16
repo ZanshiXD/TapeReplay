@@ -93,6 +93,12 @@ html.m .bt-head > b, html.m .bt-head .bt-runbtn { display: none; }
 .bt-ptable td { vertical-align: middle; }
 .bt-cmt { font-size: 11.5px; white-space: normal; max-width: 280px; }
 .bt-size { margin-left: 8px; background: var(--hover); color: var(--muted); font-size: 10px; }
+/* a setting only used for some values of another ("only when" note), and where it is off in a result */
+.bt-when { margin-left: 8px; background: var(--accent-soft, var(--hover)); color: var(--accent-fg, var(--accent)); font-size: 10px; cursor: help; }
+.bt-rtable td.bt-off { color: var(--fg3, var(--muted)); text-decoration: line-through; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); }
+/* runs with the same trades as another: counted on one row */
+.bt-samen { margin-left: 6px; font-size: 10px; background: var(--hover); color: var(--muted); cursor: help; }
+.bt-same { display: inline-flex; margin-left: 10px; font-size: 12px; white-space: nowrap; }
 .bt-vals { height: 30px; font-size: 12.5px; min-width: 200px; }
 .bt-vals.bad { border-color: var(--down); }
 /* the dates a run covers (all the data) */

@@ -334,6 +334,11 @@ def _is_param(node):
     return isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "param" and node.args
 
 
+# a setting's "only when NAME is X or Y" note (as core/when.ts reads it)
+_WTOK = r"""(?:"[^"\n]*"|'[^'\n]*'|-?\d+(?:\.\d+)?|[A-Za-z_]\w*)"""
+_WHEN = re.compile(r"\bonly (?:when|if) (not )?([A-Za-z_]\w*)(?:\s+is\s+(not\s+)?(" + _WTOK + r"(?:\s*(?:,|\bor\b)\s*" + _WTOK + r")*))?", re.I)
+
+
 def _tr_params(code):
     """JSON list of the settings found: name, kind (int, float, bool, choice), value, choices, zero_off, money,
     and lo/hi/step/values from param(). Times (HH:MM text), None and anything computed are left out."""
@@ -376,7 +381,8 @@ def _tr_params(code):
         item = {"name": name, "kind": kind, "value": value, "line": st.lineno, "comment": comment.strip(),
                 "zero_off": bool(_OFF.search(comment)), "money": bool(_MONEY.search(name)), "param": bool(spec) or _is_param(node)}
         if kind == "choice":
-            quoted = re.findall(r'"([^"\n]+)"|\'([^\'\n]+)\'', comment)
+            # not the values of an "only when NAME is …" note (the optimizer reads those)
+            quoted = re.findall(r'"([^"\n]+)"|\'([^\'\n]+)\'', _WHEN.sub("", comment))
             choices = [a or b for a, b in quoted]
             item["choices"] = list(dict.fromkeys([value] + [c for c in choices if not _TIME.match(c)]))
         item.update(spec)

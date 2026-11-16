@@ -6,6 +6,7 @@
 // positional as in Python: ctx.buy(2, 99)); times are ZTime values (bar.time.time() >= ctx.at("09:30") compares
 // seconds since midnight); ctx.df() needs pandas, so it is Python only.
 import type { Bridge, FillOut, LogLine, Setting, StateOut, StratApi, StratInfo } from './backtest';
+import { stripWhen } from './when';
 
 /* ---- time ---- */
 const p2 = (n: number) => String(n).padStart(2, '0');
@@ -331,7 +332,7 @@ export function jsParams(code: string): { params: JsParam[] } | { error: string 
     const kind = typeof v.v === 'boolean' ? 'bool' : typeof v.v === 'number' ? (v.int ? 'int' : 'float') : 'choice';
     const p: JsParam = { name: st.name, kind, value: v.v!, line: k + 1, comment: st.comment, zero_off: OFF_RE.test(st.comment), money: MONEY_RE.test(st.name), param: st.isParam };
     if (kind === 'choice') {
-      const quoted = [...st.comment.matchAll(/"([^"\n]+)"|'([^'\n]+)'/g)].map(x => x[1] || x[2]).filter(c => !TIME_RE.test(c));
+      const quoted = [...stripWhen(st.comment).matchAll(/"([^"\n]+)"|'([^'\n]+)'/g)].map(x => x[1] || x[2]).filter(c => !TIME_RE.test(c));  // not a note's values
       p.choices = [...new Set([v.v!, ...quoted])];
     }
     if (st.isParam) {

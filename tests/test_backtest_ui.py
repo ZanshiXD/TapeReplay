@@ -70,6 +70,21 @@ CONSOLE = "() => [...document.querySelectorAll('.bt-cons .bt-lines > div')].map(
 TILE = "(k) => [...document.querySelectorAll('.bt-tiles .stat')].find(s => s.querySelector('span').textContent === k)?.querySelector('b').textContent"
 
 
+DEP = """const MODE = "a";   // "a", "b" or "off"
+const FAST = 5;     // only when MODE is "a" (and it changes nothing: the same trades)
+const SLOW = 20;    // only when MODE is "b"
+
+function init(ctx) { ctx.n = 0; }
+
+function on_bar(ctx, bar) {
+  ctx.n++;
+  if (MODE === "off") return;
+  const every = MODE === "a" ? 12 + 0 * FAST : SLOW;
+  if (!ctx.position && ctx.n % every === 0) ctx.buy();
+  else if (ctx.position && ctx.n % every === 6) ctx.close();
+}
+"""
+
 async def run_and_wait(pg, timeout=180000):
     await pg.click(".bt-run button:has-text('Run backtest')")
     # a finished run shows its results; anything else stays on the code and its console
@@ -458,6 +473,36 @@ async def main():
         vals = [float(x.replace("$", "").replace(",", "").replace("—", "nan")) for x in await pg.locator(".bt-rtable tbody tr td:nth-child(" + str(heads.index(next(h for h in heads if "Payouts to you" in h)) + 1) + ")").all_inner_texts()]
         check(vals == sorted(vals, reverse=True), f"sorted by payouts ({vals})")
         await pg.screenshot(path=f"{OUT}/backtest-7-opt-prop.png")
+
+        # ---- "only when" notes: settings that are off aren't tried at other values; the same trades on one row ----
+        await pg.click(".bt-head .tabs button:has-text('Code')")
+        await pg.uncheck(".bt-run label:has-text('Practice a prop firm challenge') input")
+        await pg.click(".bt-listhead button:has-text('New')")
+        await pg.click(".bt-newmenu button:has-text('MA cross'):has-text('JavaScript')")
+        await pg.fill(".bt-ta", DEP)
+        await pg.click(".bt-head .tabs button:has-text('Optimize')")
+        await pg.wait_for_selector("input[aria-label='Try MODE']", timeout=60000)
+        for n, v in [("MODE", "a, b, off"), ("FAST", "3, 5"), ("SLOW", "10, 20")]:
+            await pg.check(f"input[aria-label='Try {n}']")
+            await pg.fill(f"input[aria-label='Values for {n}']", v)
+        await pg.click(".seg button:has-text('All combinations')")
+        await pg.select_option(".bt-optrow select", "net")
+        tags = await pg.locator(".bt-ptable .bt-when").all_inner_texts()
+        check(tags == ["needs MODE", "needs MODE"], f"the settings with a note say which setting they need ({tags})")
+        line = await pg.inner_text(".bt-opt")
+        check("5 combinations (7 more only change settings that are off" in line, "the count leaves out combinations that only change settings that are off")
+        await pg.click("button:has-text('Run optimization')")
+        await pg.wait_for_function("() => /Optimization done|Stopped|failed|more than/.test(document.querySelector('.bt-optstat span')?.textContent || '')", timeout=600000)
+        check((await pg.locator(".bt-optstat span").first.inner_text()).startswith("Optimization done"), "it runs")
+        head = await pg.inner_text(".bt-reshead")
+        check("5 of 5 combinations (7 not run: they only changed settings that were off)" in head, f"5 runs, 7 not run ({head[:160]})")
+        n_rows = await pg.locator(".bt-rtable tbody tr").count()
+        check(n_rows == 4 and await pg.locator(".bt-rtable .bt-samen").count() == 1, f"MODE a with FAST 3 and 5 made the same trades: one row, +1 ({n_rows})")
+        await pg.check(".bt-same input")
+        check(await pg.locator(".bt-rtable tbody tr").count() == 5, "Show the ones with the same trades: all 5")
+        offs = await pg.evaluate("() => [...document.querySelectorAll('.bt-rtable tbody tr')].map(tr => [...tr.querySelectorAll('td')].slice(1, 4).map(td => td.textContent + (td.classList.contains('bt-off') ? '*' : '')).join(' '))")
+        check(all(("b" in r.split()[0] and r.split()[1].endswith("*") and not r.split()[2].endswith("*")) or ("a" in r.split()[0] and r.split()[2].endswith("*") and not r.split()[1].endswith("*")) or (r.split()[0] == "off" and r.split()[1].endswith("*") and r.split()[2].endswith("*")) for r in offs), f"settings that were off are shown so ({offs})")
+        await pg.screenshot(path=f"{OUT}/backtest-8-opt-when.png")
         check(not errors, f"no page errors: {errors}")
         await ctx.close()
 

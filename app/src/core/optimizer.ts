@@ -9,6 +9,8 @@ import { optFmt, optLabel, type Mode, type Costs, type Setting } from './backtes
 import type { Closed } from './account';
 import type { Series } from './series';
 import type { PropConfig, PropStats } from './prop';
+import { parseWhen, stripWhen, sameVal, type When } from './when';
+export { parseWhen, stripWhen, type When };
 
 export { optFmt, optLabel };
 export const OPT_CAP = 20000, OPT_CAP_SMALL = 300;
@@ -181,8 +183,56 @@ export function parseRules(rules: string[], ticked: string[]): { ok: (c: Combo) 
 }
 
 /* ---- combinations ---- */
-export interface Space { params: Array<{ name: string; values: Setting[] }>; rules?: string[] }
+/* ---- settings that only matter for some values of another: a note in the setting's comment, like
+ *   const CHOP_ATR_LEN = 35;  // only when CHOP_MODE is "ATR" or "both"
+ *   USE_TRAIL_TICKS = 8       # only when USE_TRAIL
+ * ("only when NAME", "only when not NAME", "only when NAME is X or Y", "only when NAME is not X"; "only if" too).
+ * Where it is off, a combination keeps the setting at its value in the code, so combinations that differ only there
+ * are one run. ---- */
+/** whether a setting with this note is used when the setting it names has value v */
+export function whenOn(w: When, v: Setting): boolean { const m = w.vals ? w.vals.some(x => sameVal(x, v)) : truthy(v); return w.not ? !m : m; }
+/** the notes of a script's settings, by name, keeping those that name another setting there is */
+export function whenOf(params: Array<{ name: string; comment?: string }>): Record<string, When> {
+  const names = new Set(params.map(p => p.name)), out: Record<string, When> = {};
+  for (const p of params) { const w = parseWhen(p.comment); if (w && w.on !== p.name && names.has(w.on)) out[p.name] = w; }
+  return out;
+}
+/** a combination with every setting that is off (by its note) back at its value in the code (base) */
+export function settle(c: Combo, when?: Record<string, When>, base?: Combo): Combo {
+  if (!when || !base) return c;
+  let out = c;
+  for (let pass = 0; pass < 4; pass++) { // a note can name a setting that has a note of its own
+    let changed = false;
+    for (const name in when) {
+      if (!(name in out) || !(name in base)) continue;
+      const w = when[name], v = w.on in out ? out[w.on] : base[w.on];
+      if (v === undefined || whenOn(w, v) || sameVal(out[name], base[name])) continue;
+      if (out === c) out = { ...c };
+      out[name] = base[name]; changed = true;
+    }
+    if (!changed) break;
+  }
+  return out;
+}
+/** the note that makes a setting off in a combination (for showing it so), or null */
+export function offBy(name: string, c: Combo, when?: Record<string, When>, base?: Combo): When | null {
+  const w = when?.[name]; if (!w || !base) return null;
+  const v = w.on in c ? c[w.on] : base[w.on];
+  return v === undefined || whenOn(w, v) ? null : w;
+}
+
+export interface Space { params: Array<{ name: string; values: Setting[] }>; rules?: string[]; when?: Record<string, When>; base?: Combo }
 export const comboTotal = (sp: Space) => sp.params.reduce((s, p) => s * p.values.length, 1);
+/** how many different combinations there are once settings that are off are left at their value (null: too many to
+ *  count, over `limit`) */
+export function distinctTotal(sp: Space, limit = 300000): number | null {
+  const total = comboTotal(sp);
+  if (!sp.when || !Object.keys(sp.when).length) return total;
+  if (total > limit) return null;
+  const seen = new Set<string>();
+  for (let i = 0; i < total; i++) seen.add(optLabel(settle(comboAt(sp, i), sp.when, sp.base)));
+  return seen.size;
+}
 /** combination number i, the last setting varying fastest */
 export function comboAt(sp: Space, i: number): Combo {
   const d: Combo = {};
@@ -193,12 +243,17 @@ export function comboAt(sp: Space, i: number): Combo {
 export const mulberry32 = (seed: number) => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
 /** grid or random combinations, as Python's _tr_combos: {combos, total, skipped} or {error}. Random order comes
  * from mulberry32(seed) (Python's version uses random.Random: the same idea, other picks). */
-export function combos(sp: Space & { mode: 'grid' | 'random'; n?: number; seed?: number; cap?: number }): { combos: Combo[]; idx: number[]; total: number; skipped: number } | { error: string; total?: number } {
+export function combos(sp: Space & { mode: 'grid' | 'random'; n?: number; seed?: number; cap?: number }): { combos: Combo[]; idx: number[]; total: number; skipped: number; repeats: number } | { error: string; total?: number } {
   const params = sp.params.filter(p => p.values.length);
   const space = { params }, total = comboTotal(space), cap = sp.cap ?? OPT_CAP;
   const r = parseRules(sp.rules || [], params.map(p => p.name)); if ('error' in r) return r;
-  const out: Combo[] = [], idx: number[] = []; let skipped = 0;
-  const take = (i: number) => { const c = comboAt(space, i); if (r.ok(c)) { out.push(c); idx.push(i); } else skipped++; };
+  const out: Combo[] = [], idx: number[] = [], seen = new Set<string>(); let skipped = 0, repeats = 0;
+  // a combination that differs from one taken only in settings that are off is the same run: not taken again
+  const take = (i: number) => {
+    const c = settle(comboAt(space, i), sp.when, sp.base);
+    if (sp.when) { const k = optLabel(c); if (seen.has(k)) { repeats++; return; } seen.add(k); }
+    if (r.ok(c)) { out.push(c); idx.push(i); } else skipped++;
+  };
   if (sp.mode === 'random') {
     const n = Math.max(1, Math.round(sp.n ?? 100)), rnd = mulberry32(sp.seed ?? 1);
     if (total <= 200000) { // a lazy shuffle of every index
@@ -208,18 +263,30 @@ export function combos(sp: Space & { mode: 'grid' | 'random'; n?: number; seed?:
       const seen = new Set<number>();
       for (let k = 0; k < n * 20 && out.length < n; k++) { const i = Math.floor(rnd() * total); if (!seen.has(i)) { seen.add(i); take(i); } }
     }
-    return { combos: out, idx, total, skipped };
+    return { combos: out, idx, total, skipped, repeats };
   }
-  if (total > cap) return { error: `${total.toLocaleString('en-US')} combinations is more than ${cap.toLocaleString('en-US')}. Narrow the ranges, or use a random sample.`, total };
-  for (let i = 0; i < total; i++) take(i);
-  return { combos: out, idx, total, skipped };
+  const tooMany = (n: number) => ({ error: `${n.toLocaleString('en-US')} combinations is more than ${cap.toLocaleString('en-US')}. Narrow the ranges, or use a random sample.`, total });
+  if (total > cap && (!sp.when || total > 5e6)) return tooMany(total);
+  for (let i = 0; i < total; i++) { take(i); if (out.length > cap) return tooMany(distinctTotal({ ...space, when: sp.when, base: sp.base }, 5e6) ?? total); }
+  return { combos: out, idx, total, skipped, repeats };
 }
 
 /* ---- results and scores ---- */
 export interface Seg { trades: number; net: number; win: number | null; pf: number | null; dd: number }
 export interface SimRes { attempts: number; fees: number; income: number; take: number; label: string; passed: number; live: number; nPay: number; avgPay: number; maxPay: number }
 /** one run's figures: a = closed trades exiting before the Check period, b = in it (null without one) */
-export interface OptRes { fail?: string; a?: Seg; b?: Seg | null; sim?: SimRes | null; open?: number; tr?: number[] }
+export interface OptRes { fail?: string; a?: Seg; b?: Seg | null; sim?: SimRes | null; open?: number; tr?: number[];
+  /** the trades' fingerprint (every trade's times, size and net): runs with the same one made exactly the same trades */
+  fp?: string }
+/** a fingerprint of closed trades: entry and exit times, size and net of each, in order */
+export function tradesPrint(hist: ArrayLike<Closed>): string {
+  let h1 = 0xdeadbeef ^ hist.length, h2 = 0x41c6ce57 ^ hist.length;
+  const mix = (x: number) => { h1 = Math.imul(h1 ^ x, 2654435761); h2 = Math.imul(h2 ^ x, 1597334677); };
+  for (let k = 0; k < hist.length; k++) { const x = hist[k]; mix(x.time | 0); mix(x.exitTime | 0); mix(Math.round(x.qty * 1e4)); mix(Math.round(x.net * 100)); mix(x.side); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(36) + (h1 >>> 0).toString(36) + ':' + hist.length;
+}
 /** closed trades exiting in [lo, hi): count, net, win %, profit factor (1e9 for no losses), and the max drawdown of
  * their running net (from 0), not the account's */
 export function seg(hist: ArrayLike<Closed> | Closed[], lo: number, hi: number): Seg {
@@ -236,7 +303,7 @@ export function seg(hist: ArrayLike<Closed> | Closed[], lo: number, hi: number):
 /** a worker run's result (the totals) */
 export function totals(hist: Closed[], open: number, splitT: number | null, withTrades = false): OptRes {
   const a = seg(hist, -Infinity, splitT == null ? Infinity : splitT), b = splitT == null ? null : seg(hist, splitT, Infinity);
-  const res: OptRes = { a, b, sim: null, open };
+  const res: OptRes = { a, b, sim: null, open, fp: tradesPrint(hist) };
   if (withTrades) { const tr: number[] = []; for (const x of hist) tr.push(x.exitTime, Math.round(x.net * 100) / 100); res.tr = tr; }
   return res;
 }
@@ -383,20 +450,24 @@ export interface OptConfig extends Space {
   batch?: number;
   /** results already known (resume, zoom): by optLabel(combo); these are not run again */
   cache?: Map<string, OptRes>;
+  /** settings that are only used for some values of another (their notes), and every setting's value in the code */
+  when?: Record<string, When>; base?: Combo;
 }
 export interface OptOutput {
   /** what ran, in order: combos[i] has rows' result i (the saved document's combos and rows) */
   combos: Combo[]; rows: OptRow[];
   total: number; skipped: number; error?: string; firstErr: string; stopped: boolean;
   best: OptRow | null;
+  /** combinations not run because they differ from one that was only in settings that are off */
+  repeats: number;
 }
 export interface OptProgress { done: number; planned: number; best: OptRow | null }
 /** the default smart budget for a grid of `total` */
 export const smartBudget = (total: number, cap = OPT_CAP) => Math.min(cap, total, Math.max(60, Math.ceil(total / 10)));
 
 export async function optimize(cfg: OptConfig, runTasks: RunTasks, hooks: { progress?: (p: OptProgress) => void; stopped?: () => boolean } = {}): Promise<OptOutput> {
-  const params = cfg.params.filter(p => p.values.length), space = { params, rules: cfg.rules }, total = comboTotal(space), cap = cfg.cap ?? OPT_CAP;
-  const out: OptOutput = { combos: [], rows: [], total, skipped: 0, firstErr: '', stopped: false, best: null };
+  const params = cfg.params.filter(p => p.values.length), space = { params, rules: cfg.rules, when: cfg.when, base: cfg.base }, total = comboTotal(space), cap = cfg.cap ?? OPT_CAP;
+  const out: OptOutput = { combos: [], rows: [], total, skipped: 0, firstErr: '', stopped: false, best: null, repeats: 0 };
   if (!params.length) return { ...out, error: 'Tick at least one setting to try.' };
   const stopped = () => !!(hooks.stopped && hooks.stopped());
   const better = (r: OptRow) => { r.score = optScore(r.res, cfg.goal, cfg.minTrades); if (isFinite(r.score) && (!out.best || r.score > out.best.score! || (r.score === out.best.score && r.i < out.best.i))) out.best = r; };
@@ -422,7 +493,7 @@ export async function optimize(cfg: OptConfig, runTasks: RunTasks, hooks: { prog
     const cr = combos({ ...space, mode: cfg.search, n: Math.min(cfg.n ?? 200, cap), seed: cfg.seed, cap });
     if ('error' in cr) return { ...out, error: cr.error };
     if (!cr.combos.length) return { ...out, error: 'No combinations are left after the rules.' };
-    out.skipped = cr.skipped;
+    out.skipped = cr.skipped; out.repeats = cr.repeats;
     await exec(cr.combos, cr.combos.length);
     out.stopped ||= stopped();
     return out;
@@ -433,23 +504,27 @@ export async function optimize(cfg: OptConfig, runTasks: RunTasks, hooks: { prog
   const categorical = params.map(p => !p.values.every(v => typeof v === 'number'));
   const sizes = params.map(p => p.values.length);
   const gridIdx = (pt: Pt) => { let i = 0; for (let d = 0; d < pt.length; d++) i = i * sizes[d] + order[d][pt[d]]; return i; };
-  const comboOf = (pt: Pt) => { const c: Combo = {}; params.forEach((p, d) => { c[p.name] = p.values[order[d][pt[d]]]; }); return c; };
-  const budget = Math.min(cap, total, Math.max(1, Math.round(cfg.n ?? smartBudget(total, cap))));
+  const rawCombo = (pt: Pt) => { const c: Combo = {}; params.forEach((p, d) => { c[p.name] = p.values[order[d][pt[d]]]; }); return c; };
+  const comboOf = (pt: Pt) => settle(rawCombo(pt), cfg.when, cfg.base);
+  // a point's key: settings that are off count as their first value, so points differing only there are one run
+  const keyOf = !cfg.when ? gridIdx : (pt: Pt) => { const c = comboOf(pt); return gridIdx(params.map((p, d) => offBy(p.name, c, cfg.when, cfg.base) ? 0 : pt[d])); };
+  const distinct = distinctTotal(space) ?? total;
+  const budget = Math.min(cap, distinct, Math.max(1, Math.round(cfg.n ?? smartBudget(distinct, cap))));
   let refused = 0;
-  if (budget >= total) { // small enough to try everything: the grid
+  if (budget >= distinct) { // small enough to try everything: the grid
     const cr = combos({ ...space, mode: 'grid', cap: Infinity });
     if ('error' in cr) return { ...out, error: cr.error };
     if (!cr.combos.length) return { ...out, error: 'No combinations are left after the rules.' };
-    out.skipped = cr.skipped;
+    out.skipped = cr.skipped; out.repeats = cr.repeats;
     await exec(cr.combos, cr.combos.length);
     out.stopped ||= stopped();
     return out;
   }
-  await smartSearch(sizes, categorical, gridIdx, pt => { const okk = rules.ok(comboOf(pt)); if (!okk) refused++; return okk; }, async pts => {
+  await smartSearch(sizes, categorical, keyOf, pt => { const okk = rules.ok(comboOf(pt)); if (!okk) refused++; return okk; }, async pts => {
     const res = await exec(pts.map(comboOf), budget);
     return res.map(r => optScore(r, cfg.goal, cfg.minTrades));
   }, { budget, seed: cfg.seed, batch: cfg.batch }, () => stopped() || out.stopped);
-  out.skipped = refused;
+  out.skipped = refused; out.repeats = total - distinct;
   if (!out.combos.length) return { ...out, error: 'No combinations are left after the rules.' };
   out.stopped ||= stopped();
   return out;
